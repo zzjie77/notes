@@ -1,0 +1,694 @@
+hello world
+	1、导入spring的dist中的jar包和commons-logging包
+	2、在src目录下创建相应的beans.xml
+	3、为beans.xml添加相应的schema (在帮助文档找)
+	<beans xmlns="http://www.springframework.org/schema/beans"
+	       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+		   
+	</beans>
+	4、新建一个类
+	5、在beans.xml中创建对象
+	    <!-- 
+	    创建如下bean等于完成了:HelloWorld helloWorld = new HelloWorld
+	     -->
+		<bean id="helloWorld" class="org.zttc.itat.spring.model.HelloWorld"/>
+	6、在测试类中使用这个对象
+	  6.1、创建Spring的工厂
+		 private BeanFactory factory = new ClassPathXmlApplicationContext("beans.xml");
+	  6.2、通过Spring工厂获取相应的对象
+	    //此处getBean中的helloWorld就是beans.xml配置文件中的id
+		HelloWorld hello = factory.getBean("helloWorld");
+		//此时的hello对象就是被Spring说管理的对象
+		System.out.println(hello.hello());
+
+<!-- autowire=byName表示会根据name来完成注入，
+byType表示根据类型注入 ,使用byType注入如果一个类中有两个同类型的对象就会抛出异常
+所以在开发中一般都是使用byName
+虽然自动注入可以减少配置，但是通过bean文件无法很好了解整个类的结构，所以不建议使用autowire-->
+<bean id="userService" class="org.zttc.itat.spring.service.UserService">
+	<!-- name中的值会在userService对象中调用setXX方法来注入，诸如:name="userDao"
+	在具体注入时会调用setUserDao(IUserDao userDao)来完成注入
+	ref="userDao"表示是配置文件中的bean中所创建的DAO的id -->
+	<property name="userDao" ref="userDao" />
+	<property name="name" value="zhangsan"/>  <!-- 注入普通属性，使用value -->
+	<property name="list">   <!-- 注入list -->
+		<list>
+			<value>aa</value>
+			<value>bb</value>
+		</list>
+	</property>
+</bean>
+
+Annotation
+	1. 在beans.xml中加上context的schema
+	2. 在beans.xml中加上
+		<!-- 打开Spring的Annotation支持 -->
+		<context:annotation-config/>
+		<!-- 设定Spring 去哪些包中找Annotation -->
+		<context:component-scan base-package="com.zzjie.spring"/>
+	3. 在UserDao上加上 @Component("userDao"), 等于完成了<bean id="userDao" class="com.zzjie.spring.dao.UserDao" />
+	   @Component是公共的创建bean的annation，在spring3之后建议细分，如dao使用 @Repository, service使用 @Service, controller使用 @Controller
+	4. 在UserService中的setUserDao方法上加上 @Resource就能自动按名称完成注入。 不建议使用 @AutoWired（默认按类型注入）
+
+动态代理
+/**
+ * 1、写一个类实现InvocationHandler接口
+ */
+public class LogProxy implements InvocationHandler {
+	private LogProxy(){}
+	//2、创建一个代理对象
+	private Object target;
+	//3、创建一个方法来生成对象,这个方法的参数是要代理的对象,getInstacne所返回的对象就是代理对象
+	public static Object getInstance(Object o) {
+		//3.1、创建LogProxy对象
+		LogProxy proxy = new LogProxy();
+		//3.2、设置这个代理对象
+		proxy.target = o;
+		//3.3、通过Proxy的方法创建代理对象，第一个参数是要代理对象的classLoader
+		//第二个参数是要代理对象实现的所有接口,第三个参数是实现类InvocationHandler的对象
+		//此时的result就是一个代理对象，代理的是o
+		Object result = Proxy.newProxyInstance(o.getClass().getClassLoader(), 
+					o.getClass().getInterfaces(), proxy);
+		return result;
+	}
+	/**
+	 * 当有了代理对象之后，不管这个代理对象执行什么方法，都会调用以下的invoke方法
+	 */
+	@Override
+	public Object invoke(Object proxy, Method method, Object[] args)
+			throws Throwable {
+//		if(method.getName().equals("add")||method.getName().equals("delete")) {  //通过method判断来控制在什么方法上记录日志
+//			Logger.info("进行了相应的操作");
+//		}
+		if(method.isAnnotationPresent(LogInfo.class)) {   //使用annotation精确控制在什么方法上记录日志以及要记录日志的信息
+			LogInfo li = method.getAnnotation(LogInfo.class);
+			Logger.info(li.value());
+		}
+		Object obj = method.invoke(target, args);
+		
+		return obj;
+	}
+
+}
+
+aop
+	1. annotation方式：
+		1. 先在benas.xml中加上aop的schema
+		2.  <!-- 打开基于Annotation的AOP -->
+		    <aop:aspectj-autoproxy/>
+		3. 加入AsceptJ的jar包，spring使用aspectj来管理aop的
+		4. 编写切面类
+			@Component("logAspect")//让这个切面类被Spring所管理
+			@Aspect//申明这个类是一个切面类
+			public class LogAspect {
+				
+				/**
+				 * execution(* org.zttc.itat.spring.dao.*.add*(..))
+				 * 第一个*表示任意返回值
+				 * 第二个*表示 org.zttc.itat.spring.dao包中的所有类
+				 * 第三个*表示以add开头的所有方法
+				 * (..)表示任意参数
+				 */
+				@Before("execution(* org.zttc.itat.spring.dao.*.add*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.delete*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.update*(..))")
+				public void logStart(JoinPoint jp) {  //JoinPoint jp可以不加，加了会自动传入，可获得被调用对象的更多信息
+					//得到执行的对象
+					System.out.println(jp.getTarget());
+					//得到执行的方法
+					System.out.println(jp.getSignature().getName());
+					Logger.info("加入日志");
+				}
+				/**
+				 * 函数调用完成之后执行
+				 * @param jp
+				 */
+				@After("execution(* org.zttc.itat.spring.dao.*.add*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.delete*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.update*(..))")
+				public void logEnd() {
+					Logger.info("方法调用结束加入日志");
+				}
+				
+				/**
+				 * 函数调用中执行
+				 * @param pjp
+				 * @throws Throwable
+				 */
+				@Around("execution(* org.zttc.itat.spring.dao.*.add*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.delete*(..))||" +
+						"execution(* org.zttc.itat.spring.dao.*.update*(..))")
+				public void logAround(ProceedingJoinPoint pjp) throws Throwable {
+					Logger.info("开始在Around中加入日志");
+					pjp.proceed();//执行程序
+					Logger.info("结束Around");
+				}
+			}
+
+	2. xml方式：
+		1. 先在beans.xml中加上aop的schema
+		2. 加入AsceptJ的jar包，spring使用aspectj来管理aop的
+		3. 在beans.xml中配置aop
+			<aop:config>
+			<!-- 定义切面 -->
+				<aop:aspect id="myLogAspect" ref="logAspect">
+				<!-- 在哪些位置加入相应的Aspect -->
+					<aop:pointcut id="logPointCut" expression="execution(* org.zttc.itat.spring.dao.*.add*(..))||
+									execution(* org.zttc.itat.spring.dao.*.delete*(..))||
+									execution(* org.zttc.itat.spring.dao.*.update*(..))"/>
+					<aop:before method="logStart" pointcut-ref="logPointCut"/>
+					<aop:after method="logEnd" pointcut-ref="logPointCut"/>
+					<aop:around method="logAround" pointcut-ref="logPointCut"/>
+				</aop:aspect>
+			</aop:config>
+
+jdbc
+	1、导入Spring的包和数据库的驱动包
+	2、选择一个数据源（DBCP和C3p0）
+	3、导入数据源的包:DBCP
+	4、在beans.xml中创建dataSource数据源 
+	5、创建一个jdbc.properties文件来设置数据库的连接信息
+		jdbc.driverClassName=com.mysql.jdbc.Driver
+		jdbc.url = jdbc:mysql://localhost:3306/spring_teach
+		jdbc.username = root
+		jdbc.password = 123456
+	6、在beans.xml中导入相应的properties文件
+		<context:property-placeholder location="jdbc.properties"/>
+	7、写相应的DAO，并且为这个DAO创建一个JDBCTemplate对象，通过JdbcTemplate对象可以方便的完成对数据库的操作
+	8、为DAO注入相应的DataSource并且创建JdbcTemplate
+		private JdbcTemplate jdbcTemplate;
+		@Resource
+		public void setDataSource(DataSource dataSource) {
+			jdbcTemplate = new JdbcTemplate(dataSource);
+		}
+	9、完成数据对象的添加
+	CRUD:
+		public void add(User user,int gid) {
+			jdbcTemplate.update("insert into t_user(username,password,nickname,gid) value (?,?,?,?)",
+					user.getUsername(),user.getPassword(),user.getNickname(),gid);
+		}
+
+		public void update(User user) {
+			jdbcTemplate.update("update t_user set username=?,password=?,nickname=? where id=?",
+					user.getUsername(),user.getPassword(),user.getNickname(),user.getId());
+		}
+
+		public void delete(int id) {
+			jdbcTemplate.update("delete from t_user where id=?",id);
+		}
+
+		问题： 在gourpService中执行添加后
+		Group g = new Group("aa");
+		groupDao.add(g);
+		//添加完后，g中的id由数据库自动按自增策略生成。 此时无法获得。
+		解决： 修改groupDao中的add方法如下
+		public void add(final Group group) {
+			/** 通过以下方法可以添加一个对象，并且获取这个对象自动递增的id */
+			KeyHolder keyHolder = new GeneratedKeyHolder();
+			jdbcTemplate.update(new PreparedStatementCreator() {
+				@Override
+				public PreparedStatement createPreparedStatement(Connection con) throws SQLException {
+					String sql = "insert into t_group (name) value(?)";
+					PreparedStatement ps = con.prepareStatement(sql,new String[]{"id"});
+					ps.setString(1, group.getName());
+					return ps;
+				}
+			},keyHolder);
+			group.setId(keyHolder.getKey().intValue());
+		}
+	查询：
+		public User load(int id) {
+			String sql = "select t1.id uid,t1.*,t2.* from t_user t1 left join t_group t2 on(t1.gid=t2.id) where t1.id=?";
+			/*
+			 * 第一个参数是SQL语句
+			 * 第二个参数是SQL语句中的参数值，需要传入一个对象数组
+			 * 第三个参数是一个RowMapper,这个rowMapper可以完成一个对象和数据库字段的对应，实现这个RowMapper需要
+			 * 实现mapRow方法，在mapRow方法中有rs这个参数，通过rs可以有效的获取数据库的字段
+			 * 如果这个方法在该DAO中会被重复使用，建议通过内部类来解决，而不要使用匿名的内部类
+			 */
+			User u = (User)jdbcTemplate.queryForObject(sql, new Object[]{id},new UserMapper());
+			return u;
+		}
+
+		@Override
+		public List<User> list(String sql,Object[] args) {
+			String sqlCount = "select count(*) from t_user";
+			//获取整数值
+			int count = jdbcTemplate.queryForInt(sqlCount);
+			System.out.println(count);
+			String nCount = "select nickname from t_user";
+			//获取String类型的列表
+			List<String> ns = jdbcTemplate.queryForList(nCount,String.class);
+			for(String n:ns) {
+				System.out.println("--->"+n);
+			}
+			String tSql = "select username,nickname from t_user";
+			//无法取出user
+			/*List<User> us = jdbcTemplate.queryForList(tSql, User.class);
+			for(User u:us) {
+				System.out.println(u);
+			}*/
+			//对象数组也无法返回
+			/*List<Object[]> os = jdbcTemplate.queryForList(tSql, Object[].class);
+			for(Object[] oo:os) {
+				System.out.println(oo[0]+","+oo[1]);
+			}*/
+			
+			List<User> us = jdbcTemplate.query(tSql,new RowMapper<User>(){
+				@Override
+				public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+					User u = new User();
+					u.setNickname(rs.getString("nickname"));
+					u.setUsername(rs.getString("username"));
+					return u;
+				}
+			});
+			for(User u:us) {
+				System.out.println(u);
+			}
+			return jdbcTemplate.query(sql, args, new UserMapper());
+		}
+		
+		private class UserMapper implements RowMapper<User> {
+			@Override
+			public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+				Group g = new Group();
+				g.setName(rs.getString("name"));
+				g.setId(rs.getInt("gid"));
+				User u = new User();
+				u.setGroup(g);
+				u.setId(rs.getInt("uid"));
+				u.setNickname(rs.getString("nickname"));
+				u.setPassword(rs.getString("password"));
+				u.setUsername(rs.getString("username"));
+				return u;
+			}
+		}
+	
+让Junit运行在Spring的测试环境中
+	/** 当使用了以下注释之后，就可以直接在Test中进行依赖注入*/
+	//让Junit运行在Spring的测试环境中
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@ContextConfiguration("/beans.xml")//加载beans.xml文件
+	public class TestJdbc 
+
+数据源配置（在spring中的dbcp）：
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+		<!-- 配置连接池的初始值 -->
+		<property name="initialSize" value="1" />
+		<!-- 连接池的最大值 -->
+		<!-- <property name="maxActive" value="500"/> -->
+		<!-- 最大空闲时，当经过一个高峰之后，连接池可以将一些用不到的连接释放，一直减少到maxIdle为止 -->
+		<!-- <property name="maxIdle" value="2"/> -->
+		<!-- 当最小空闲时，当连接少于minIdle时会自动去申请一些连接 -->
+		<property name="minIdle" value="1" />
+		<property name="maxActive" value="100" />
+		<property name="maxIdle" value="20" />
+		<property name="maxWait" value="1000" />
+	</bean>
+
+集成hibernate3
+	集成hibernate3和4有一定的区别，目前基本都在使用3，所以该部分的内容以3为基础
+	1、导入hibernate的包和Spring的包
+	   1.1、导入Spring的依赖包
+	   1.2、导入Log4j的依赖包
+	   1.3、导入dbcp的依赖包
+	   1.4、导入Hibernate3的依赖包(hibernate3.jar,require文件中的所有,slf4j-api.jar,jpa文件夹中的包)
+	2、创建beans.xml
+		2.1、使用DBCP创建dataSource(和集成JDBC一样)
+		2.2、创建Hibernate的SessionFactory
+			<!--创建Spring的SessionFactory工厂，注意使用jpa就不能用LocalSessionFactoryBean（没有packagesToScan属性），而是使用AnnotationSessionFactoryBean  -->
+			<bean id="sessionFactory" class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+				<!-- 注入数据源 -->
+				<property name="dataSource" ref="dataSource" />
+				<!-- 设置Spring取那个包中查找相应的实体类 -->
+				<property name="packagesToScan">
+					<value>org.zttc.itat.model</value>
+				</property>
+				<property name="hibernateProperties">
+				<!-- 	<value>
+						hibernate.dialect=org.hibernate.dialect.HSQLDialect
+					</value> -->
+					<props>
+						<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+						<prop key="hibernate.show_sql">true</prop>
+						<prop key="hibernate.hbm2ddl.auto">update</prop>
+						<prop key="hibernate.format_sql">false</prop>
+					</props>
+				</property>
+			 </bean>
+	3、为实体类添加hibernate的Annotation或者hbm文件
+	4、创建基于Hibernate的DAO
+		4.1、在相应的DAO中注入相应的SessionFactory
+		4.2、如果通过Spring来管理相应的SessionFactory,不再使用factory.openSession()开启session，而应该是一facotry.getCurrentSession来打开Session，这个Session就会被Spring
+		所管理，此时开发人员不用进行事务控制，也不用关闭Session，全部有Spring容器来完成
+		注： 上面是直接使用SessionFactory的方式，spring还提供了HibernateTemplate, HibernateDaoSupport的方式
+	5、配置Spring事务处理，只有配置了事务处理之后，Spring才能有效的管理事务
+		<!-- 配置Spring的事务处理 -->
+			<!-- 创建事务管理器-->
+			<bean id="txManager"
+				class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+				<property name="sessionFactory" ref="sessionFactory" />
+			</bean>
+		<!-- 配置AOP，Spring是通过AOP来进行事务管理的 -->
+			<aop:config>
+			<!-- 设置pointCut表示哪些方法要加入事务处理 -->
+				<aop:pointcut id="allMethods"
+					expression="execution(* org.zttc.itat.dao.*.*(..))" />
+				<!-- 通过advisor来确定具体要加入事务控制的方法 -->
+				<aop:advisor advice-ref="txAdvice" pointcut-ref="allMethods" />
+			</aop:config>
+		<!-- 配置哪些方法要加入事务控制 -->
+			<tx:advice id="txAdvice" transaction-manager="txManager">
+				<tx:attributes>
+				<!-- 让所有的方法都加入事务管理 -->
+					<tx:method name="*" propagation="REQUIRED"/>
+				</tx:attributes>
+			</tx:advice>
+		
+HibernateTemplate： 
+	1. beans.xml
+		<!-- 开启HibernateTemplate，并且为其注入SessionFactory
+		使用HibernateTemplate不太方便的就是要获取session得通过getSessionFactory()方法获取 -->
+		<bean id="hibernateTemplate" class="org.springframework.orm.hibernate3.HibernateTemplate">
+			<property name="sessionFactory" ref="sessionFactory"/>
+		</bean>
+	2. baseDao
+		private HibernateTemplate hibernateTemplate;
+
+		public HibernateTemplate getHibernateTemplate() {
+			return hibernateTemplate;
+		}
+
+		@Resource
+		public void setHibernateTemplate(HibernateTemplate hibernateTemplate) {
+			this.hibernateTemplate = hibernateTemplate;
+		}
+	3. 使用
+		getHibernateTemplate().save(o);       getHibernateTemplate().....会在模版方法中自动openSession,close 所以不必关心
+
+	注： HibernateTemplate进行hql查询不方便，要创建Query得这样getHibernateTemplate().getSessionFactory.getSession().createQuery();
+
+HibernateDaoSupport:
+	1. baseDao
+		public class BaseDao extends HibernateDaoSupport{
+			/** 不能使用setSessionFactory，因为这是HibernateDaoSupport的final方法，无法覆盖*/
+			@Resource(name="sessionFactory")
+			public void setSuperSessionFactory(SessionFactory sessionFactory) {
+				super.setSessionFactory(sessionFactory);
+			}
+		}
+	2. 使用
+		继承了HibernateDaoSupport，就会有hibernateTempllate.直接在dao中getHibernateTemplate就可以
+		要获取session也很方便，直接在dao中getSession()即可
+
+一个较通用的BaseDao
+	/**
+	 * 可以考虑把所有公共的方法都写在baseDAo中，这个时候，让所有的DAO都继承BaseDao
+	 * 这样基本上就实现了大量的基础方法，如果DAO中有一些特殊的方法，再在具体的实现类的DAO中创建
+	 */
+	public class BaseDao<T> extends HibernateDaoSupport implements IBaseDao<T>{
+		/**
+		 * 此处不能使用setSessionFactory注入，因为setSessionFactory在HibernateDaoSupport
+		 * 中已经定义了而且还是final的，所以不能被覆盖
+		 * @param sessionFactory
+		 */
+		@Resource(name="sessionFactory")
+		public void setSuperSessionFactory(SessionFactory sessionFactory) {
+			super.setSessionFactory(sessionFactory);
+		}
+		/**
+		 * 创建一个Class的对象来获取泛型的class
+		 */
+		private Class<T> clz;
+		
+		@SuppressWarnings("unchecked")
+		public Class<T> getClz() {
+			if(clz==null) {
+				//获取泛型的Class对象
+				clz = ((Class<T>)
+						(((ParameterizedType)(this.getClass().getGenericSuperclass())).getActualTypeArguments()[0]));
+			}
+			return clz;
+		}
+
+		public void add(T t) {
+			this.getHibernateTemplate().save(t);
+		}
+
+		public void delete(int id) {
+			this.getHibernateTemplate().delete(this.load(id));
+		}
+
+		public void update(T t) {
+			this.getHibernateTemplate().update(t);
+		}
+
+		public T load(int id) {
+	//		return this.getHibernateTemplate().load(T.c, id);
+			return this.getHibernateTemplate().load(getClz(), id);
+		}
+
+		public List<T> list(String hql, Object[] args) {
+			Query u = this.getSession().createQuery(hql);
+			for(int i=0;i<args.length;i++) {
+				u.setParameter(0, args[0]);
+			}
+			List<T> list = u.list();
+			return list;
+		}
+
+		public List<T> list(String hql) {
+			return this.list(hql,null);
+		}
+
+		public List<T> list(String hql, Object arg) {
+			return this.list(hql,new Object[]{arg});
+		}
+
+		//分页查询
+		public Pager<T> find(String hql, Object[] args) {
+			Pager<T> pages = new Pager<T>();
+			int pageOffset = SystemContext.getPageOffset();
+			int pageSize = SystemContext.getPageSize();
+			Query q = this.getSession().createQuery(hql);
+			Query cq = this.getSession().createQuery(getCountHql(hql));
+			if(args!=null) {
+				int index = 0;
+				for(Object arg:args) {
+					q.setParameter(index, arg);
+					cq.setParameter(index, arg);
+					index++;
+				}
+			}
+			long totalRecord = (Long)cq.uniqueResult();
+			q.setFirstResult(pageOffset);
+			q.setMaxResults(pageSize);
+			List<T> datas = q.list();
+			pages.setDatas(datas);
+			pages.setPageOffset(pageOffset);
+			pages.setPageSize(pageSize);
+			pages.setTotalRecord(totalRecord);
+			return pages;
+		}
+		
+		private String getCountHql(String hql) {
+			//1、获取from前面的字符串
+			String f = hql.substring(0, hql.indexOf("from"));
+			//2、将from前面的字符串替换为select count(*) 
+			if(f.equals("")) {
+				hql = "select count(*) "+hql;
+			} else {
+				hql = hql.replace(f, "select count(*) ");
+			}
+			//3、将fetch替换为""，因为抓取查询不能使用count(*)
+			hql = hql.replace("fetch"," ");
+			return hql;
+		}
+
+		public Pager<T> find(String hql, Object arg) {
+			return this.find(hql,new Object[]{arg});
+		}
+
+		public Pager<T> find(String hql) {
+			return this.find(hql,null);
+		}
+	}
+	
+整合struts2
+	1、导入Struts2的包(导入之后检查一下是否存在有冲突的包)
+	2、导入Struts2和Spring的整合包（struts2-spring-plugin-2.3.4.1.jar）
+	3、配置Struts2的struts.xml文件
+		<!-- 表示Action由Spring来进行创建，可以直接使用Spring依赖注入来注入 -->
+		<constant name="struts.objectFactory" value="org.apache.struts2.spring.StrutsSpringObjectFactory" /><!-- struts2文档可以找到 -->
+	4、创建action
+		/**
+		 * 此时等于用Spring来创建了userAction对象,在struts的配置文件中写action的class的时候
+		 * 就不能写完整类名，而应该是userAction中对象
+		 */
+		@Controller("userAction")
+	5、重新配置struts.xml的基于通配符的访问方式
+		<!-- 基于通配符的方式，由于整合了Spring在class中就不用再使用完成的类了
+		而应该使用Spring所注入的对象，如果userAction就应该使用userAction来创建。
+		此处特别注意，第一个字母是小写，文件夹就应该使用小写的 -->
+		<action name="*_*" class="{1}Action" method="{2}">
+			<result>/WEB-INF/jsp/{1}/{2}.jsp</result>
+			<result name="input">/WEB-INF/jsp/{1}/{2}Input.jsp</result>
+			<result type="redirect" name="redirect">${url}</result>
+		</action>
+	6、在web.xml中配置获取BeanFacotry的操作
+	 6.1、创建监听器获取Spring的工厂
+	 <!-- 创建Spring的监听器 -->
+	  <listener>
+	    <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	  </listener>
+	  <!-- Spring 的监听器可以通过这个上下文参数来获取beans.xml的位置 -->
+	  <context-param>
+	    <param-name>contextConfigLocation</param-name>
+	    <param-value>classpath*:beans.xml</param-value>
+	  </context-param>
+	  6.2、创建Struts2的过滤器
+		 <filter>
+			<filter-name>struts2</filter-name>
+			<filter-class>org.apache.struts2.dispatcher.ng.filter.StrutsPrepareAndExecuteFilter</filter-class>
+		</filter>
+
+		<filter-mapping>
+			<filter-name>struts2</filter-name>
+			<url-pattern>/*</url-pattern>
+		</filter-mapping>
+
+定义自己的OpenSessionInViewFilter
+	public class OpenSessionFilter implements Filter {
+		//Spring的工厂，在init中获取
+		private static WebApplicationContext wac;
+		private static SessionFactory factory;
+		private static ThreadLocal<Session> sessionHolder = new ThreadLocal<Session>();
+		
+		private static void setSession(Session session) {
+			sessionHolder.set(session);
+		}
+		
+		public static Session getSession() {
+			return sessionHolder.get();
+		}
+		
+		private static void removeSession() {
+			sessionHolder.remove();
+		}
+
+		public void destroy() {
+		}
+
+		@Override
+		public void doFilter(ServletRequest req, ServletResponse resp,
+				FilterChain chain) throws IOException, ServletException {
+			//开启session
+			/**
+			 * 需要获取Spring的工厂
+			 * 如果使用new ClassPathXmlApplicationContext()这种方式来获取Spring的工厂，最大的问题是
+			 * 这是一个新工厂，和Servlet初始化时的工厂是两个对象
+			 * 必须通过其他方法来获取
+			 * 在Spring中可以通过Web
+			 */
+			try {
+				//设置session
+				setSession(factory.openSession());
+				chain.doFilter(req, resp);
+			} finally {
+				//关闭session
+				removeSession();
+			}
+		}
+
+		/**
+		* 以下方法用来获取Spring的工厂和Hibernate的SessionFactory
+		**/
+		public void init(FilterConfig cfg) throws ServletException {
+			/**
+			 * 使用WebApplcaiontContextUtils.getWebApplicationContext(ServletContext)来获取WEb中的Spring工厂
+			 * 这种手段非常重要，一定要熟悉
+			 */
+			wac = WebApplicationContextUtils.getWebApplicationContext(cfg.getServletContext());
+			factory = (SessionFactory)wac.getBean("sessionFactory");
+		}
+
+	}
+
+申明式事务
+	<!-- 配置Spring的事务处理 -->
+		<!-- 创建事务管理器-->
+		<bean id="txManager"
+			class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+			<property name="sessionFactory" ref="sessionFactory" />
+		</bean>
+	<!-- 配置AOP，Spring是通过AOP来进行事务管理的 -->
+		<aop:config>
+		<!-- 设置pointCut表示哪些方法要加入事务处理 -->
+		<!-- 以下的事务是声明在DAO中，但是通常都会在Service来处理多个业务对象逻辑的关系，注入删除，更新等，此时如果在执行了一个步骤之后抛出异常
+			就会导致数据不完整，所以事务不应该在DAO层处理，而应该在service，这也就是Spring所提供的一个非常方便的工具，声明式事务 -->
+			<aop:pointcut id="allMethods"
+				expression="execution(* org.zttc.itat.service.*.*(..))" />
+			<!-- 通过advisor来确定具体要加入事务控制的方法 -->
+			<aop:advisor advice-ref="txAdvice" pointcut-ref="allMethods" />
+		</aop:config>
+	<!-- 配置哪些方法要加入事务控制 -->
+		<tx:advice id="txAdvice" transaction-manager="txManager">
+			<tx:attributes>
+			<!-- 让所有的方法都加入事务管理，为了提高效率，可以把一些查询之类的方法设置为只读的事务 -->
+				<tx:method name="*" propagation="REQUIRED" read-only="true"/>
+				<!-- 以下方法都是可能设计修改的方法，就无法设置为只读 -->
+				<tx:method name="add*" propagation="REQUIRED"/>
+				<tx:method name="del*" propagation="REQUIRED"/>
+				<tx:method name="update*" propagation="REQUIRED"/>
+				<tx:method name="save*" propagation="REQUIRED"/>
+			</tx:attributes>
+		</tx:advice>
+
+分页：
+	struts2结合pagerlib使用时，访问action是xx.action?pager.offset=1,这时可能会出现警告（Ognl异常），Ognl会以为到pager这的对象的offset属性设值为1.
+	可以修改log4j.properties文件把rootLoggoer的级别设置为error，这样就能屏蔽掉warn级别的警告
+
+整合hibernate4:
+	1、导入相应的包
+		spring所有包、struts2 blank app的所有包、 struts2-spring-plugin（在struts里）、commons-logging(spring需要)、
+		log4j、aop（aspectj，spring需要）、数据库驱动、hibernate4的required的包、（可选：jstl、pagertaglib、dbcp）
+		导完包之后删除有冲突的包
+	2、修改配置文件
+	<!-- 
+		和hibernate4整合没有提供专门的针对Annotation的类，直接在LocalSessionFactoryBean中已经集成
+	 -->
+		<bean id="sessionFactory"
+			class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+			..
+		</bean>
+	<!--事务管理也要改成hibernate4的支持-->
+	<!-- 创建事务管理器-->
+		<bean id="txManager"
+			class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+			<property name="sessionFactory" ref="sessionFactory" />
+		</bean>
+	3、OpenSessionInViewer也要改成基于4的版本
+	<filter>
+			<filter-name>openSessionInViewerFilter</filter-name>
+			<filter-class>org.springframework.orm.hibernate4.support.OpenSessionInViewFilter</filter-class>
+			
+	4、在Spring与hibernate4的整合中，已经取消了HibernateTemplate和HibernateDaoSupport这两个方法
+	只能通过session来进行处理
+
+
+
+
+
+
+
+
+
+
+

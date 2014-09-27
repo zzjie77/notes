@@ -1,0 +1,465 @@
+nginx最初是web服务器，现在也可以做负载均衡，邮件服务器，http服务器。并发能力好（并发3w）
+apache 比较稳定，并发能力没那么好（并发3000）
+www.netcraft.com 可以看各个服务器占有率
+
+nginx+apache nginx在前端做负载均衡（根据请求的url把请求分配到不同的服务器上），apache在后端处理
+
+选择nginx的理由
+	高并发的连接 瞬间处理连接数能达到5w（理想），实际3w
+	内存消耗小
+	支持负载均衡
+	支持反向代理
+	成本低廉   相对于硬件的负载均衡来说成本低廉
+
+memcache  指的是内存缓存这个功能
+memcached 软件(分布式内存对象缓存系统，用于web应用减轻数据库的负载)
+
+网络io的连接方式:
+	阻塞io 
+	多路复用io
+
+多路复用又包括select, epoll
+nginx为什么并发是apache的10倍，因为ngnix使用epoll的io连接方式，apache使用select的io方式
+
+安装ngnix时必须安装相应的编译工具：
+	#yum -y install gcc gcc-c++ antoconf automake      后2个一般默认都有，只需安装gcc gcc-c++
+	#yum -y install zlib zlib-devel openssl openssl-devel pcre-devel
+	zlib: ngnix提供的gzip模块，需要zlib库支持。        (压缩功能，能减少带宽，但要消耗cpu等资源)
+	openssl: nginx提供ssl的功能
+	pcre: 支持地址重写的功能
+
+安装步骤(源代码安装)：
+	#tar -zxvf nginx-1.2.5.tar.gz
+	#cd nginx-1.2.5
+	#groupadd -r nginx       (-r表示系统组)
+	#useradd -s /sbin/nologin -g nginx -r nginx   (创建系统匿名用户来运行nginx)
+	#./configure \       (\是分行)  
+	  --prefix=/usr \
+	  --sbin-path=/usr/sbin/nginx \
+	  --conf-path=/etc/nginx/nginx.conf \
+	  --error-log-path=/var/log/nginx/error.log \
+	  --pid-path=/var/run/nginx/nginx.pid \
+	  --lock-path=/var/run/nginx.lock \
+	  --user=nginx \
+	  --group=nginx \
+	  --with-http_ssl_module \               (要xx模块)
+	  --with-http_flv_module \
+	  --with-http_gzip_static_module \
+	  --without....   \                   (不要xx模块)
+	  .....
+	#make && make install
+
+因为不是yum安装，不会自动启动(/etc/init.d里没nginx文件)，手动启动方式： nginx -c /etc/nginx/nginx.conf
+看看有没启动 #ps aux | grep nginx    （看到nginx:master和 nginx:worker）
+看看80端口   #netstat -tulnp | grep nginx        （可看到80端口在nginx监听 ）	
+关闭nginx： #kill -QUIT $(cat /var/run/nginx/nginx.pid)     --$(cat /var/run/nginx/nginx.pid) 进程号
+快速关闭： #kill -TERM $(cat /var/run/nginx/nginx.pid)      TERM 是 15，也可直接写数字
+强制停止所有：#kill -9 ..
+重启：#kill -HUP ..         HUP是1
+检查配置文件语法   /usr/sbin/nginx -t -c /etc/nginx/nginx.conf       t是测试， c是配置文件
+
+
+这样太麻烦了，我们先在另一个台电脑上使用yum来安装nginx,然后把/etc/inint.d/nginx这个启动脚本拷贝到我们电脑上
+因为yum安装不能定制我们需要的模块，所以使用源代码安装，在编译的时候指定好需要的模块。所以使用源代码安装
+#cp nginx /etc/init.d/
+#chmod a+x /etc/init.d/nginx
+#chkconfig --add nginx   (添加到系统服务中)
+#chkconfig --list  nginx   查看是否加进服务
+#service nginx start    启动会报错，因为拷贝过来的启动脚本还需要修改
+#vim /etc/init.d/nginx   将pidfile，lockfile....的路径修改为我们安装的路径
+#servicre nginx start  启动成功  （stop停止，restart重启, reload重新加载[工作中尽量用reload不要用restart]）
+
+nginx建议：有几个cpu核就分配几个进程(这里指的是worker进程，不是master进程)， 修改/etc/nginx/nginx.conf来修改进程数
+
+nginx.conf的结构
+	events{
+		..
+	}
+	http{
+		..
+		server{
+			..
+		}
+		server{
+			..
+		}
+	}
+	-------------------------
+	#运行用户
+	user www-data;    
+	#启动进程,通常设置成和cpu的核数量相等
+	worker_processes  1;
+
+	#全局错误日志及PID文件
+	error_log  /var/log/nginx/error.log;
+	pid        /var/run/nginx.pid;
+	events {
+		use epoll; #epoll是多路复用IO(I/O Multiplexing)中的一种方式,但是仅用于linux2.6以上内核,可以大大提高nginx的性能
+		worker_connections 4096; ;#单个后台worker process进程的最大并发链接数
+		# multi_accept on; 
+	}
+
+	#设定http服务器，利用它的反向代理功能提供负载均衡支持
+	http {
+	 	#设定mime类型,类型由mime.type文件定义
+		include conf/mime.types;
+		#反向代理配置，可以打开proxy.conf看看
+		include /etc/nginx/proxy.conf;
+		#fastcgi配置，可以打开fastcgi.conf看看
+		include /etc/nginx/fastcgi.conf;
+
+		default_type application/octet-stream;
+		#日志的格式
+		log_format main '$remote_addr - $remote_user [$time_local] $status '
+		'"$request" $body_bytes_sent "$http_referer" '
+		'"$http_user_agent" "$http_x_forwarded_for"';
+
+		#访问日志
+		access_log logs/access.log main;   #main是上面定义的日志格式
+
+		#sendfile 指令指定 nginx 是否调用 sendfile 函数（zero copy 方式）来输出文件，对于普通应用，
+    	#必须设为 on,如果用来进行下载等应用磁盘IO重负载应用，可设置为 off，以平衡磁盘与网络I/O处理速度，降低系统的uptime.
+		sendfile on;
+		#tcp_nopush on;
+
+		keepalive_timeout 65; #http超时65秒
+		gzip on;  #压缩功能开启
+
+		#这个例子是fastcgi的例子，如果用fastcgi就要仔细看
+		server { 
+			# php/fastcgi
+			listen 80;
+			#域名，可以有多个
+			server_name domain1.com www.domain1.com;
+			#访问日志，和上面的级别不一样，应该是下级的覆盖上级的
+			access_log logs/domain1.access.log main;
+			root html;
+
+			location / {
+				index index.html index.htm index.php;
+			}
+
+			#所有php后缀的，都通过fastcgi发送到1025端口上
+			#上面include的fastcgi.conf在此应该是有作用，如果你不include，那么就把fastcgi.conf的配置项放在这个下面。
+			location ~ .php$ {
+				fastcgi_pass 127.0.0.1:1025; #请求转向fastcgi监听进程
+			}
+		}
+
+		#这个是反向代理的例子
+		server { 
+			# simple reverse-proxy
+			listen 80;
+			server_name domain2.com www.domain2.com;
+			access_log logs/domain2.access.log main;
+
+			#静态文件，nginx自己处理
+			location ~ ^/(images|javascript|js|css|flash|media|static)/ {
+				root /var/www/virtual/big.server.com/htdocs;
+				#过期30天，静态文件不怎么更新，过期可以设大一点，如果频繁更新，则可以设置得小一点。
+				expires 30d;
+			}
+
+			#把请求转发给后台web服务器，反向代理和fastcgi的区别是，反向代理后面是web服务器，fastcgi后台是fasstcgi监听进程，当然，协议也不一样。
+			location / {
+				#用户上网，经过代理中转一次到服务器 就是 正向代理。 
+				#服务器接收到请求不自己处理，而是中转给其他web服务器处理后再返回给用户 就是 反向代理
+				proxy_pass http://127.0.0.1:8080;  #请求转向8080，这就是反向代理
+			}
+		}
+
+		#设定负载均衡的服务器列表
+		upstream big_server_com {
+			#weigth参数表示权值，权值越高被分配到的几率越大   据说nginx可以根据后台响应时间调整。后台需要多个web服务器。
+			server 127.0.0.3:8000 weight=5;
+			server 127.0.0.3:8001 weight=5;
+			server 192.168.0.1:8000;
+			server 192.168.0.1:8001;
+		}
+
+		server {
+			listen 80;
+			server_name big.server.com;  #虚拟主机
+			access_log logs/big.server.access.log main;
+
+			location / {
+				proxy_pass http://big_server_com; #请求转向big_server_com 定义的服务器列表
+			}
+		}
+		#--------------------------------------
+		server {
+		    #侦听80端口
+	        listen       80;
+	        #定义使用www.xx.com访问
+	        server_name  www.xx.com;
+
+	        #设定本虚拟主机的访问日志
+	        access_log  logs/www.xx.com.access.log  main;
+
+		    #默认请求
+		    location / {
+	          root   /root;      #定义服务器的默认网站根目录位置
+	          index index.php index.html index.htm;   #定义首页索引文件的名称
+
+	          #intoindex on; #在请求的目录中找不到index时，显示目录中的所有内容
+
+	          fastcgi_pass  www.xx.com;
+	          fastcgi_param  SCRIPT_FILENAME  $document_root/$fastcgi_script_name; 
+	          include /etc/nginx/fastcgi_params;
+	        }
+
+		    # 定义错误提示页面
+		    error_page   500 502 503 504 /50x.html;  
+		        location = /50x.html {
+		        root   /root;
+		    }
+
+		    #静态文件，nginx自己处理
+		    location ~ ^/(images|javascript|js|css|flash|media|static)/ {
+		        root /var/www/virtual/htdocs;
+		        #过期30天，静态文件不怎么更新，过期可以设大一点，如果频繁更新，则可以设置得小一点。
+		        expires 30d;
+		    }
+		    #PHP 脚本请求全部转发到 FastCGI处理. 使用FastCGI默认配置.
+		    location ~ \.php$ {
+		        root /root;
+		        fastcgi_pass 127.0.0.1:9000;
+		        fastcgi_index index.php;
+		        fastcgi_param SCRIPT_FILENAME /home/www/www$fastcgi_script_name;
+		        include fastcgi_params;
+		    }
+		    #设定查看Nginx状态的地址
+		    location /NginxStatus {
+		        stub_status            on;
+		        access_log              on;
+		        auth_basic              "NginxStatus";
+		        auth_basic_user_file  conf/htpasswd;
+		    }
+		    #禁止访问 .htxxx 文件
+		    location ~ /\.ht {
+		        deny all;
+		    }
+		}
+	}
+
+	以上是一些基本的配置,使用Nginx最大的好处就是负载均衡 如果要使用负载均衡的话,可以修改配置http节点如下：
+	#设定http服务器，利用它的反向代理功能提供负载均衡支持
+	http {
+	    #设定mime类型,类型由mime.type文件定义
+	    include       /etc/nginx/mime.types;
+	    default_type  application/octet-stream;
+	    #设定日志格式
+	    access_log    /var/log/nginx/access.log;
+
+	    #省略上文有的一些配置节点
+
+	    #设定负载均衡的服务器列表
+	    upstream mysvr {
+		    #weigth参数表示权值，权值越高被分配到的几率越大
+		    server 192.168.8.1x:3128 weight=5;#本机上的Squid开启3128端口
+		    server 192.168.8.2x:80  weight=1;
+		    server 192.168.8.3x:80  weight=6;
+	    }
+
+	    upstream mysvr2 {
+		    #weigth参数表示权值，权值越高被分配到的几率越大
+		    server 192.168.8.x:80  weight=1;
+		    server 192.168.8.x:80  weight=6;
+	    }
+
+	    #第一个虚拟服务器
+	    server {
+	    	#侦听192.168.8.x的80端口
+	        listen       80;
+	        server_name  192.168.8.x;
+
+		    #对aspx后缀的进行负载均衡请求
+		    location ~ .*\.aspx$ {
+		        root   /root;      #定义服务器的默认网站根目录位置
+		        index index.php index.html index.htm;   #定义首页索引文件的名称
+
+		        proxy_pass  http://mysvr ;#请求转向mysvr 定义的服务器列表
+
+		        #以下是一些反向代理的配置可删除.
+
+		        proxy_redirect off;
+
+		        #后端的Web服务器可以通过X-Forwarded-For获取用户真实IP
+		        proxy_set_header Host $host;
+		        proxy_set_header X-Real-IP $remote_addr;
+		        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		        client_max_body_size 10m;    #允许客户端请求的最大单文件字节数
+		        client_body_buffer_size 128k;  #缓冲区代理缓冲用户端请求的最大字节数，
+		        proxy_connect_timeout 90;  #nginx跟后端服务器连接超时时间(代理连接超时)
+		        proxy_send_timeout 90;        #后端服务器数据回传时间(代理发送超时)
+		        proxy_read_timeout 90;         #连接成功后，后端服务器响应时间(代理接收超时)
+		        proxy_buffer_size 4k;             #设置代理服务器（nginx）保存用户头信息的缓冲区大小
+		        proxy_buffers 4 32k;               #proxy_buffers缓冲区，网页平均在32k以下的话，这样设置
+		        proxy_busy_buffers_size 64k;    #高负荷下缓冲大小（proxy_buffers*2）
+		        proxy_temp_file_write_size 64k;  #设定缓存文件夹大小，大于这个值，将从upstream服务器传
+		    }
+	    }
+	}
+
+
+nginx匹配规则：
+	location
+	语法： location [=|~|~*|^~] /uri/ {...}
+	location匹配命令
+	~     波浪线表示执行一个正则匹配，区分大小写
+	~*    表示执行一个正则匹配，不区分大小写
+	^~    ^~表示普通字符匹配，如果该选项匹配，只匹配该选项，不匹配别的选项，一般用来匹配目录
+	=     进行普通字符精确匹配
+
+	location  = / {
+	  # 只匹配"/".
+	  [ configuration A ] 
+	}
+	location  / {
+	  # 匹配任何请求，因为所有请求都是以"/"开始
+	  # 但是更长字符匹配或者正则表达式匹配会优先匹配
+	  [ configuration B ] 
+	}
+	location ^~ /images/ {
+	  # 匹配任何以 /images/ 开始的请求，并停止匹配 其它location
+	  [ configuration C ] 
+	}
+	location ~* \.(gif|jpg|jpeg)$ {
+	  # 匹配以 gif, jpg, or jpeg结尾的请求. 
+	  # 但是所有 /images/ 目录的请求将由 [Configuration C]处理.   
+	  [ configuration D ] 
+	}
+
+	请求URI例子:
+	/ -> 符合configuration A
+	/documents/document.html -> 符合configuration B
+	/images/1.gif -> 符合configuration C
+	/documents/1.jpg ->符合 configuration D
+
+	location 匹配的优先级：
+	从高到低 = > 普通字符 > ^~ > ~*或~      （先匹配最高的，找不到再往下找，找到则停止搜索） 
+
+
+redirect：
+	redirect的主要功能是实现url重写，nginx的redirect规则采用PCRE(Perl Compatible Regular Expressions)Perl兼容正则表达式
+	的语法进行规则匹配的，如果需要nginx的redirect功能，在编译nginx之前，需要编译安装PCRE库
+Nginx的rewrite语法其实很简单.用到的指令无非是这几个
+	set, if, return, break, rewrite 麻雀虽小,可御可萝五脏俱全.只是简单的几个指令却可以做出绝对不输apache的简单灵活的配置.
+
+	1.set    set主要是用来设置变量用的,没什么特别的
+	2.if
+	if主要用来判断一些在rewrite语句中无法直接匹配的条件,比如检测文件存在与否,http header,cookie等,
+
+	用法: if(条件) {…}
+	- 当if表达式中的条件为true,则执行if块中的语句
+	- 当表达式只是一个变量时,如果值为空或者任何以0开头的字符串都会当作false
+	- 直接比较内容时,使用 = 和 !=
+	- 使用正则表达式匹配时,使用
+
+	~ 大小写敏感匹配 
+	~* 大小写不敏感匹配 
+	!~ 大小写敏感不匹配 
+	!~* 大小写不敏感不匹配
+
+	这几句话看起来有点绕,总之记住: ~为正则匹配, 后置*为大小写不敏感, 前置!为”非”操作
+
+	随便一提,因为nginx使用花括号{}判断区块,所以当正则中包含花括号时,则必须用双引号将正则包起来.对下面讲到的rewrite语句中的正则亦是如此. 
+	比如 “\d{4}\d{2}\.+”
+
+	- 使用-f,-d,-e,-x检测文件和目录
+	-f 检测文件存在
+	-d 检测目录存在
+	-e 检测文件,目录或者符号链接存在
+	-x 检测文件可执行
+
+	举例
+	if ($http_user_agent ~ MSIE) {
+	  rewrite  ^(.*)$  /msie/$1  break;
+	}
+	//如果UA包含”MSIE”,rewrite 请求到/msie目录下
+
+	if ($http_cookie ~* "id=([^;] +)(?:;|$)" ) {
+	  set  $id  $1;
+	}
+	//如果cookie匹配正则,设置变量$id等于正则引用部分
+
+	if ($request_method = POST ) {
+	  return 405;
+	}
+	//如果提交方法为POST,则返回状态405 (Method not allowed)
+
+	if (!-f $request_filename) {
+	  break;
+	  proxy_pass  http://127.0.0.1;  #将请求反向代理给127.0.0.1
+	}
+	//如果请求文件名不存在,则反向代理localhost
+
+	if ($args ~ post=140){
+	  rewrite ^ http://example.com/ permanent;
+	}
+	//如果query string中包含”post=140″,永久重定向到example.com
+
+	3.return
+	return可用来直接设置HTTP返回状态,比如403,404等(301,302不可用return返回,这个下面会在rewrite提到)
+
+	4.break
+	立即停止rewrite检测,跟下面讲到的rewrite的break flag功能是一样的,区别在于前者是一个语句,后者是rewrite语句的flag
+
+	5.rewrite
+	用法: rewrite 正则 替换 标志位
+
+	其中标志位有四种
+	break – 停止rewrite检测,也就是说当含有break flag的rewrite语句被执行时,该语句就是rewrite的最终结果 
+	last – 停止rewrite检测,但是跟break有本质的不同,last的语句不一定是最终结果,这点后面会跟nginx的location匹配一起提到 
+	redirect – 返回302临时重定向,一般用于重定向到完整的URL(包含http:部分) 
+	permanent – 返回301永久重定向,一般用于重定向到完整的URL(包含http:部分) permanent，redirect对用户来说都是一样的
+
+	last和break最大的不同在于
+	- break是终止当前location的rewrite检测,而且不再进行location匹配 
+	– last是终止当前location的rewrite检测,但会继续重试location匹配并处理区块中的rewrite规则
+
+	location /download/ {
+	  rewrite  ^(/download/.*)/media/(.*)\..*$  $1/mp3/$2.mp3  last;
+	}
+	如果请求为 /download/eva/media/op1.mp3 则请求被rewrite到 /download/eva/mp3/op1.mp3
+	结果rewrite的结果重新命中了location /download/ 虽然这次并没有命中rewrite规则的正则表达式,但因为缺少终止rewrite的标志,其仍会不停重试download中rewrite规则直到达到10次上限返回HTTP 500
+	而用break就不会死循环
+
+	redirect后，break,和last是不能看到浏览器地址栏变化的，redirect和permanent可以看到地址栏变化
+
+	因为301和302不能简单的只单纯返回状态码,还必须有重定向的URL,这就是return指令无法返回301,302的原因了. 作为替换,rewrite可以更灵活的使用redirect和permanent标志实现301和302. 比如上一篇日志中提到的Blog搬家要做的域名重定向,在nginx中就会这么写
+
+	rewrite ^(.*)$ http://newdomain.com/ permanent;
+	举例来说一下rewrite的实际应用
+
+	rewrite  ^(/download/.*)/media/(.*)\..*$  $1/mp3/$2.mp3  last;
+	如果请求为 /download/eva/media/op1.mp3 则请求被rewrite到 /download/eva/mp3/op1.mp3
+
+	使用起来就是这样,很简单不是么? 不过要注意的是rewrite有很多潜规则需要注意
+	- rewrite的生效区块为sever, location, if
+	- rewrite只对相对路径进行匹配,不包含hostname 比如说以上面301重定向的例子说明
+
+	rewrite ~* cafeneko\.info http://newdomain.com/ permanent;
+	这句是永远无法执行的,以这个URL为例
+	http://blog.cafeneko.info/2010/10/neokoseseiki_in_new_home/?utm_source=rss&utm_medium=rss&utm_campaign=neokoseseiki_in_new_home
+	其中cafeneko.info叫做hostname,再往后到?为止叫做相对路径,?后面的一串叫做query string
+
+	对于rewrite来说,其正则表达式仅对”/2010/10/neokoseseiki_in_new_home”这一部分进行匹配,即不包含hostname,也不包含query string .所以除非相对路径中包含跟域名一样的string,否则是不会匹配的. 如果非要做域名匹配的话就要使用if语句了,比如进行去www跳转
+
+	if ($host ~* ^www\.(cafeneko\.info)) {
+	  set $host_without_www $1;
+	  rewrite ^(.*)$ http://$host_without_www$1 permanent;
+	}
+	- 使用相对路径rewrite时,会根据HTTP header中的HOST跟nginx的server_name匹配后进行rewrite,如果HOST不匹配或者没有HOST信息的话则rewrite到server_name设置的第一个域名,如果没有设置server_name的话,会使用本机的localhost进行rewrite
+
+	- 前面提到过,rewrite的正则是不匹配query string的,所以默认情况下,query string是自动追加到rewrite后的地址上的,如果不想自动追加query string,则在rewrite地址的末尾添加?
+	rewrite  ^/users/(.*)$  /show?user=$1?  last;
+
+
+
+
+	
+
+
+
+	

@@ -1,0 +1,576 @@
+jbpm4
+
+helloworld: 
+	首先使用eclipse的jbpm插件画流程图，会生成helloworld.png和helloworld.jpdl.xml. 然后就可以使用部署流程定义...
+	ProcessEngine是核心对象，各种操作是在Service是进行的，Service通过ProcessEngine来获取
+	RepositoryService 流程定义相关的Service
+	ExecutionService 流程实例相关的Service
+	TaskService 任务相关的Service
+
+	public class HelloWorld {
+
+		//建表<property name="hibernate.hbm2ddl.auto">update</property>
+		@Test
+		public void testCreate18Table(){
+			new org.hibernate.cfg.Configuration().configure("jbpm.hibernate.cfg.xml").buildSessionFactory();
+		}
+		//核心对象
+		/**
+		 * 创建流程引擎对象
+		 * .setResource(resource):表示加载类路径下的jbpm.cfg.xml
+		 */
+		ProcessEngine processEngine =new Configuration().setResource("jbpm.cfg.xml").buildProcessEngine();
+		//部署流程定义
+		@Test
+		public void testDeployDefinitionProcess(){
+			String deployementID = processEngine.getRepositoryService()//
+							.createDeployment()//
+							.addResourceFromClasspath("helloworld/helloworld.jpdl.xml")//
+							.addResourceFromClasspath("helloworld/helloworld.png")//
+							.deploy();
+			System.out.println("deployementID:"+deployementID);
+		}
+		//启动流程实例
+		@Test
+		public void startProcessInstance(){
+			String processDefinitionKey = "helloword";
+			ProcessInstance pi = processEngine.getExecutionService()//
+			                     .startProcessInstanceByKey(processDefinitionKey);
+			System.out.println("id:"+pi.getId());//helloword.1001
+			System.out.println("key:"+pi.getKey());
+			System.out.println("processDefinitionId:"+pi.getProcessDefinitionId());
+		}
+		
+		//查询我的个人任务列表
+		@Test
+		public void testFindMyTaskList(){
+			//String userId = "张三";//指定任务办理人
+			//String userId = "李四";//指定任务办理人
+			String userId = "王五";//指定任务办理人
+			List<Task> list = processEngine.getTaskService()//
+			                               .findPersonalTasks(userId);
+			for(Task task:list){
+				System.out.println("id:"+task.getId());//任务的ID
+				System.out.println("name:"+task.getName());//任务的名称
+				System.out.println("assignee:"+task.getAssignee());//任务的办理人
+				System.out.println("createTime:"+task.getCreateTime());//任务的创建日期
+				System.out.println("executionID:"+task.getExecutionId());//任务的执行ID（暂时就是流程实例ID）
+			}
+		}
+		
+		//办理我的个人任务
+		@Test
+		public void testCompleteMyTask(){
+			String taskId = "30001";
+			processEngine.getTaskService()//
+			                     .completeTask(taskId);
+			System.out.println("办理完成！");
+		}
+	}
+
+ProcessDefinition CRUD（不存在修改）：
+	public class ProcessDefinitionTest {
+		//定义流程引擎的3种操作
+		/**第一种：从某个资源文件中加载jbpm.cfg.xml，用来创建流程引擎*/
+		//ProcessEngine processEngine = new Configuration().setResource("jbpm.cfg.xml").buildProcessEngine();
+		/**第二种：默认从类路径下加载jbpm.cfg.xml，用来创建流程引擎*/
+		//ProcessEngine processEngine = new Configuration().buildProcessEngine();
+		/**第三种：默认从类路径下加载jbpm.cfg.xml，使用单例模式创建流程引擎对象，使流程引擎自始自终在程序中只初始化一次*/
+		ProcessEngine processEngine = Configuration.getProcessEngine();
+		
+		//部署流程定义（按照类路径部署）
+		@Test
+		public void testDeployeeProcessDefinitionFromClassPath(){
+			String deploymentId = processEngine.getRepositoryService()//
+				                    .createDeployment()//
+				                    .addResourceFromClasspath("helloworld/helloworld.jpdl.xml")//
+				                    .addResourceFromClasspath("helloworld/helloworld.png")//
+				                    .deploy();
+			System.out.println("deploymentId:"+deploymentId);
+		}
+		
+		//部署流程定义（按照zip进行部署）
+		@Test
+		public void testDeployeeProcessDefinitionFromZip() throws Exception{
+			InputStream in = this.getClass().getClassLoader().getResourceAsStream("helloworld/helloworld.zip");
+			ZipInputStream zipInputStream = new ZipInputStream(in);
+			String deploymentId = processEngine.getRepositoryService()//
+				                    .createDeployment()//
+				                    .addResourcesFromZipInputStream(zipInputStream)
+				                    .deploy();
+			System.out.println("deploymentId:"+deploymentId);
+		}
+		
+		
+		//查询流程定义
+		@Test
+		public void testFindProcessDefinition(){
+			String key = "helloworld";
+			List<ProcessDefinition> list = processEngine.getRepositoryService()//
+							               .createProcessDefinitionQuery()//创建流程定义的查询对象
+							               //.processDefinitionId(processDefinitionId)//按照流程id查询
+							               .processDefinitionKey(key)//按照流程定义的key查询
+							               //.orderAsc(ProcessDefinitionQuery.PROPERTY_VERSION)//按照流程定义的版本升序排列
+							               //.orderDesc(ProcessDefinitionQuery.PROPERTY_DEPLOYMENT_TIMESTAMP)//按照流程定义的部署时间降序排列
+							               //.count()//返回数量
+							               //.uniqueResult()//只有一个流程定义对象
+							               //.page(firstResult, maxResults)//支持分页查询
+							               .list();//返回流程定义的集合
+			for(ProcessDefinition pd:list){
+				System.out.println("id："+pd.getId());//流程定义id，流程定义key + "-" + 流程定义version
+				System.out.println("name:"+pd.getName());//流程定义的名称
+				System.out.println("key:"+pd.getKey());//流程定义的key，如果不在画流程图的时候指定key，那么此时的key的值就是name的属性值
+				System.out.println("version:"+pd.getVersion());//流程定义的版本号
+				System.out.println("deployementId:"+pd.getDeploymentId());//部署流程定义的对象ID
+				System.out.println("imageResourceName:"+pd.getImageResourceName());//获取资源文件的流程定义的图片名称
+			}
+		}
+		
+		//删除流程定义
+		@Test
+		public void testDeleteProcessDefinition(){
+			String deploymentId = "40001";
+			/**
+			 * 表示删除流程定义不具有级联删除的功能，只能删除与流程定义相关的表，如果该数据已应用到其他相关联的表，此时则不能删除其他表的数据，会报异常
+			 * */
+			//processEngine.getRepositoryService().deleteDeployment(deploymentId);
+			/**
+			 * 表示删除流程定义具有级联删除的功能，删除与该数据关联的所有信息表
+			 * */
+			processEngine.getRepositoryService().deleteDeploymentCascade(deploymentId);
+		}
+		
+		//查看流程定义的流程图
+		@Test
+		public void testViewProcessResourceImpage() throws Exception{
+			String deploymentId = "50001";
+			String resourceName = "helloworld.png";
+			InputStream in = processEngine.getRepositoryService()//
+			               .           getResourceAsStream(deploymentId, resourceName);
+			FileOutputStream out = new FileOutputStream("d:/process.png");
+			for(int b=-1;(b=in.read())!=-1;){
+				out.write(b);
+			}
+			out.close();
+			in.close();
+		}
+		
+		/**
+		 * 流程定义不存在修改功能，因为如果存在修改，那么到达该流程的数据就失去意义了
+		 * 只是在新增一个流程，此流程的名称和key还是上述流程的名称和key，只是版本不同
+		 */
+		
+		//查询最新版本的流程定义列表  根据版本升序排列，key相同的表示同一个流程定义，取最后的一个表示最新版本
+		@Test
+		public void testLastVersionProcessDefinition(){
+			List<ProcessDefinition> list = processEngine.getRepositoryService()//
+					                      .createProcessDefinitionQuery()//
+					                      .orderAsc(ProcessDefinitionQuery.PROPERTY_VERSION)//按照流程定义的版本升序
+					                      .list();
+			Map<String,ProcessDefinition> map = new HashMap<String,ProcessDefinition>();
+			for(ProcessDefinition pd:list){
+				map.put(pd.getKey(), pd);
+			}
+			List<ProcessDefinition> pdList = new ArrayList<ProcessDefinition>(map.values());
+			for(ProcessDefinition pd:pdList){
+				System.out.println("id："+pd.getId());//流程定义id，流程定义key + "-" + 流程定义version
+				System.out.println("name:"+pd.getName());//流程定义的名称
+				System.out.println("key:"+pd.getKey());//流程定义的key，如果不在画流程图的时候指定key，那么此时的key的值就是name的属性值
+				System.out.println("version:"+pd.getVersion());//流程定义的版本号
+				System.out.println("deployementId:"+pd.getDeploymentId());//部署流程定义的对象ID
+				System.out.println("imageResourceName:"+pd.getImageResourceName());//获取资源文件的流程定义的图片名称
+				System.out.println("---------------------------------------------------");
+			}
+		}
+		
+		//按照相同的key删除所有版本的流程定义
+		@Test
+		public void testDeleteAllVersionProcessDefinition(){
+			List<ProcessDefinition> list = processEngine.getRepositoryService()//
+			                                           .createProcessDefinitionQuery()//
+			                                           .processDefinitionKey("helloworld")//按照流程定义的key查询
+			                                           .list();
+			for(ProcessDefinition pd:list){
+				String deploymentId = pd.getDeploymentId();
+				processEngine.getRepositoryService().deleteDeploymentCascade(deploymentId);
+			}
+		}
+	}
+
+ProcessInstance：
+	public class ProcessInstanceTest {
+		//流程引擎
+		private ProcessEngine processEngine = Configuration.getProcessEngine();
+		
+		//部署流程定义
+		@Test
+		public void testDeployeeProcessDefinitionFromZip() throws Exception{
+			InputStream in = this.getClass().getClassLoader().getResourceAsStream("test/test.zip");
+			ZipInputStream zipInputStream = new ZipInputStream(in);
+			String deploymentId = processEngine.getRepositoryService()//
+				                    .createDeployment()//
+				                    .addResourcesFromZipInputStream(zipInputStream)
+				                    .deploy();
+			System.out.println("deploymentId:"+deploymentId);
+		}
+		
+		//启动流程实例
+		@Test
+		public void testStartProcessInstance(){
+			String processDefinitionKey = "test";
+			ProcessInstance pi = processEngine.getExecutionService()//
+			                      .startProcessInstanceByKey(processDefinitionKey);//按照流程定义的key启动流程实例
+			System.out.println("executionId:"+pi.getId());//流程实例的ID，key+"."+DBID
+		}
+		
+		//查看我的个人任务列表
+		@Test
+		public void testFindMyTaskList(){
+			String userId = "王五";
+			//findPersonalTasks不支持按照条件查询和排序
+	//		List<Task> list = processEngine.getTaskService()//
+	//		                         .findPersonalTasks(userId);
+			List<Task> list = processEngine.getTaskService()//
+			                    .createTaskQuery()//创建任务查询
+			                    .assignee(userId)//按照当前办理人的userId进行查询
+			                    //.processDefinitionId(processDefinitionId)//按照流程定义ID查询
+			                    //.processInstanceId(processInstanceId)//按照流程实例的ID进行查询
+			                    //.orderAsc(TaskQuery.PROPERTY_CREATEDATE)//按照任务的创建时间升序排列
+			                    //.orderDesc(TaskQuery.PROPERTY_NAME)//按照任务的名称降序排列
+			                    //.count()//结果数量
+			                    //.uniqueResult()//任务的唯一结果
+			                    //.page(firstResult, maxResults)//支持分页
+			                    .list();
+			for(Task task:list){
+				System.out.println("id:"+task.getId());//任务的ID
+				System.out.println("name:"+task.getName());//任务的名称
+				System.out.println("assignee:"+task.getAssignee());//任务的办理人
+				System.out.println("createTime:"+task.getCreateTime());//任务的创建日期
+				System.out.println("executionID:"+task.getExecutionId());//任务的执行ID（暂时就是流程实例ID）
+			}
+		}
+		
+		//完成我的个人任务
+		@Test
+		public void testCompleteMyTask(){
+			String taskId = "10001";
+			//按照任务ID完成当前任务
+			processEngine.getTaskService().completeTask(taskId);
+			//outcome表示按照指定的连线，完成任务
+			//processEngine.getTaskService().completeTask(taskId, outcome);
+			System.out.println("完成任务");
+		}
+		
+		//在活动环节中，存在向后执行一步
+		@Test
+		public void testSingnalExecution(){
+			String executionId = "test.140001";
+			String signalName = "to end1";   //连线名称
+			//根据执行的id和连线的名称向后执行一步
+			processEngine.getExecutionService()//
+			               .signalExecutionById(executionId,signalName);
+		}
+	}
+
+ProcessVariable：
+	public class ProcessVariableTest {
+
+		private ProcessEngine processEngine = Configuration.getProcessEngine();
+		
+		//部署流程定义
+		@Test
+		public void testDeployeeProcessDefinitionFromZip() throws Exception{
+			InputStream in = this.getClass().getClassLoader().getResourceAsStream("test/test.zip");
+			ZipInputStream zipInputStream = new ZipInputStream(in);
+			String deploymentId = processEngine.getRepositoryService()//
+				                    .createDeployment()//
+				                    .addResourcesFromZipInputStream(zipInputStream)
+				                    .deploy();
+			System.out.println("deploymentId:"+deploymentId);
+		}
+		
+		//启动流程实例
+		@Test
+		public void testStartProcessInstance(){
+			String processDefinitionKey = "test";
+			ProcessInstance pi = processEngine.getExecutionService()//
+			                      .startProcessInstanceByKey(processDefinitionKey);//按照流程定义的key启动流程实例
+			System.out.println("executionId:"+pi.getId());//流程实例的ID，key+"."+DBID
+		}
+		
+		//设置流程变量
+		@Test
+		public void testSetVariable(){
+			//流程实例，执行对象ID
+			String executionId = "test.160001";
+	//		//流程变量的名称
+	//		String name = "请假天数";
+	//		//流程变量的值
+	//		Integer value = 5;
+	//		//设置流程变量
+	//		processEngine.getExecutionService()//
+	//		            .setVariable(executionId, name, value);
+			
+			//javabean放置到流程变量里
+			String name = "Form";
+			Form form = new Form(1L,"张翠山");
+			processEngine.getExecutionService()//
+			            .setVariable(executionId, name, form);
+		}
+		
+		//获得流程变量
+		@Test
+		public void testGetVariable(){
+			//流程实例，执行对象ID
+			String executionId = "test.160001";
+			//流程变量的名称
+	//		String variableName = "请假天数";
+	//		Object value = processEngine.getExecutionService()//
+	//		                 .getVariable(executionId, variableName);
+	//		System.out.println("value:"+value);
+			
+			//获取存放javabean的流程变量
+			String variableName = "Form";
+			Form form = (Form) processEngine.getExecutionService()//
+			                      .getVariable(executionId, variableName);
+			System.out.println(form.getId()+"    "+form.getName());
+		}
+		
+		//汇总流程变量的使用
+		public void testVariable(){
+			ExecutionService executionService = processEngine.getExecutionService();
+			TaskService taskService = processEngine.getTaskService();
+			/**设置流程变量**/
+			//根据执行的id，根据流程变量的名称，指定流程变量的值，只能设置一个值
+			//executionService.setVariable(executionId, name, value);
+			//根据执行的ID，Map集合设置多个流程变量的值
+			//executionService.setVariables(executionId, variables)
+			//根据任务的ID，Map集合设置多个流程变量的值
+			//taskService.setVariables(taskId, variables);
+			//当启动流程实例的时候，可以设置流程变量（map集合）
+			//executionService.startProcessInstanceByKey(processDefinitionKey, variables);
+			//完成任务的时候，可以设置流程变量（map集合）
+			//taskService.completeTask(taskId, variables);
+			
+			/**获取流程变量**/
+			//根据流程变量的名称获取对应值
+			//executionService.getVariable(executionId, variableName);
+			//根据流程变量的名称获取所有流程变量的值（map集合）
+			//executionService.getVariables(executionId, variableNames)
+			//根据执行的id获取所有流程变量的名称（set集合）
+			//executionService.getVariableNames(executionId);
+			//根据流程变量的名称获取对应值
+			//taskService.getVariable(taskId, variableName);
+			//根据流程变量的名称获取所有流程变量的值（map集合）
+			//taskService.getVariables(taskId, variableNames)
+			//根据执行的id获取所有流程变量的名称（set集合）
+			//taskService.getVariableNames(taskId);
+		}
+	}
+
+
+总结：
+	部署对象（Deployment）
+     * 一次部署一个或者多个文件到数据库中（png、xml、zip等）
+    流程定义（ProcessDefinition）
+     * 获得并解析xml，解析xml文件中的内容，内容即流程定义的规则，工作流jbpm就是按照流程定义的规则往下执行的
+
+    与流程定义相关的表
+     SELECT * FROM jbpm4_deployment;  #jbpm部署流程定义表
+     SELECT * FROM jbpm4_deployprop;  #jbpm流程定义表
+     SELECT * FROM jbpm4_lob;  #jbpm存放资源文件表
+
+    执行对象（Execution）：（是流程定义的一条分支）
+     * 按照指定的流程定义执行一次的过程，就叫做执行对象
+     * 相关的数据库表：
+          SELECT * FROM jbpm4_execution;  #存放jbpm正在执行的流程实例信息表（流程实例表）
+          SELECT * FROM jbpm4_hist_procinst;  #存放jbpm执行信息历史表
+
+    流程实例（ProcessInstance）：（是流程定义的所有分支）
+     *    从流程开始到流程结束，最大的分支就叫做流程实例
+          问题：什么情况流程实例就是执行对象？
+          当流程定义只有一个分支的时候，那么此时流程实例就是执行对象
+
+    什么情况流程实例就是执行对象？当流程定义只有一个分支的时候，那么此时流程实例就是执行对象
+
+    活动环节：
+      任务（Task）：（任务可以指定办理人）
+         * 当前活动节点是任务（task）的时候，那么此时执行的就是任务
+         * 相关数据库表：           
+              SELECT * FROM jbpm4_task;  #存放正在执行的任务信息表
+              SELECT * FROM jbpm4_hist_task;  #存放任务信息历史表
+      状态（state）：
+         * 当前活动节点是状态（state）的时候，那么此时就是状态节点，使当前流程在状态节点中先停留一下
+
+	流程变量：使用流程变量存储数据,在流程执行或者任务执行的过程中，用于设置和获取变量，使用流程变量在流程传递的过程中传递业务参数。
+ 	variable 对应的数据表：jbpm4_variable
+
+连线：
+	1、一个活动中可以指定一个或多个Transition(就是连线)（Start中只能有一个，End中没有）。
+	  * 开始活动中只能有一个Transition。
+	  * 结束活动中没有Transition。
+	  * 其他活动中有1条或多条Transition
+	2、如果只有一个，则可以不指定名称（名称是null）；
+	     如果有多个，则要分别指定唯一的名称。
+	processEngine.getTaskService().completeTask(taskId, transitionName2);  //执行完第一个任务，并使用指定的连线离开
+
+
+活动：
+	1：开始活动(start)
+	       代表流程的开始边界，一个流程有且只能有一个Start活动。开始活动只能指定一个Transition。在流程实例启动后，会自动的使用这个唯一的Transition离开开始活动，到一下个活动。
+	2：结束活动(end;end-error;end-cancel)
+	       代表流程的结束边界，可以有多个，也可以没有。如果有多个，则到达任一个结束活动，整个流程就都结束了；如果没有，则到达最后那个没有Transition的活动，流程就结束了。
+	3：状态活动(state)
+	      功能：等待。
+	4：任务活动(task)
+	   （1）：分配任务：
+	   （2）：assignment=#{String型的变量}，使用变量指定任务的办理人
+	   （3）：AssignmentHandler，需要在<task>元素中写<assignment-handler class="AssignmentHandlerImpl"/>子元素。
+	指定的类要实现AssignmentHandler接口
+	   （4）在其中可以使用Assignable.setAssignee(String)，分配个人任务。 
+	5: 活动(decision) 
+		判断（decision）活动，判断当前操作的是哪个分支
+		public class DecisionHandlerImpl implements DecisionHandler {
+			public String decide(OpenExecution execution) {  //返回连线名称
+				int money = (Integer) execution.getVariable("报销金额");
+				if(money>1000){   //大于1000让总经理审批，否则结束
+					return "to 总经理审批";
+				}
+				return "to end1";
+			}
+		}
+		活动判断处理类要实现DecisionHandler，返回transition名。然后在decision指定这个实现类
+	6：活动（fork/join）
+		分签/会签（ fork/join ）活动
+
+个人任务及三种分配方式：
+    1：在.jpdl.xml中直接写 assignee="张三"
+    2：在.jpdl.xml中写 assignee=“#{userId}”，变量的值要是String的。
+         使用流程变量指定办理人
+    3，使用AssignmentHandler接口，要是类实现该接口，在类中定义：
+         assignable.setAssignee(userId); // 指定个人任务的办理人
+    
+     使用任务ID和办理人重新指定办理人：
+     processEngine.getTaskService().assignTask(taskId, userId);
+
+组任务（group）：
+	组任务及三种分配方式：
+    1：在.jpdl.xml中直接写 candidate-users="小A,小B,小C,小D"
+    2：在.jpdl.xml中写 candidate-users =“#{userIds}”，变量的值要是String的。
+        使用流程变量指定办理人
+        Map<String, Object> variables = new HashMap<String, Object>();
+        variables.put("userIDs", "大大,小小,中中");
+    3，使用AssignmentHandler接口，使用类实现该接口，在类中定义：
+        //添加组任务的用户
+		assignable.addCandidateUser("张无忌");
+		assignable.addCandidateUser("张三丰");   
+		组任务分配给个人任务：
+		    processEngine.getTaskService().takeTask(taskId, userId);
+		    此时jbpm4_participation中的组成员还在，但task表的asignee有值，组成员就无效了，按组成员查也查不到任务了
+		个人任务分配给组任务：
+		    processEngine.getTaskService().assignTask(taskId, null);
+		    此时将task表的asignee设为空，只要jbpm4_participation的组成员还在，就能分配到之前的组成员
+		向组任务添加人员：
+		    processEngine.getTaskService().addTaskParticipatingUser(taskId, userId, Participation.CANDIDATE);
+	组任务对应的表：
+	    jbpm4_participation
+
+自定义活动（custom）：
+	1：在<custom>元素中指定class属性为指定的类。
+	2：这个类要实现ExternalActivityBehaviour接口，其中有两个方法：
+		1：execute(ActivityExecution)，节点的功能代码
+		2：signal(ActivityExecution, String, Map)，在当前节点等待时，外部发信号时的行为
+	3：在execute()方法中，可以调用以下方法对流程进行控制
+	     （1）：ActivityExecution.waitForSignal()，在当前节点等待。默认是不会等待的
+	     （2）：ActivityExecution.takeDefaultTransition()，使用默认的Transition离开，当前节点中定义的第一个为默认的。
+	     （3）：ActivityExecution.take(String transitionName)，使用指定的Transition离开
+	     （4）：ActivityExecution.end()，结束流程实例
+	4：也可以实现ActivityBehaviour接口，只有一个方法execute(ActivityExecution)，这样就不能等待，否则signal时会有类转换异常。
+
+事件（event）：
+	1：在根元素中，或在节点元素中，使用<on event="">元素指定事件，其中event属性代表事件的类型（start和end表示开始和结束）。
+	2：在<on>中用子元素<event-listener class="EventListenerImpl" />，指定处理的类，要求指定的类要实现EventListener接口
+	3：事件类型：
+	（1）：<on>元素放在根元素（<process>）中，可以指定event为start或end，表示流程的开始与结束。
+	（2）：<on>元素放在节点元素中，可以指定event为start或end，表示节点的进入与离开
+	（3）：在Start节点中只有end事件，在End节点中只有start事件。
+	（4）：在<transition>元素中直接写<event-listener class="">，就是配置事件。（因为在这里只有一个事件，所以不用写on与类型）
+	（5）：在<task>元素中还可以配置assign事件，是在分配任务时触发的。
+
+jbpm要用到hibernate,spring:
+整合hibernate：
+	1. 导包： 导入jbpm.jar和lib下的包，因为项目原来已经有ssh2的包，所以只需要导入以下包
+		jbpm.jar, juel-api.jar, juel-engine.jar, jues-impl.jar, mail.jar, livetribe-jsr223.jar
+	2.其中下面三个放到tomcat的lib包目录下，因为这三个包会和tomcat的el-api.jar发生冲突，应先注释为el-api.jar__
+  		Juel-api.jar Juel-engine.jar Juel-impl.jar
+  	3. 修改配置文件
+  		1、添加jbpm.cfg.xml文件，文件内容如下：
+	  		<import resource="jbpm.default.cfg.xml" />
+	  		<import resource="jbpm.businesscalendar.cfg.xml" />
+	  		<import resource="jbpm.tx.hibernate.cfg.xml" />
+	  		<import resource="jbpm.jpdl.cfg.xml" />
+	  		<import resource="jbpm.bpmn.cfg.xml" />
+	  		<import resource="jbpm.identity.cfg.xml" />
+  		2. 因为项目中hibernate.cfg.xml文件与jbpm.hibernate.cfg.xml文件冲突，所以修改hibernate.cfg.xml文件
+  			<mapping resource="jbpm.repository.hbm.xml" />
+			<mapping resource="jbpm.execution.hbm.xml" />
+			<mapping resource="jbpm.history.hbm.xml" />
+			<mapping resource="jbpm.task.hbm.xml" />
+			<mapping resource="jbpm.identity.hbm.xml" />
+	4. 测试
+		@Test
+		public void createJbpm(){
+			ApplicationContext ac = new ClassPathXmlApplicationContext("beans.xml");
+			SessionFactory sf = (SessionFactory) ac.getBean("sessionFactory");
+			System.out.println("SessionFactory:"+sf);
+		}
+	注意：要将hibernate方言改为org.hibernate.dialect.MySQL5InnoDBDialect，
+	否则在运行到end节点会报错org.hibernate.exception.ConstraintViolationException
+	InnoDB是为处理巨大数据量时的最大性能设计
+
+
+整合spring：
+	1、调用流程引擎不再使用
+		processEngine processEngine = Configuration.getProcessEngine();
+	2、修改jbpm.cfg.xml文件，与spring进行整合的文件
+		<import resource="jbpm.tx.hibernate.cfg.xml" /> 改成 <import resource="jbpm.tx.spring.cfg.xml" />
+	3、在spring的配置文件beans.xml中配置ProcessEngine，添加：
+		<!-- 配置ProcessEngine（与JBPM4.4整合） -->
+		<bean id="springHelper" class="org.jbpm.pvm.internal.processengine.SpringHelper">
+		     <property name="jbpmCfg" value="jbpm.cfg.xml"></property>
+		</bean>
+		<bean id="processEngine" factory-bean="springHelper" factory-method="createProcessEngine" /> 
+	4、测试流程引擎对象
+		@Test
+		public void testProcessEngine(){
+			ApplicationContext ac = new ClassPathXmlApplicationContext("beans.xml");
+			ProcessEngine processEngine = (ProcessEngine)ac.getBean("processEngine");
+			System.out.println("PorcessEngine:"+processEngine);
+		}
+	5、在Service层使用流程引擎对象
+		@Resource
+		private ProcessEngine processEngine;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,199 @@
+@"\\\" 加上@令字符串中的\不当成转义符
+转义符只针对代码中直接写出的字符串，对于程序中读取出来的没有这个问题
+int i1=convert.toint32(s1);
+命名规则：第一个字符必须是字母或者下划线，其后的字符可以是数字、字母、下划线，不能全部使用c#的关键字，比如class、namespace、new 、void.
+（可以使用中文）
+判断方式：vs中亮蓝色为关键字
+局部变量用之前必须赋予初值
+C#case最后必须跟break
+switch(i)
+{
+ case 1: console.     //case后必须接常量
+   break;
+ case 2: 
+ case 3://可以合并，唯一一个case后不用break的情况
+         console.
+  baeak；
+ default :
+        console.
+  break;
+}
+
+return：终止当前执行的函数
+break:遇到break,退出整个循环,继续循环后面的代码
+continue:终止本次循环，继续下次循环
+
+
+（cast）
+将一个（表示范围小的数）赋值给（表示范围大的数）可以自动转换成功，隐式转换   byte b=2; int i=3;   i=b
+将一个（表示范围大的数）赋值给（表示范围小的数)不会自动转换，
+要手动转换，且不一定成功。强制转换  byte b=2; int i=3;  b=(byte)i;
+不能再int,string之间进行强制类型转换，只能用convert
+只有在内存存在交集才能用cast
+
+枚举声明与class同级  enum gender {male,female,unknow};
+在main函数里gender g=gender.male;
+枚举的意义就在于限定变量的取值范围
+
+int[] values={30,50,100};
+string[] names=new string[5];声明一个长度为5的数组
+string strs={};数组可以没元素
+
+static int readint()                  //声明一个函数
+{                                 
+ string s=console.readline();
+ return convert.toint32(s);    //返回的数据类型要与声明的一样
+}
+
+C#中函数的名字开头第一个字母，类的名字开头第一个字母用大写，且名字有意义
+变量的名字，参数的名字用小写
+
+
+
+satatic void VFunc(params string[] values)  
+{...}          
+调用： VFunc(values);  	VFunc("aa","bb","cc");
+//params声明为可变参数，可变参数必须是所有参数的最后一个
+
+ 函数重载：参数类型不同或者参数个数不同，与返回值无关
+
+string s1="hello";
+s1.length等于5，和C语言不一样，不考虑‘/0’
+字符串一旦声明后，不能对单个char进行改变，即不能s1[0]='a'；
+要改变就要把字符串转变成字符数组：char[] chars=s1.ToCharArray();
+char[0]='a';     string s2= new string (chars);
+string常用函数：ToLower()、ToUpper()   转换成小写、大写
+s.Trim()去掉两边的空白     
+bool b= "abc".Equals ("ABC",StringComparison .OrdinalIgnoreCase );
+判断两个字符是否相等，忽略大小写。   //==是区分大小写的比较
+1、string Split(params char[]seperation):将字符串按指定分割符分割成字符数组
+eg:          string s1="123,456,789,5465.000|ddsv";
+             string[] strs = s1.Split(',', '.', '|');
+             foreach (string item in strs)
+             {
+                 Console .WriteLine (item ); 
+             }
+2、string Split(char[]seperation,StringSplitOptions options):
+将字符串按照指定的char分割成字符数组（options取RemoveEmptyEntries时移除结果中的空白字符串）
+eg:          string s1="123,456,789,5465";
+             string [] strs=s1.Split ( new char[]{','},StringSplitOptions . 
+RemoveEmptyEntries )       //第一个参数不是可变参数，所以要进行类型转换.   RemoveEmptyEntries 应用于123，456，，789
+不返回空的字符串数组，不是将分割后的字符串中的空格去掉（而Trim是去掉字符串两边的空格，不去掉中间的空格）
+3、string Split(string[]seperation,StringSplitOptions options) :
+将字符串按照指定的string分割成字符数组   
+
+s.Replace("123","456")        将S中的123替换成456
+s.Substring(5)    从指定序号开始到最后的字符串
+s.Substring(5,4)  从序号5开始长度为4的字符串
+s.Contains("kkk")   s是否包含"KKK",返回ture或false  
+s.SatrtWith("abc")   s是否是否以"KKK"开头,返回ture或false 
+s.EndWith("abc")   s是否是否以"KKK"开头,返回ture或false 
+s.Indexof("abc")   返回子字符串的第一个字符第一次出现的位置，如果不存在返回-1
+
+Math.max()      Math.min() 
+函数的ref 、 out参数
+ref必须先初始化，因为是引用，所以必须先“有”，才能引用，而OUT是内部为外部赋值，所以不需要初始化，而且初始化也没用。
+ref应用场景是对外部的值进行改变，out则是内部为外部变量赋值，out一般用在为外部变量赋值，out一般用在函数的多个返回值的场所
+案例：两个变量的交换，int.TryParse("12",out int i)
+int.TryParse 将字符串转换成32位整数，返回是否成功，
+
+
+字段就是类的状态,属性要加大括号
+ class penson
+    {
+        private string name;
+        private int age;          //字段，用小写开头
+        public int Age            //属性，用大写开头
+        {
+            set
+            {
+                if (value < 0)  //属性与字段的区别，可以进行非法值的判断
+                {
+                    return;
+                }
+                this.age = value; //value代表用户传过来的值
+            }
+            get
+            {
+                return this.age;
+            }
+        }
+
+ 声明： penson  p=new penson();
+
+如果属性中没有非法值的校验，可以使用简写的语法。
+这是.net 3.0之后内置的语法
+public int Age {set; get;}
+这时编译器会自动生成private字段和set、get代码块
+
+构造函数的函数名和类名一样，没有返回值，连void都不用。如果不自己写构造函数，默认会生成一个没有参数的构造函数.可以有参数，可以重载
+构造函数的意义：创建对象的同时初始化
+
+继承语法:  class 中国人：penson
+            {...}
+Object是所有类得基类，可以指向任何类          Object obj = x;  
+//x可以是任何类，可以是5..,5是int类
+基类可以指向子类，penson p1= 中国人 c1  //我要一个人，你给我一个中国人
+子类不一定能指向父类，中国人 c1= penson p1 //我要一个中国人，你给我一个人    出错程序员负责，要保证p1指向（中国人的对象）才不会出错
+
+
+try
+{                          //将可能发生错误的语句放在try里
+ int i = Convert.ToInt32("abc");
+ Console.WriteLine("convert之后");  //（try里）发生异常点的后续语句不再执行
+}
+catch(Exception ex)       //Exception类的对象ex
+{                            //抓住错误后，进行的处理
+ Console.WriteLine("数据错误："+ex.Message);
+}
+
+
+
+else throw new Exception("错误！")；
+
+
+常量名用大写
+全局变量。static类变量
+不用new就能用的方法：static方法，
+在static方法中可以调用其他static成员，但是不能调用非static成员。
+在非static方法中可以调用static成员
+静态类，不能被new的类就是静态类。静态类一般用来实现一些函数库。***Helper,SqlHelper,PageHelper
+
+
+索引声明：public string  this[int index]
+          { get { return... } ; set {..} }
+this是索引器特有的函数名，string是索引器类型，[]是索引列表
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+练习1：提示用户输入用户名，然后再提示输入密码，如果用户名是“admin”并且密码是“888888”，则提示正确，否则提示错误，如果用户名不是admin还提示用户用户名不存在。
+
+练习2：提示用户输入年龄，如果大于等于18，则告知用户可以查看，如果小于10岁，则告知不允许查看，如果大于等于10岁，则提示用户是否继续查看（yes、no），如果输入的是yes则提示用户可以查看，否则提示不可以查看。（给出测试用例。）
+
+练习3：从一个整数数组中取出最大的整数
+
+练习4：计算一个整数数组的所有元素的和。
+
+练习5：将一个字符串数组输出为|分割的形式，比如{“浮云”,”神马”,”穿梭”}数组输出为“浮云|神马|穿梭”。不要使用String.Join等.Net内置方法。
+
+练习6：有一个整数数组，请声明一个字符串数组，将整数数组中的每一个元素的值转换为字符串保存到字符串数组中。
+
+练习7：将一个字符串数组的元素的顺序进行反转。{"3","a","8","haha"} 转换为{"haha","8","a","3"}。提示：第i个和第length-i-1个进行交换

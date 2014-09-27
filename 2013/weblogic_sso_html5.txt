@@ -1,0 +1,294 @@
+weblogic是自带jdk的
+weblogic安装时选custom安装，只需安装weblogic server， 其他都不需要
+
+domain: 一个域中可包含多个服务器，一个主服务器，多个被管服务器
+
+weblogic有三种安装方式：
+	1. GUI安装
+	2. console安装 xx.exe -mode=console
+	3. silent   通常由于集群方式安装，多台机要安装，如果每次都点下一步，太麻烦，这种方式不需人工干预，需要有配置文件
+
+目录结构：
+	autodeploy: 发布目录
+	bin: 可执行文件目录
+	config：配置文件目录
+
+weblogic有生产模式和开发模式，开发模式可以自动部署autodeploy目录中的项目
+
+wstl：weblogic script tool 命令行方式的控制台
+执行wstl.cmd后，  执行connect('username', 'password', 't3://localhost:7001');就可登录命令行控制台
+edit(); 编辑模式， web console一样要开启编辑模式才可以修改配置      cd()   
+
+
+启动域：domain_dir/startWeblogic.cmd
+启动域：domain_dir/stopWeblogic.cmd
+启动被管服务器：domain_dir/startManagedWeblogic.cmd
+启动被管服务器：domain_dir/stopManagedWeblogic.cmd
+
+Thread Dump:
+	如果两个线程相互竞争资源中出现了死锁，如何分析，发现这个问题，jdk提供了Thread Dump来帮助分析线程的情况，相当于给当前的
+	线程照个快照，会打印出一串文本信息来描述当前线程状态。在linux和windows下使用的方式不一样
+	linux： kill -3 pid
+	windows：ctrl + break
+	Thread Dump对于发现死锁，分析程序瓶颈很有用
+
+单点登录（sso:single sign on）
+1. 一级域名相同，可以使用cookie+filter来实现，因为一级域名相同就可以共享cookie
+	www.bbs.itcast.cn   itcast.cn是一级域名，news是二级域名，www是三级域名
+	www.news.itcast.cn
+	http是无状态的，服务器端通过JSESSIONID来区别每个客户端，而JSESSIONID是保存在cookie中的
+	要想访问www.bbs.itcast.cn时指向tomcat中的项目，首先需要改hosts文件，这样就可以访问本机了，但是tomcat并不认识
+	需要修改tomcat的server.xml，添加host节点
+		<Host name="localhost"  appBase="webapps"unpackWARs="true" autoDeploy="true">
+		<Host name="www.bbs.itcast.cn"  appBase="bbs"> 
+		<Host name="www.news.itcast.cn"  appBase="news"> 
+		把eclipse的web项目的webroot整个拷贝到bbs目录下，bbs是与webapps同级的，并将webroot改名为ROOT，就可直接访问www.bbs.itcast.cn
+	index.jsp:
+		<c:choose>
+		   <c:when test="${not empty sessionScope.user}">
+		    	欢迎你：${sessionScope.user}
+		    </c:when>
+		    <c:otherwise>
+		    	你还没有登录，请先登录：
+		    	<form action="<%=path %>/login" method="post">
+		    		userName:<input type="text" name="userName"><br>
+		    		password:<input type="password" name="password"><br>
+		    		<input type="submit" value="登录">
+		    	</form>
+		    </c:otherwise>
+		 </c:choose>
+	loginServlet:
+		String userName = request.getParameter("userName");
+		String password = request.getParameter("password");
+		
+		if(userName != null && password != null){
+			if(userName.equals(password)){//登录成功，实际应查询数据库
+				request.getSession().setAttribute("user", userName);
+				
+				//向客户端写入cookie
+				Cookie c = new Cookie("sso",userName);
+				
+				c.setMaxAge(3600);//1小时
+				c.setDomain(".itcast.cn");//www.bbs.itcast.cn www.news.itcast.cn
+				c.setPath("/");
+				
+				response.addCookie(c);
+			}
+		}
+		
+		response.sendRedirect(request.getContextPath() + "/index.jsp");
+	autoFilter:
+		public void doFilter(ServletRequest req, ServletResponse resp,
+				FilterChain chain) throws IOException, ServletException {
+			HttpServletRequest request = (HttpServletRequest) req;
+			if(request.getSession().getAttribute("user")== null){
+				Cookie[] cs = request.getCookies();
+
+				if (cs != null && cs.length > 0) {
+					for (Cookie c : cs) {
+						String cName = c.getName();
+						if (cName.equals("sso")) {
+							String userName = c.getValue();
+							request.getSession().setAttribute("user", userName);
+						}
+					}
+				}
+			}
+			chain.doFilter(request, resp);
+		}
+
+	登录成功后就会把用户信息写到cookie，当关闭了浏览器后再次访问，只要cookie还没过期，
+	在经过autoFilter的时候，如果没登录并且cookie中用户信息还存在，就自动登录
+	将bbs拷贝一份，改名问news. 因为news与bbs具有相同的一级域名，能共享cookie，这样在bbs的cookie就可以被news拿到
+	所以在autoFilter就可以自动登录
+
+2. 一级域名不同，就需要cas(central authentication service中心验证服务) cas是sso的一个框架
+	www.bbs.com
+	www.news.com
+	因为cookie无法共享，就需要一个专门的服务器(cas)来做验证，当bbs，news需要验证登录的时候，就跳转到www.server.com(cas服务器的域名)，验证通过后由cas服务器写cookie到客户端，并发送一条指令告诉bbs或news登录成功，传用户信息给bbs，
+	bbs在就收到指令后，就将用户信息保存到session中
+
+
+html5:
+视频：
+	常用视频格式：ogg, mp4, webm
+	<video src="movie.mpeg4" width="320" height="240" controls="controls"> </video>
+	<video width="320" height="240" controls="controls">
+	  <source src="movie.ogg" type="video/ogg">
+	  <source src="movie.mp4" type="video/mp4">
+	</video>
+音频：
+	<audio src="song.ogg" controls="controls"> </audio>
+	<audio controls="controls">
+	  <source src="song.ogg" type="audio/ogg"><source src="song.mp3" type="audio/mpeg">
+	Your browser does not support the audio tag.
+	</audio>
+
+Div+CSS的布局方式的问题：
+	结构不清晰，所有的都是Div
+	不利于SEO
+	不利于视障人士阅读
+常见主页结构：
+	<div class="header"></div>
+	<div class="nav"></div>
+	<div class="article">
+	</div>
+	<div class="sidebar"></div>
+	<div class="footer"></div>
+html5主页结构：
+	header,nav,aside,article,footer{
+		border-style: solid;
+		border-color: red;
+		border-width: 1px;
+	}
+	
+	aside{
+		float: right;
+		margin-right: 0px;
+		width: 200px;
+	}
+	
+	article{
+		margin-left: 0px;
+		margin-right: 210px;
+	}
+	
+	footer{
+		clear: both;
+	}
+	<header> <h1>欢迎您来到XXX网站</h1> </header>
+	<nav>
+		<a href="01-多媒体标签.html">首页</a>  <a href="01-多媒体标签.html">推荐</a> 
+	</nav>
+	<aside> <!-- 标签用来装载非正文的内容 -->
+		<p>01-多媒体标签.html</p>
+		<p>01-多媒体标签.html</p>
+		<p>01-多媒体标签.html</p>
+		<p>01-多媒体标签.html</p>
+		<p>01-多媒体标签.html</p>
+		<p>01-多媒体标签.html</p>
+	</aside>
+	<article>
+		01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html
+		01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html
+		01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html01-多媒体标签.html
+	</article>
+	<footer>
+		版权所有
+	</footer>
+
+表单标签：
+	Number:数字input标签，只需要指定type
+	Url：网址
+	Email：邮箱
+	date，datetime：日期，时间
+	range：区间范围
+	search：搜索
+	tel：电话
+	color：颜色
+	progroess：进度条
+	datalist：配合input，智能推荐（demo见备注）
+	output：配合表单，表单输出
+
+	placeholder属性：提供一种提示（hint），描述输入域所期待的值。
+	required 属性：规定必须在提交之前填写输入域（不能为空）。
+	pattern 属性规定用于验证input域的模式
+	min、max 和 step 属性
+	form属性，让表单标签不再局限在Form内，不再困扰form嵌套（在表单标签内指定form属性指向一个表单的id即可）
+	placeholder：指定input框提示信息
+	require/pattern 校验辅助
+	autofocus属性：true，false 自动获取焦点 google支持比较好
+	max/min/step
+	autocomplete属性
+	
+	<form id="demo">
+		<input type="Number" value="10" min="0" max="20" step="2">
+		<input type="Email" placeholder="请输入邮箱地址" required="required">
+		<input type="datetime">
+		<input type="range" id="range" step="5" min="0" max="50" value="20">
+		<output onforminput="value=range.value"></output> <!--配合input，输出值-->
+		
+		<input type="search" list="list">
+		<datalist id="list"> <!-- 配合input完成智能提示 -->
+			<option>北京</option>
+			<option>上海</option>
+			<option>广州</option>
+		</datalist>
+		
+		<input type="color">
+	</form>
+	<input type="submit" form="demo"> <!-- form属性可在form外指定属于哪个form -->
+
+文件api:
+	读取文件信息：
+	var FileList = document.getElementById("file").files;
+		
+	for(var i = 0; i < FileList.length; i++){
+		var file = FileList[i];
+		
+		var name = file.name;
+		var type = file.type;
+		var size = file.size;
+		var lastModifiedDate = file.lastModifiedDate;
+		
+		$("#result").append("<p> name: "+ name +"-----type: "+ type +"----size: "+ size +"-----lastModifiedDate: "+ lastModifiedDate +" </p>");
+	}
+	<input type="file" multiple="multiple" id="file"> <!-- html5中可以设置multiple多选文件 -->
+
+FileReader对象: 读取文件里面的数据
+	void readAsBinaryString(Blob blob);//读取数据作为二进制字符串
+	void readAsText(Blob blob, optional DOMString encoding);//文本
+	void readAsDataURL(Blob blob);//读取as url
+	-----------------------------
+	var file = document.getElementById("file").files[0];
+	var resultDiv = document.getElementById("result");
+	resultDiv.innerHTML = "";
+	
+	if(file){
+		var reader = new FileReader();
+		reader.readAsDataURL(file);
+		//reader.readAsBinaryString(file);
+		//reader.readAsText(file, "gb2312");
+		reader.onload = function (e) {
+			var data = reader.result;
+			resultDiv.innerHTML = "<img src='"+ data +"'><\img>";
+			//resultDiv.innerHTML = data;
+		};
+	}
+
+drag:
+	document.ondragover = function (e) {
+		e.preventDefault();
+	}
+	
+	document.ondrop = function (e) {
+		e.preventDefault();
+	}
+	
+	var dragDiv = document.getElementById("dragDiv");
+	var resultDiv = document.getElementById("resultDiv");
+	
+	//addEventListener("dragstart\dragend\drop", function(ex){});
+	dragDiv.addEventListener("dragstart",  function(ex){
+		var data = ex.dataTransfer;
+		data.setData("text/plain", this.id);
+	});
+	
+	resultDiv.addEventListener("dragend",  function(e){
+		e.preventDefault();
+	});
+	
+	resultDiv.addEventListener("drop",  function(ex){
+		var data = ex.dataTransfer;
+		var id = data.getData("text/plain");
+		$("#resultDiv").append($("#" + id));
+	});
+	
+	<div id="dragDiv" draggable="true">
+		被拖拽的元素
+	</div>
+	<div id="resultDiv">
+		目标元素
+	</div>
+
+

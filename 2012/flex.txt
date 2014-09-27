@@ -1,0 +1,691 @@
+下载Flash Bilder，FB4默认使用的sdk是4，里面的组件和3不同。
+4是<fx:..>，而3是<mx:..>。 可以在FB4中修改SDK为3.5，就可以使用<mx:..>了。
+
+hello world:
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" llayout="horizontal">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			private function sayHello() :void {
+				var num:String = firstInput.text; //直接使用id来表示组件
+				var result:int = int(num)+100;  //将String转换为int
+				resultLabel.text = result.toString(); //将int转换为字符串
+				Alert.show(result.toString()); 
+			}
+		]]>
+	</mx:Script>
+	<mx:TextInput id="firstInput" text="100"/>  <!--text是指默认值-->
+	<mx:Label id="resultLabel" text="result" />
+	<mx:Button label="请点击我" click="sayHello()"/>
+</mx:Application>
+
+Flex组成: ActionScript(javascript)、css、mxml(html) 
+
+action script:
+1. 基本数据类型(这里的基本数据类型也是对象，与java不同)
+	int 32位整数
+	Number 64位双精度浮点数
+	String UTF-16
+	uint 无符号整数
+	Boolean true/false
+2. 常量
+	常量定义方式：const PRICE:Number = 40;
+	变量定义方式：var price:Number = 40;
+3. 注释
+	单行 //
+	多行 /*  */
+4. 打印信息到控制台
+	trace("ok");  //相当于System.out.println()，必须在debug模式下才能打印出信息,并且要使用debug版本的Flash播放器
+5. 数组
+	var arr:Array = ["a", "b", "c"];
+	for(var i:String in arr){  //i是下标，注意action script的下表是String而不是int
+		trace(arr[i]);  
+	}
+	for each(var a:String in arr) { //此处的a不是下表，而是arr中的元素
+		trace(a);
+	}
+6. 函数
+	private function add(num1:int, num2:int):int{
+		return num1+num2;
+	}
+7. 类(xx.as文件)
+	package com.zzjie
+	{
+		public class Animal
+		{
+			public function Animal()  //注意：class只能有一个构造方法，可以有参也可以无参
+			{
+			}
+		}
+	}
+	创建： var animal:Animal = new Animal();
+7. 继承
+	public class Cat extends Animal {
+		public function run() {
+			trace("");
+		}
+	}
+8. 方法重写 (ActionScript3.0中没有方法重载)
+	override public function run():void 
+9. 接口
+	public interface Robot {
+		function sayHello():void; //接口中的方法都是抽象方法，不能有权限控制符（默认是Public）
+	}
+10. final，super， this
+	final修饰的类不可继承，方法不能被重写，
+	super 父类
+	this 当前对象
+11. 没有抽象类
+12. 权限符
+	internal 当前包可用
+	private 当前类可用
+	public 公共的
+	protected 继承可用
+13. 字符串操作
+	str1.concat("aa", "bb", "cc"); //字符串拼接方法，相当于str1+"aa"+"bb"+"cc".
+	str1.length; //获取长度
+	str1.charAt(1);
+	str1.indexof("a"); //获取子字符串的位置
+	str1.indexof("a", 3) //从第三个下标开始找
+	str1.substring(2, 5) 从第二个开始截取，截取到第5-1个
+	str1.substr(2, 5) 从第二个开始截取，截取5位
+14. 时间
+	var date:Date = new Date(); 获取当前时间
+	date.fullYear 年  date.month 月（0-11）  date.date 几号 date.day 星期几（0-6,0表示星期天）
+	date.hours:date.minutes:date.seconds  时分秒
+	var date:Date = new Date(2012,12,12); 创建指定日期的时间，参数顺序：年,月,日,时,分,秒,毫秒
+	//获取2天前是几月几号
+	var now:Date = new Date();
+	var nowTime:Number = now.time; //获取从1970年1月1号到现在毫秒数
+	var twoDayBeforeTime:Number = nowTime - (1000*60*60*24*2);
+	var twoDayBeforeDate:Date = new Date(twoDayBeforeTime);
+	trace(twoDayBeforeDate.date.toString());
+15. 定时器
+	<mx:Application creationComplete="init()" xmlns:mx="http://www.adobe.com/2006/mxml" layout="horizontal"> 
+		<mx:Script>
+			<![CDATA[
+				var timer:Timer = null;
+				private function init():void {
+					timer = new Timer(1000); //每隔1000毫秒执行一次，可通过timer.delay=500修改
+					timer.addEventListener(TimerEvent.TIMER, execute); //添加执行事件，
+					//timer.repeatCount = 10;
+					timer.addEventListener(TimerEvent.TIMER_COMPLETE, finish); //必须设置了timer.repeatCount且执行完才会调用finish
+				}
+				private function execute():void{
+					var count:int = timer.currentCount;
+					trace("第"+count.toString()+"次调用");
+				}
+				private function finish():void{
+					trace("timer finish");
+				}
+				private function start():void {
+					timer.start();
+				}
+				private function stop():void {
+					timer.stop();
+				}
+				private function reset():void{
+					timer.reset();
+				}
+				
+			]]>
+		</mx:Script>
+		<mx:Button label="开始" click="start()"/>
+		<mx:Button label="停止" click="stop()"/>
+		<mx:Button label="重置" click="reset()"/>
+	</mx:Application>
+	注： creationComplete相当于document.onload
+16. 数组 (可存放不同类型的元素，但不建议)
+	var arr:Array = new Array("a", "b", "c");
+	var arr:Array = ["a", "b", "c"];
+	arr.length 获取长度
+	arr.push("d") 添加到数组尾部， arr.pop() 删除尾部的元素
+	arr.shift() 删除首位的元素 arr.unshift("d")添加到数组首位
+	arr.splice(0, 2) 从第0个开始，删除2个元素  ["a","b","c"] -> ["c"]
+	arr.splice(0, 1, "d") 从第0个开始，删除1个元素并在第0个元素插入"d"  ["a","b","c"] -> ["d","b","c"]
+	arr.concat(arr2) 连接数组
+	arr.slice(0，2) 截取数组，从第0个开始，截取到第2-1个。
+	arr.sort(Array.NUMERIC);
+	//Array.NUMERIC，默认就是这个， 根据Ascall码排序
+	//Array.DESCENDING 倒序排序  == arr.reverse()    
+	//Array.xxx
+	var user:Object = {username:"zhangsan", password:"123"}; 动态为对象添加属性
+	arr可以放Object的：
+	var arr:Array = [{username:"zhangsan", password:"123"},
+					 {username:"lisi", password:"123"}];
+	arr.sortOn("username", Array.NUMERIC); 按数组元素的某个属性来排序
+17. XML操作
+	private function init():void{
+				var x:XML = 
+		<RIA>
+			<FlashPlayer version="9" name="10">
+				<Flash>Flash CS3</Flash>
+				<Flex>Flex3</Flex>
+			</FlashPlayer>
+			<FlashPlayer version="3">
+				<Flash>Flash CS2</Flash>
+				<Flex>Flex2</Flex>
+			</FlashPlayer>
+			<Ajax>
+				<GoogleAjax>GoogleAjax1.0</GoogleAjax>
+			</Ajax>
+		</RIA>
+
+				//构建xml
+				//	var str:String = "<RIA><FlashPlayer><Flash>Flash CS3</Flash><Flex>Flex3</Flex></FlashPlayer><Ajax><GoogleAjax>GoogleAjax1.0</GoogleAjax></Ajax></RIA>";
+				//var x:XML = new XML(str);
+
+				var x1:XML = 
+							<Ajax>
+								<GoogleAjax>GoogleAjax2.0</GoogleAjax>
+							</Ajax>
+	
+				//1. appendChild 添加到最后一个子元素
+				x.appendChild(x1);
+				//2. prependChild 添加到第一个子元素
+  				x.prependChild(x1);
+				//3. insertChildBefore 在指定的元素之前添加
+  				x.insertChildBefore(x.Ajax[0], x1);
+				//4. insertChildAfter 在指定的元素之后添加
+				//5. 添加一个属性
+  				x.@name = "myXml";
+
+				//6. 访问节点
+  				var x2:XML = x.FlashPlayer[0].Flex[0];
+
+				//7. 访问属性
+				var val:String = x.FlashPlayer[1].@version;
+				var val:String = x.FlashPlayer[0].@*;
+
+				//8. 遍历节点
+				for(var i:int = 0; i < x.FlashPlayer.length(); i++){
+					var x2:XML = x.FlashPlayer[i];
+					trace(x2.toString());
+				}
+
+				//9. 删除节点和属性
+				delete x.FlashPlayer[0].@version;
+				delete x.FlashPlayer[0];
+				
+				trace(x.toString());
+			}
+
+18. 函数参数（提供了默认值参数是可选参数，没提供默认值的是必选参数）
+	private function testFun(
+			age:int,
+			isOpenMail:Boolean = false,  //可选参数
+			username:String = "tom"):void{
+	}
+	
+	private function testFun2():void{
+		testFun(28,true);
+	}
+19. Event （所有事件都是Event的子类）
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Button;
+			
+			private function init():void{
+				/*
+				but.addEventListener(MouseEvent.CLICK, eventHandler1);
+				but.removeEventListener(MouseEvent.CLICK, eventHandler1);
+				*/
+				
+				but.addEventListener(MouseEvent.CLICK, eventHandler1, false, 1);
+				but.addEventListener(MouseEvent.CLICK, eventHandler2, false, 2); //动态添加，参数需要加event
+			}
+			
+			private function eventHandler1(event:Event):void{
+				/*
+				var but:Button = Button(event.currentTarget);
+				trace("eventHandler1:" + but.label);
+				*/
+				trace("eventHandler1");
+			}
+			
+			private function eventHandler2(event:Event):void{ //静态添加方法(cllick=..)参数可以不加event
+				trace("eventHandler2");
+			}
+		]]>
+	</mx:Script>
+	<mx:Button label="Test" id="but" />
+	<mx:Button label="Test" id="but2" click="eventHandler2(event)" /> actionscript自动生成event并传入
+	------
+	private function init():void{
+		this.ta.addEventListener(KeyboardEvent.KEY_UP, handleKeyEvent);
+		this.btn.addEventListener(MouseEvent.CLICK, handleMouseEvent);
+	}
+	private function handleKeyEvent(event:KeyboardEvent) {
+		trace(event.keyCode.toString());
+	}
+	private function handleMouseEvent(event:MouseEvent) {
+		trace(event.altKey.toString()); //点击同时按下alt就为true，否则为false
+		//trace(event.shiftKey.toString());
+	}
+	<mx:TextArea id="ta" />
+	<mx:Button label="click" id="btn" />
+	20. Error (相当于java当中的Exception)
+	private function testErrorFun():void {
+		try{
+			var str:String = null;
+			str.substring(0, 9);
+		}
+		catch(e:TypeError){
+			trace(e.message);	
+			trace(e.getStackTrace());
+		}
+		finally{
+			trace("finally");
+		}
+	}
+	注：定义自己的Error：创建一个类继承Error
+
+mxml:
+1. 容器标签：
+	<mx:Panel verticalCenter="-100" horizontalCenter="0" title="这是我的第一个Panel" width="300" height="400">
+		<mx:Label text="hello,world"/>
+	</mx:Panel>
+	<mx:HBox> <!-- 水平排列 -->
+		<mx:Button label="Test1"/>
+		<mx:Button label="Test2"/>
+		<mx:Button label="Test3"/>
+	</mx:HBox>
+	<mx:VBox x="100" y="100">  <!-- 垂直排列 -->
+		<mx:Button label="Test1"/>
+		<mx:Button label="Test2"/>
+		<mx:Button label="Test3"/>
+	</mx:VBox>
+	<mx:HDividedBox width="100%" height="100%"> <!-- 将里面的类容按水平分割，可以拖动改变大小 -->
+		<mx:Panel width="30%" height="100%">
+			<mx:Label text="Left"/>
+		</mx:Panel>
+		<mx:Panel width="70%" height="100%">
+			<mx:Label text="Right"/>
+		</mx:Panel>
+	</mx:HDividedBox>
+	<mx:Image source="images/Blue hills.jpg" width="200" height="100"/>
+	<mx:HRule width="50%" x="244" y="151"/>  <!-- 水平线 -->
+	<mx:VRule x="442" y="69"/>    <!-- 垂直线 -->
+2. 表单标签：
+	<mx:Model id="cities"> <!-- model里放xml -->
+		<cities>
+			<city name="南京" code="nj"/>
+			<city name="常州" code="cz"/>
+			<city name="苏州" code="sz"/>
+		</cities>
+	</mx:Model>
+	
+	<mx:Model id="skills">
+		<skills>
+			<skill name="C#" code="C#"/>
+			<skill name="Java" code="Java"/>
+			<skill name="PHP" code="PHP"/>
+		</skills>
+	</mx:Model>
+	<mx:Script>
+		<![CDATA[
+			[Bindable]   //加了该注解表示：数组与某组件绑定，当数组内容改变，组件中对应的类容也改变
+			private var dayNames:Array = new Array("星期日", "星期一",
+			"星期二", "星期三", "星期四", "星期五", "星期六");
+			
+			private function submitMyInfor():void{
+				var username_value:String = username.text;
+				var password_value:String = password.text;
+				var isOpenMail:Boolean = openMail.selected;
+				var sex_value:String = sex.selectedValue.toString();
+				var birthday_value:String = birthday.text;
+				var desc_value:String = desc.text;
+				
+				var city_value:String = 
+					(city.selectedItem == null)? "您没有选择此项" : city.selectedItem.code;
+					/* list选择框的单选情况：
+				var skill_value:String = 
+					(skill.selectedItem == null)? "您没有选择此项" : skill.selectedItem.code;
+					*/
+				var skill_array:Array = skill.selectedItems;
+				
+				trace("用户名:" + username_value);
+				trace("密码:" + password_value);
+				trace("是否公开邮箱:" + isOpenMail.toString());
+				trace("性别:" + sex_value);
+				trace("出生日期:" + birthday_value);
+				trace("个人简介:" + desc_value);
+				trace("城市代码:" + city_value);
+//				trace("技能:" + skill_value);
+				trace("技能:");
+				
+				for(var i:int = 0; i < skill_array.length; i++){
+					trace(skill_array[i].code + ",");
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:Form>
+		<mx:FormHeading label="请输入您的个人信息"/>
+		
+		<mx:FormItem label="用户名:" required="true">
+			<mx:TextInput id="username" />
+		</mx:FormItem>
+		
+		<mx:FormItem label="密码:" required="true">
+			<mx:TextInput id="password" displayAsPassword="true"/>
+		</mx:FormItem>
+		
+		<mx:FormItem>
+			<mx:CheckBox id="openMail" label="是否公开邮箱"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="性别">
+			<mx:RadioButtonGroup id="sex" />
+			<mx:HBox>
+				<mx:RadioButton selected="true" groupName="sex" label="男" value="male" />
+				<mx:RadioButton groupName="sex" label="女" value="female" />
+			</mx:HBox>
+		</mx:FormItem>
+		
+		<mx:FormItem label="出生日期">
+		<!-- DateChooser直接显示，DateField点击后才显示。
+			<mx:DateChooser id="birthday"/>
+		-->
+			<mx:DateField dayNames="{dayNames}" id="birthday" showToday="true" yearNavigationEnabled="true" formatString="YYYY-MM-DD"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="个人简介:">
+			<mx:TextArea id="desc" width="300" height="100"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="城市">
+			<mx:ComboBox id="city" dataProvider="{cities.city}"
+				 labelField="name" prompt="请选择您所在的城市"/>
+		</mx:FormItem>
+		
+		<mx:FormItem label="请选择您所掌握的技能">
+			<mx:List id="skill" dataProvider="{skills.skill}"
+				 labelField="name" width="300" height="100"
+				 allowMultipleSelection="true"/>
+		</mx:FormItem>
+		
+		<mx:FormItem>
+			<mx:Button label="提交我的信息" click="submitMyInfor()"/>
+		</mx:FormItem>
+	</mx:Form>
+3. tree, dataGrid：
+	<mx:XML id="dept_xml">
+		<depts label="部门" code="0">
+			<dept label="市场部" code="1" />
+			<dept label="开发部" code="2">
+				<dTeam label="开发1组" code="2.1"/>
+				<dTeam label="开发2组" code="2.2"/>
+			</dept>
+			<dept label="测试部" code="3" />
+		</depts>
+	</mx:XML>
+	<mx:ArrayCollection id="empl_infor_arrayCollection"> <!-- 和Array差不多，不过比数组多了一些操作 --> 
+		<mx:Object>
+			<mx:Name>张三</mx:Name>
+			<mx:EmplNum>001</mx:EmplNum>
+			<mx:WorkDate>2007-1-2</mx:WorkDate>
+			<mx:DeptName>市场部</mx:DeptName>
+			<mx:DeptCode>1</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>李四</mx:Name>
+			<mx:EmplNum>002</mx:EmplNum>
+			<mx:WorkDate>2007-2-2</mx:WorkDate>
+			<mx:DeptName>开发部1组</mx:DeptName>
+			<mx:DeptCode>2.1</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>王五</mx:Name>
+			<mx:EmplNum>003</mx:EmplNum>
+			<mx:WorkDate>2008-3-24</mx:WorkDate>
+			<mx:DeptName>开发部2组</mx:DeptName>
+			<mx:DeptCode>2.2</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>赵六</mx:Name>
+			<mx:EmplNum>004</mx:EmplNum>
+			<mx:WorkDate>2008-6-7</mx:WorkDate>
+			<mx:DeptName>开发部2组</mx:DeptName>
+			<mx:DeptCode>2.2</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>小强</mx:Name>
+			<mx:EmplNum>005</mx:EmplNum>
+			<mx:WorkDate>2007-3-2</mx:WorkDate>
+			<mx:DeptName>测试部</mx:DeptName>
+			<mx:DeptCode>3</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>旺财</mx:Name>
+			<mx:EmplNum>006</mx:EmplNum>
+			<mx:WorkDate>2007-8-8</mx:WorkDate>
+			<mx:DeptName>测试部</mx:DeptName>
+			<mx:DeptCode>3</mx:DeptCode>
+		</mx:Object>
+		<mx:Object>
+			<mx:Name>来福</mx:Name>
+			<mx:EmplNum>007</mx:EmplNum>
+			<mx:WorkDate>2007-12-2</mx:WorkDate>
+			<mx:DeptName>市场部</mx:DeptName>
+			<mx:DeptCode>1</mx:DeptCode>
+		</mx:Object>
+	</mx:ArrayCollection>
+	<mx:Script>
+		<![CDATA[
+			private function changeEmpl():void{
+				var allEmplArray:Array = empl_infor_arrayCollection.toArray();
+				var curEmplArray:Array = allEmplArray.filter(selectedEmpl);
+				//allEmplArray中的每个元素都调用selectedEmpl进行过滤，selectedEmpl返回true表示该元素过滤后保留
+				
+				empl_infor_dr.dataProvider = curEmplArray;
+			}
+			
+			//选择对应部门的员工
+			private function selectedEmpl(element:*, index:int, arr:Array):Boolean{ //*表示任意类型
+				return element.DeptCode == dept_tree.selectedItem.@code;
+			}
+		]]>
+	</mx:Script>
+	<mx:Panel title="员工信息" width="100%" height="100%">
+		<mx:HDividedBox width="100%" height="100%">
+			<mx:Tree id="dept_tree" width="30%" height="100%"
+			   dataProvider="{dept_xml}" labelField="@label"
+			   showRoot="true"
+			   change="changeEmpl()">
+			</mx:Tree>
+			
+			<mx:DataGrid id="empl_infor_dr" width="70%" height="100%">
+				
+				<mx:columns>
+					<mx:DataGridColumn headerText="姓名" dataField="Name"/>
+					<mx:DataGridColumn headerText="员工号" dataField="EmplNum"/>
+					<mx:DataGridColumn headerText="入职日期" dataField="WorkDate"/>
+					<mx:DataGridColumn headerText="部门" dataField="DeptName"/>
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HDividedBox>
+	</mx:Panel>		
+4. repeater：
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			[Bindable]
+			private var books:ArrayCollection = new ArrayCollection([
+				{bookName:"Flex", price:29.9},
+				{bookName:"Flash", price:39.9},
+				{bookName:"Css", price:49.9}
+			]);
+			private function buyBook(event:Event):void {
+				var bookName:String = event.currentTarget.getRepeaterItem().bookName; //event.currentTarget这里获得的是reapter，而不是button
+				var butIndex:int = books.getItemIndex(event.currentTarget.getRepeaterItem()); 
+				but[butIndex].label = "已购买"; //id="but"重复了，所以but是一个数组
+				trace("购买的图书:" + bookName);
+			}
+		]]>
+	</mx:Script>
+	<mx:Repeater id="book_repeater" dataProvider="{books}">
+		<mx:Label text="{book_repeater.currentIndex + 1}   书名:{book_repeater.currentItem.bookName}   价格:{book_repeater.currentItem.price}"/>
+		<mx:Button id="but" label="购买" click="buyBook(event)"/>
+		<mx:HRule width="30%"/>
+	</mx:Repeater>
+5. 导航栏：
+	有多个容器<mx:VBox>..</mx:VBox>
+	1. 使用<mx:ViewStack id="vs" width="80%" height="70%">包含多个容器时， 只会显示一个，其余的重叠了。
+	使用ViewStack时，加上<mx:LinkBar dataProvider="{vs}"/>就可显示选项卡的效果，每个选项卡对应一个容器
+	2. 使用<mx:Accordion id="vs" width="80%" height="70%">包含多个容器，qq联系人那种一点就展开的效果
+	3. 使用<mx:TabNavigator id="my_vs" height="70%" width="80%">包含多个容器，选项卡效果
+6. 菜单栏：
+	<mx:XML id="menu_data">
+		<root>
+			<menuitem label="首页" />
+			<menuitem label="产品列表">
+				<menuitem label="N97" />
+				<menuitem label="N95" />
+				<menuitem label="N94" />
+				<menuitem label="N92" />
+			</menuitem>
+			<menuitem label="联系我们" />
+			<menuitem label="关于" />
+		</root>
+	</mx:XML>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.MenuEvent;
+			private function show(event:MenuEvent):void{
+				trace(event.label); //label是MenuEvent的属性,而不是xml中menuitem的属性
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:ApplicationControlBar dock="true">
+		<mx:MenuBar id="applicationMenu" dataProvider="{menu_data}" showRoot="false" labelField="@label" change="show(event)" />
+	</mx:ApplicationControlBar>
+7. 状态与过渡：
+	<mx:ApplicationControlBar dock="true">
+		<mx:LinkButton click="this.currentState=''" label="首页"/>
+		<mx:LinkButton click="this.currentState='login'" label="登录"/>
+		<mx:LinkButton click="this.currentState='advice'" label="意见"/>
+		<mx:LinkButton click="this.currentState='about'" label="关于"/>
+	</mx:ApplicationControlBar>
+
+	<mx:states>
+		<mx:State name="login">
+			<mx:AddChild creationPolicy="all" position="lastChild"> <!-- AddChild只能添加一个元素，添加2个元素时什么也不显示。要添加多个就要写多个AddChild -->
+				<mx:Panel id="loginPanel" title="登录">..</mx:Panel>
+			</mx:AddChild>
+			 <!-- creationPolicy默认是auto，表示当需要激活该组件时才创建组件。当为auto，如果不按Transition中的targets中的顺序激活组件，会报错。所以使用all -->
+			<mx:AddChild creationPolicy="all" relativeTo="{loginPanel}" position="before"> <!-- position为before,after时，与relativeTo连用 -->
+				<mx:Text text="用户名或密码错误"/>
+			</mx:AddChild>
+			<!-- <mx:RemoveChild target="{loginPanel}"/> -->
+		</mx:State>
+		
+		<mx:State name="advice">
+			<mx:AddChild creationPolicy="all" position="lastChild">
+					<mx:Panel id="advicePanel">..</mx:Panel>
+			</mx:AddChild>
+		</mx:State>
+		
+		<mx:State name="about">
+			<mx:AddChild creationPolicy="all" position="lastChild">
+				<mx:Text id="aboutText" textAlign="left" width="100%">..
+				</mx:Text>
+			</mx:AddChild>
+		</mx:State>
+	</mx:states>
+
+	<mx:transitions>  <!-- 过渡：从一个状态到另一个状态的一些效果 -->
+		<mx:Transition fromState="*" toState="*">
+			<mx:Sequence targets="{[loginPanel, advicePanel, aboutText]}"> <!-- 表示Blur按顺序执行 -->
+				<mx:Blur blurYFrom="0.0" blurYTo="20.0" duration="200"/> <!--变模糊 -->
+				<mx:Blur blurYFrom="20.0" blurYTo="0.0" duration="200"/>
+			</mx:Sequence>
+		</mx:Transition>
+	</mx:transitions>		
+
+动画效果：
+	<mx:Image mouseDownEffect="{effect}" source="images/Blue hills.jpg" width="600" height="400"/>
+	<mx:Blur id="effect" blurXFrom="0" blurXTo="20" blurYFrom="0" blurYTo="20"/>
+	<mx:Dissolve id="effect" alphaFrom="1.0" alphaTo="0.5" color="white" duration="2000"
+	 	targetArea="{new RoundedRectangle(50,50,700,500)}"/>  <!--alpha=1是不透明，0是完全透明  -->
+	 <mx:Fade id="effect" alphaFrom="1.0" alphaTo="0.5" />
+
+	 <mx:Move id="effect" xFrom="100" xTo="600"
+	  yFrom="100" yTo="400" xBy="1" yBy="1" duration="2000"/> <!-- xBy=2,每次在x方向移动2个单位-->
+	  <mx:Resize id="effect" widthFrom="100" widthTo="600"
+	  heightFrom="100" heightTo="400" widthBy="1" heightBy="1"
+	  duration="2000"/>
+	  <mx:Rotate id="effect" angleFrom="0" angleTo="90"
+	   originX="100" originY="50" duration="2000"/> <-- origin设置以那个点为中心旋转，不设置默认为中心点 -->
+	  <mx:WipeDown id="effect" duration="2000"/>  <!-- 从上到下拉开 -->
+	  <mx:WipeUp id="effect" duration="2000"/>
+	  <mx:WipeLeft id="effect" duration="2000"/>
+	  <mx:WipeRight id="effect" duration="2000"/>
+	  <mx:Sequence id="effect">
+	  	<mx:WipeDown duration="2000"/>
+	  	<mx:WipeUp duration="2000"/>
+	  </mx:Sequence>
+	  <mx:Parallel id="effect">  <!-- 并行 -->
+	  	<mx:Resize widthFrom="100" widthTo="600"
+	  heightFrom="100" heightTo="400" widthBy="1" heightBy="1"
+	  duration="2000"/>
+	  
+	  	<mx:Rotate angleFrom="0" angleTo="90"
+	   originX="0" originY="0" duration="2000"/>
+	  </mx:Parallel>
+
+CSS:
+	<mx:Style>
+		global {
+			font-size:30px;
+		}
+		Button {
+			font-size:24px;
+		}
+		.test {
+			color:red;
+		}
+		/* 注意，不支持id选择器 */
+	</mx:Style>
+	<mx:Script>
+		<![CDATA[
+			private function changeButStyle():void{
+				/*  样式已经存在，修改它
+				var sd:CSSStyleDeclaration = StyleManager.getStyleDeclaration("Button");
+				sd.setStyle("color", "red");
+				*/
+				var sd:CSSStyleDeclaration = new CSSStyleDeclaration(); //动态创建一个css样式。样式还不存在
+				sd.setStyle("fontSize","24"); //html的css是font-size,flex一般情况下fontSize，font-size都支持，有时font-size这种写法不行
+				sd.setStyle("color", "red");
+				
+				StyleManager.setStyleDeclaration(".test", sd, true); //第三个参数表示是否立即生效
+			}
+		]]>
+	</mx:Script>
+	<mx:Button label="Test" styleName="test" click="changeButStyle()"/> <!-- 是styleName不是className -->
+	--------
+	ApplicationControlBar {
+		padding-left:0;
+		padding-right:0;
+		padding-top:0;
+		padding-bottom:0;
+		font-size:13px;
+		
+		fill-colors:#dedede, #ffffff; //两个值，表示从灰色到白色渐变的效果。 默认是没效果的，因为是透明的，必须加上fill-alphas让它不透明
+		fill-alphas:1, 1;
+		
+		highlight-alphas:0, 1;  //高亮
+	}
+
+
+
+
+
+
+
+
+
+

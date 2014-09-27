@@ -1,0 +1,396 @@
+当需要学习一个新的MVC框架需要以一下方面入手：
+1. 环境搭建（实现helloworld）
+2. 如何完成controller与view的映射
+2. 如何传递参数到Controller
+3. 如何从控制器获取参数
+4. 如何完成文件上传
+5. 如何完成验证
+6. 异常的处理
+7. 页面标签
+8. 深入学习一些原理和源代码
+
+整体架构:
+	
+
+Request 1---> DispatcherSerlvet	2---> HandlerMapping
+								3---> Controller
+								4<--- Controller return model and logical name
+								5---> ViewResolver
+								6---> View
+
+Request先到springmvc的控制器DispatcherSerlvet, 然后通过HandlerMapping(在配置文件中配的)找到我们的url对应的Controler
+然后交给Controller处理返回一个视图逻辑名, 然后在ViewResolver中找到这个视图逻辑名对应的视图,然后渲染视图并返回
+
+环境搭建（实现helloworld）：
+	1. 拷贝spring3/dist下所有jar包和common-logging到lib下
+	2. 编写web.xml
+		<servlet>
+			<servlet-name>hello</servlet-name>
+			<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		</servlet>
+		<servlet-mapping>
+			<servlet-name>hello</servlet-name>
+			<url-pattern>/</url-pattern>
+		</servlet-mapping>
+		注：使用spring的DispatcherServlet，使用/来匹配所有资源，包括静态资源，不同于struts的*.do
+	3. 编写controller
+		//使用BeanNameHanlerMapping的方式写controller, 要继承AbstractController
+		public class WelcomeController extends AbstractController {
+			public ModelAndView handleRequestInternal(HttpServletRequest request, HttpServletResponse reponse) throws Exception{
+				System.out.println("hello");
+				return new ModelAndView("hello");
+			}
+		}
+		------
+		//DefaultAnnotationHandlerMapping.   还有很多HandlerMapping,如SimpleUrl..Mapping 最常用的就是annotation的这个
+		@Controller
+		public class HelloController{
+			@RequestMapping(value={"/", "/hello"})
+			public String hello(){
+				System.out.println("hello");
+				return "hello";
+			}
+		}
+		注：访问@RequestMapping指定的值时，会调用hello方法。返回的"hello"称为逻辑视图，加上前后缀组成完整的视图路径
+	4. 在WEB-INF下编写文件hello-servlet.xml.文件名是固定的，以web.xml中的servlet-name开头，以-servlet.xml结束
+		<?xml version="1.0" encoding="UTF-8"?>
+		<beans xmlns="http://www.springframework.org/schema/beans" 
+		    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		    xmlns:mvc="http://www.springframework.org/schema/mvc"
+		    xmlns:context="http://www.springframework.org/schema/context"
+		    xsi:schemaLocation="
+				http://www.springframework.org/schema/mvc 
+			http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd
+			http://www.springframework.org/schema/beans 
+			http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+			http://www.springframework.org/schema/context 
+			http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+			
+			<!-- 默认使用的是BeanNameHanlerMapping,通过如下方式配置 -->
+			<bean name="/welcome.html" class="xxxx.WelcomeController" />
+
+			<!-- 通过下面两行就可以打开DefaultAnnotationHandlerMapping -->
+			<mvc:annotation-driven />
+			<context:component-scan base-package="com.zzjie.controller" />
+			
+			<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+				<property name="prefix" value="/WEB-INF/jsp/"></property>
+				<property name="suffix" value=".jsp"></property>
+			</bean>
+		</beans>
+		注：schema可以再spring的文档中找到。
+	5. 编写页面。在WEB-INF/jsp/下新建hello.jsp。
+	6. 访问http://localhost:8080/spring_mvc_01/hello 就会跳转到WEB-INF/jsp/下的hello.jsp页面
+
+springMVC值的传递：
+	1. 直接在方法上加上参数就可以接受参数：
+		public String hello(int id){
+			System.out.println(id);
+			..
+		}
+	   注：如果没有传递参数，默认会传递null给id。int是原生类型,所以会报错
+	       如果写成public String hello(@RequestParam int id)那么就必须在url上附加id参数，
+	       否则不能访问该方法，400错误。强制附加参数才能访问方法与struts2不同。
+	       还可以写成public String hello(@RequestParam("userId") int id),访问的时候就该加上?userId=
+	2. 在控制器中保存值：
+		1）使用Map的方式，在页面可以通过${hello}获取
+		@RequestMapping("/say")
+		public String say(int id, Map<String, Object> map){
+			map.put("hello", "world");
+			return "hello";
+		}
+		2）通过Model的方式（建议）：
+		@RequestMapping("/say2")
+		public String say2(int id, Model model){
+			model.addAttribute("hello", "world");
+			model.addAttribute("zzjie"); 
+			return "hello";
+		}
+		注： model.addAttribute("zzjie"); 这种方式以参数的类型为key。如"zzjie"字符串，则以string为key
+		     在页面中就可以通过${string}访问。如果参数是User对象就以user为key，十分方便。
+	3. 获取request,response,session等
+		@RequestMapping("/req")
+		public String req(HttpServletRequest req){
+			System.out.println(req.getParameter("username"));
+			return "hello";
+		}
+		注： 只要直接把需要的参数写在方法上，spring自动回传递过来。
+	struts2在controller中接受参数是通过类成员变量来接收的, 使用类成员变量导致controller不能使用不能使用单例. 每次请求都要创建一个controller. 而springmvc中接收参数通过方法变量, 这就使controller可以使用单例,所以springmvc的效率要高于struts2
+
+REST特点：
+url 
+	普通的架构http://localhost:8080/user/user_show.action?id=1
+	REST的架构，以资源为导向的访问http://localhost:8080/user/user/1 (很多流行网站已是这种方式)
+
+	/user_show?id=120
+	/user/120
+
+	/user_delete?id=123
+	/user/123/delete
+
+	/user_updateInput?id=123
+	/user/123/update
+
+	/user_list
+	/users
+	/user/users
+
+提交数据：
+	现在提交请求都是GET POST。
+	REST（这也是http协议设计最初的意思）：
+		GET get获取数据
+		POST add
+		PUT update
+		DELETE delete
+无状态，没有session
+
+使用springMVC完成REST风格url的用户管理例子：
+	1. springmvc项目搭建，如上面的hellworld。在加上bean-validator.jar(jsr303)
+	springmvc支持jsr303(beanvalidate)，只要在字段上加上beanvalidate的注解，springmvc就能帮我们完成验证	
+	2. 创建User类
+		public class User {
+			@NotEmpty(message="用户名不能为空")   //也可加在getter上
+			private String username;
+			@NotEmpty(message="密码不能为空")
+			@Size(min=3,max=8,message="密码最少为3位，最多为8位")
+			private String password;
+			private String nickname;
+			@Email(message="email格式不正确")
+			private String email;
+			// constructor
+			//getter and setter
+		}
+	3. 创建UserController
+		@Controller
+		@RequestMapping("/user")
+		@SessionAttributes("loginUser")   //写了这个后，执行model.addAttribute("loginUser", ..)后就会添加到session中
+		public class UserController {
+
+			private static Map<String, User> users = new HashMap<String, User>(); //模拟数据库
+			
+			public UserController() {
+				users.put("ldf", new User("ldf", "123", "刘德华", "sdfd"));
+				users.put("zxy", new User("zxy", "123", "张学友", "sdfd"));
+				users.put("gfc", new User("gfc", "123", "郭富城", "sdfd"));
+				users.put("lm", new User("lm", "123", "黎明", "sdfd"));
+			}
+			
+			@RequestMapping(value="/users", method=RequestMethod.GET)
+			public String users(Model model){;
+				model.addAttribute("users", users);
+				return "user/users";
+			}
+			
+			@RequestMapping(value="/add", method=RequestMethod.GET)
+			public String add(Model model, @ModelAttribute User user){
+				//因为页面spring表单中modelAttribute="user",会到request中找user对象，找不到就会报错，所以在这里先存一个进去
+				//可以不用这种方式, 而是在add方法加一个参数@ModelAttribute User user
+				model.addAttribute("user", new User());   
+
+				return "user/add";
+			}
+			
+			@RequestMapping(value="/add", method=RequestMethod.POST)
+			public String add(@Validate User user,BindingResult result){ //加上 @Validate表明要验证, @Validate后必须紧跟BindingResult
+				if(result.hasErrors()){ //有错返回添加页面
+					return "user/add";
+				}
+				users.put(user.getUsername(), user);
+				//重定向，也可以写成"redirect:/user/users",会自动加上contextpath,使用绝对定位，user/users前面加上/
+				return InternalResourceViewResolver.REDIRECT_URL_PREFIX+"/user/users"; 
+			}
+			//注： 这里的2个add方法，一个是添加页面，一个是添加操作。通过是get还是post请求来区分
+			@RequestMapping(value="/{username}",method=RequestMethod.GET)
+			public String show(@PathVariable String username,Model model) {
+				model.addAttribute(users.get(username));
+				return "user/show";
+			}
+			
+			@RequestMapping(value="/{username}/update",method=RequestMethod.GET)
+			public String update(@PathVariable String username,Model model) {
+				model.addAttribute(users.get(username));
+				return "user/update";
+			}
+			
+			@RequestMapping(value="/{username}/update",method=RequestMethod.POST)
+			public String update(@PathVariable String username, @Valid User user,BindingResult br,Model model) {
+				if(br.hasErrors()) {
+					//model.addAttribute(users.get(username)); //如果写了这句, 错误信息就不显示, 因为新查出来的user没有错误
+					//model.addAttribute(user); //应该这样写, 但默认就是这样, 可以不写
+					return "user/update";
+				}
+				users.put(username, user);
+				return "redirect:/user/users";
+			}
+			
+			@RequestMapping(value="/{username}/delete",method=RequestMethod.GET)
+			public String delete(@PathVariable String username) {
+				users.remove(username);
+				return "redirect:/user/users";
+			}
+			
+			@RequestMapping(value="/login",method=RequestMethod.GET)
+			public String login() {
+				return "user/login";
+			}
+			
+			@RequestMapping(value="/login",method=RequestMethod.POST)
+			public String login(String username,String password,Model model) {
+				if(!users.containsKey(username)) {
+					throw new UserException("用户名不存在");
+				}
+				if(!password.equals(users.get(username).getPassword())) {
+					throw new UserException("用户密码不正确");
+				}
+				model.addAttribute("loginUser", users.get(username)); //因为 @SessionAttributes("loginUser")，所以添加到session中
+				return "redirect:/user/users";
+			}
+			
+			/* 这是局部的异常处理方式, 只对这个controller有效*/
+			@ExceptionHandler(value={UserException.class})
+			public String handlerException(Exception ex,HttpServletRequest req) { //不是RequestMapping,不能传Model了
+				req.setAttribute("ex",ex);  //页面通过${ex.message}显示错误信息
+				return "error";
+			}
+			/*
+			 全局的异常处理, 需要在xx-servlet.xml中配置
+			<bean id="exceptionResolver" class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+				<property name="exceptionMappings">
+					<props>
+						<prop key="zttc.itat.model.UserException">error</prop> <!-- UserException返回error页面,页面通过${exception,message来获取异常信息} -->
+					</props>
+				</property>
+			</bean> 
+			*/
+
+			@RequestMapping("/redir")
+			public String redir(Model model,RedirectAttributes ra) {
+				ra.addFlashAttribute("tttt", "吞吞吐吐");  //RedirectAttributes添加的属性，在重定向后也能访问。估计是用session实现，重定向后清除session
+				return "redirect:/user/users";
+			}
+		}
+		注：转发方式是返回的字符串加上前缀后缀组成返回的视图。
+		    而重定向是将"redirect:/user/users"去掉"redirect:",然后加上contextpath，再重定向。必须加上/
+	4. 编写页面WEB-INF/user/users.jsp, WEB-INF/user/add.jsp, ....
+	列表页面：
+		<a href="add">add</a><br> <!-- 到添加页面 -->
+		<c:forEach items="${users }" var="user"> <!-- users是Map<String, User>，所以迭代的时候使用user.value代表User对象 -->
+			${user.value.username}|${user.value.password}|${user.value.nickname}|${user.value.email}|<br>
+		</c:forEach>
+	添加页面：
+		<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
+		<form:form method="post" modelAttribute="user">    <!--modelAttribute就像sturts2的modeldriven。会把参数传递给user对象中的属性。没写action提交给自己user/add -->
+			Username: <form:input path="username"/><form:errors path="username"/><br>
+			Password: <form:password path="password"/><form:errors path="password"/><br>
+			Nickname: <form:input path="nickname"/><form:errors path="nickname"/><br>
+			Email: <form:input path="email"/><form:errors path="email"/><br>
+			<input type="submit" value="submit">
+		</form:form>
+	...
+	若要访问/css/main.css这些静态资源是访问不到的，因为springmvc的过滤器过滤了全部资源
+	可以再xx-serlver.xml中配置  (spring3.0.5之后才支持这种方式)
+		<mvc:resources location="/resources/" mapping="/resources/**"/>    <!-- 注意:location不能写成"/resource" -->
+	并把css,img,js这些全部放在/resources/下，然后我们就可以访问/resources/css/main.css了
+	
+文件上传：
+	1. 加入fileupload和common-io的jar包
+	2. 在xx-servlet.xml中配置
+		<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+			<property name="maxUploadSize" value="5000000" />
+		</bean>
+		注： 必须有 id="multipartResolver"
+	3. 在控制器保存上传文件
+		@RequestMapping(value="/add", method=RequestMethod.POST)
+		public String add(@Valid User user,BindingResult result, MultipartFile photo, HttpServletRequest req) throws IOException{
+			if(result.hasErrors()){
+				return "user/add";
+			}
+			// -------------上传开始----------------
+			System.out.println(photo.getContentType()+","+photo.getName()+","+photo.getOriginalFilename());
+			String realPath = req.getSession().getServletContext().getRealPath("/resources/upload");
+			FileUtils.copyInputStreamToFile(photo.getInputStream(), new File(realPath+"/"+photo.getOriginalFilename())); //common-io的类
+			
+			users.put(user.getUsername(), user);
+			return "redirect:/user/users";
+		}
+		注:  MultipartFile photo,photo名字要与页面file控件的名称一样
+		     BindingResult 必须紧跟在要验证的对象后面，中间不能有其他参数。
+	若是多文件上传
+	@RequestMapping(value="/add", method=RequestMethod.POST)
+	public String add(@Valid User user,BindingResult result, @RequestParam(required=false) MultipartFile[] photos, HttpServletRequest req) throws IOException{
+		if(result.hasErrors()){
+			return "user/add";
+		}
+		for(MultipartFile photo : photos) {
+			if(photo.isEmpty()) continue;
+			String realPath = req.getSession().getServletContext().getRealPath("/resources/upload");
+			FileUtils.copyInputStreamToFile(photo.getInputStream(), new File(realPath+"/"+photo.getOriginalFilename()));
+		}
+		
+		users.put(user.getUsername(), user);
+		return "redirect:/user/users";
+	}
+	注：photos是数组，要加上 @RequestParam(required=false)
+
+返回json:
+	@RequestMapping(value="/{username}",method=RequestMethod.GET, param="json") //传了json参数才会调用这个方法,否则调用上面的show  /xx/{username}?json
+	@ResourceBody
+	public User show(@PathVariable String username) {
+		return users.get(username);  //只要导入了jackson的包, 就会自动完成转换. 连ContenType都会自动设置好
+	}
+
+------------------------------------------------------------
+生成验证码：
+	@RequestMapping(value="/drawCheckcode", method=RequestMethod.GET)
+	public void drawCheckcode(HttpServletResponse resp, Model model) {
+		resp.setContentType("image/jpeg");
+		OutputStream os = null;
+		try {
+			int width = 100;
+			int height = 20;
+			String str = "0123456789";
+			Random ran = new Random();
+			int num = 4;
+			StringBuffer checkcode = new StringBuffer();
+			os = resp.getOutputStream();
+			BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+			Graphics2D g = image.createGraphics();
+			
+			//画矩形
+			g.setColor(Color.WHITE);
+			g.fillRect(0, 0, width, height);  
+			
+			//画边框
+			g.setColor(Color.BLACK);
+			g.drawRect(0, 0, width-1, height-1); //注意要-1？
+			
+			int x = width/num;
+			int y = height-4;
+			Font font = new Font("宋体", Font.BOLD, 14);
+			g.setFont(font);
+			//生成随机数字，并画出
+			for(int i=0; i<num; i++) {
+				String s = String.valueOf(str.charAt(ran.nextInt(str.length())));
+				checkcode.append(s);
+				g.setColor(new Color(ran.nextInt(255), ran.nextInt(255), ran.nextInt(255)));
+				g.drawString(s, (x*i)+6, y);
+			}
+			model.addAttribute("checkcode", checkcode.toString()); //验证码保存到session中
+			
+			//画干扰元素(60个点)
+			for(int i=0; i<60; i++){
+				g.setColor(new Color(ran.nextInt(255), ran.nextInt(255), ran.nextInt(255)));
+				g.drawOval(ran.nextInt(width), ran.nextInt(height), 1, 1); //不是fill
+			}
+			
+			ImageIO.write(image, "jpg", os);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	页面：<img src="drawCheckcode" onclick="drawCheckcode(this)" style="cursor:pointer">
+	<script type="text/javascript">
+		function drawCheckcode(img) {
+			img.src = "drawCheckcode?"+new Date();
+		}
+	</script>

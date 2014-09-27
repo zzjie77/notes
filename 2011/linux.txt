@@ -1,0 +1,120 @@
+root命令的目录:
+/sbin
+/usr/sbin
+
+all users:
+/bin/
+/user/bin:
+
+
+常见的文件类型 d目录 l软连接 -二进制文件(只要不是目录文件都属于二进制文件)
+
+-rwxr-xr-x 1 root root   34408 2009-09-04 cut
+文件类型 所有者|所属组|其他用户(权限) 硬连接数 所有者 所属组 文件大小 最后修改时间 文件名 
+
+linux常用数据块表示单位大小  1 block = 512 b
+block是最小的存取数据的单位   数据块大存取速度快，但浪费空间
+
+
+rwx 421
+缺省创建的文件都没有执行权限
+即使默认的umask是022,创建出来的文件也没有执行权限，既权限为644而不是755
+
+查找一个命令所在的目录
+which 可以显示命令所在目录和别名
+whereis 可以显示命令所在目录和帮助文档所在路径
+
+find 
+-name
+-size
+-user
+时间
+1天.ctime,atime,mtime
+2分钟,cmin, amin, mmin
+c:change 文件属性修改
+a:assess 文件访问过
+m:modify 文件内容修改过
+find /etc cmin -120  查找2个小时内修改过的文件
+
+-type 文件类型 f二进制文件 l软连接 d目录
+-a 与 -o 或
+
+find /etc -name inittab -exec ls -l {} \;
+在/etc下查找inittab文件并显示其详细信息
+{}是查询的结果    \是转义符
+转义符让一个符号和命令使用它本身的意义
+rm 由于别名rm -i 会询问是否真的删除，/rm就不会问直接删除
+
+-inum i节点 
+有些文件名很奇怪 touch "a b" touch -- -ab      
+不能这样删除 rm a b 要用 rm "a b"
+如果不知道文件的创建方式就无法删除
+所以可以这样find来删除，首先ls -i 查看i节点
+然后find . inum 40 -exec rm -rf {} /;
+
+
+locate 是从数据库中查找，速度比find快很多。而find是从硬盘中查找
+新创建的文件是找不了的，要是用updatedb更新数据库之后才能使用
+locate 在unix是没有的
+
+grep  ftp  /etc/services
+在文件中搜寻字串匹配的行并输man 
+
+
+帮助命令：
+1. man  
+可以查看命令和配置文件的帮助信息
+passwd是命令又是配置文件，这是man passwd会优先查看命令的帮助
+帮助文件是分很多种的， 当重名的时候要指定查看哪种  man 5 passwd 5代表看配置的
+man 1 passwd 看命令的  man /etc/services是不对的，应该是man services
+2. info 
+也可以查看命令的帮助，和man差不多，只是显示的格式不一样
+3. whatis  apropos(获得索引的简短说明信息)
+whatis 查看命令或配置文件 用途的简单描述
+apropos 是搜索whatis数据库的的索引的简短说明信息
+4. --help
+命令选项信息
+5. help
+man cd这种shell的内置命令时,会显示一大堆所有内置命令的帮助信息
+要想只显示想要的内置命令  用help cd
+
+
+压缩
+1. gzip
+1)gzip只能压缩文件，不能压缩目录
+2)gzip压缩不保留源文件
+解压 gzip -d 或者 gunzip
+
+tar -cvf 打包，不压缩
+-c  产生.tar打包文件
+-v  显示详细信息
+-f  指定压缩后的文件名
+-z  打包同时压缩
+tar  -zcvf   dir1.tar.gz  dir1
+
+tar -xvfz   -x解包 
+
+zip是linnux和windows都默认支持的格式,压缩率不是很高
+zip会保留原文件
+而且可以压缩目录  -r
+zip  services.zip  /etc/services
+解压unzip services.zip
+
+bzip2  跟gzip差不多,不同就是有-k选项    加了代表保留原文件
+bzip2 -k file1  压缩后格式.bz2
+bunzip2 解压
+
+file 可以查看文件的类型
+
+shutdown -h now 不加h就会进入当用户模式
+reboot 
+
+clear  ctrl+l清屏
+ctrl+u  删除光标前的所有字符
+
+hwclock 查看硬件时间 --set --hctosys --systohc
+date 查看系统时间
+
+grep -v "^#" /etc/inittab  开头是#的行排除不看
+
+

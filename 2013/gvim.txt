@@ -1,0 +1,252 @@
+1. gvim配置：
+"关闭兼容模式
+set nocompatible
+"模仿快捷键，如:Ctrl+A全选、Ctrl+C复制、Ctrl+V粘贴等等
+source $VIMRUNTIME/vimrc_example.vim
+source $VIMRUNTIME/mswin.vim
+behave mswin
+"gvim字体设置
+"set guifont=新宋体:h11:cGB2312
+set guifont=Courier_New:h12:cANSI
+"gvim内部编码
+set encoding=utf-8
+"当前编辑的文件编码
+set fileencoding=utf-8
+"gvim打开支持编码的文件
+set fileencodings=ucs-bom,utf-8,gbk,cp936,gb2312,big5,euc-jp,euc-kr,latin1
+"set langmenu=zh_CN
+"let $LANG = 'zh_CN.UTF-8'
+"解决consle输出乱码
+language messages zh_CN.utf-8
+"解决菜单乱码
+source $VIMRUNTIME/delmenu.vim
+source $VIMRUNTIME/menu.vim
+"设置终端编码为gvim内部编码encoding
+let &termencoding=&encoding
+:"防止特殊符号无法正常显示
+set ambiwidth=double
+"缩进尺寸为4个空格
+set sw=4
+"tab宽度为4个字符
+set ts=4
+"编辑时将所有tab替换为空格
+set et
+"按一次backspace就删除4个空格了
+set smarttab
+"不生成备份文件,如~index.html
+set nobackup
+"开启行号标记
+"set number
+"配色方案为desert
+colo desert
+"colo zellner
+"关闭上侧工具栏
+"set guioptions-=T
+"关闭右侧滚动条
+"set guioptions-=r
+"开启自动缩进
+set autoindent
+"开启标签栏
+set showtabline=2
+"突出当前行
+set cursorline
+"显示行号
+set nu
+"语法高亮
+syntax on
+"gVim启动窗口位置 大小
+winpos 173 162
+set lines=25 columns=108 
+
+"让taglist找到ctags
+let Tlist_Ctags_Cmd="C:/Program Files/Vim/vim73/ctags"
+let Tlist_Show_Menu = 1
+"ctags set
+set tags=tags;
+set autochdir 
+"使用F8打开Taglist
+nnoremap <silent> <F8> :TlistToggle<CR>
+"生成一个tags文件
+nmap <F9> <Esc>:!ctags -R *<CR>
+
+"实现括号和引号自动补全
+inoremap ( ()<Esc>i
+inoremap [ []<Esc>i
+inoremap { {<CR>}<Esc>O
+autocmd Syntax html,vim inoremap < <lt>><Esc>i| inoremap > <c-r>=ClosePair('>')<CR>
+inoremap ) <c-r>=ClosePair(')')<CR>
+inoremap ] <c-r>=ClosePair(']')<CR>
+inoremap } <c-r>=CloseBracket()<CR>
+inoremap " <c-r>=QuoteDelim('"')<CR>
+inoremap ' <c-r>=QuoteDelim("'")<CR>
+ 
+function ClosePair(char)
+ if getline('.')[col('.') - 1] == a:char
+ return "\<Right>"
+ else
+ return a:char
+ endif
+endf
+ 
+function CloseBracket()
+ if match(getline(line('.') + 1), '\s*}') < 0
+ return "\<CR>}"
+ else
+ return "\<Esc>j0f}a"
+ endif
+endf
+ 
+function QuoteDelim(char)
+ let line = getline('.')
+ let col = col('.')
+ if line[col - 2] == "\\"
+ "Inserting a quoted quotation mark into the string
+ return a:char
+ elseif line[col - 1] == a:char
+ "Escaping out of the string
+ return "\<Right>"
+ else
+ "Starting a string
+ return a:char.a:char."\<Esc>i"
+ endif
+endf
+
+
+set diffexpr=MyDiff()
+function MyDiff()
+  let opt = '-a --binary '
+  if &diffopt =~ 'icase' | let opt = opt . '-i ' | endif
+  if &diffopt =~ 'iwhite' | let opt = opt . '-b ' | endif
+  let arg1 = v:fname_in
+  if arg1 =~ ' ' | let arg1 = '"' . arg1 . '"' | endif
+  let arg2 = v:fname_new
+  if arg2 =~ ' ' | let arg2 = '"' . arg2 . '"' | endif
+  let arg3 = v:fname_out
+  if arg3 =~ ' ' | let arg3 = '"' . arg3 . '"' | endif
+  let eq = ''
+  if $VIMRUNTIME =~ ' '
+    if &sh =~ '\<cmd'
+      let cmd = '""' . $VIMRUNTIME . '\diff"'
+      let eq = '"'
+    else
+      let cmd = substitute($VIMRUNTIME, ' ', '" ', '') . '\diff"'
+    endif
+  else
+    let cmd = $VIMRUNTIME . '\diff'
+  endif
+  silent execute '!' . cmd . ' ' . opt . arg1 . ' ' . arg2 . ' > ' . arg3 . eq
+endfunction
+
+
+2. gvim插件(一般的插件安装方法：将插件[.vim文件]拷贝到vimfiles/plugin下，帮助拷贝到vimfiles/doc下)
+    1. NERD_commenter 快速注释
+        \cc注释，\cu取消注释，\c空格 反转注释
+    2. ctags 为了方便我把ctags和vim放在同一个目录下，如我的是：D:\software\Vim\ctags58，可以把这个路径加入到系统环境变量path
+    其次配置ctags，让gvim识别ctags。
+        ctrp + ] 进入方法/类..声明   ctrp + t 返回上一个视图
+    3. taglist 依赖于ctags, 相当于ide中的outline视图。
+        :Tlist 打开taglist视图. 可在vimrc中设置快捷键
+    4. AutoComplPop 自动补全
+        vim73已经自带了改插件，可以按ctrp+x+o或者ctrp+n提示，ctrp+p可提示关键字
+    5. snipMate 输入关键字，根据模版补全。按tab补全
+    
+3. 快捷键
+Vim命令                            动作
+:e filename   打开一个新文件，可以用TAB键自动补全
+:w filename   保存更改。如果不指定文件名，Vim会存为你正在编辑的文件。如果要存为不同的文件，需要指定文件名
+:q            退出Vim。如果有未保存的更改，Vim会拒绝退出。
+:q!           强制退出！
+:wq           写文件并退出
+:x            几乎和:wq一样，如果你修改了文件，它会写文件并退出。如果你没有修改文件，Vim会不写文件直接退出。
+ 
+文件内的移动
+These Vim commands and keys work both in command mode and visual mode.
+j     向上移动一行
+k     向下移动一行
+l     向右移动一个字符
+h     向左移动一个字符
+e     移动到一个词（word）尾
+E     移动到白空格（whitespace）分隔的词尾
+b     移动到一个词（word）的开头
+B     移动到白空格（whitespace）分隔的词头
+0     移动到行首
+^     移动到一行的首个非白空格的字符
+$     移动到行尾
+H     移动到屏幕的第一行
+M     移动到屏幕的中间一行
+L     移动到屏幕的最后一行
+:n    跳至屏幕的第n行
+ 
+插入和替换文本
+i     在光标之前插入
+I     在该行行首插入
+a     在光标之后插入
+A     在该行行尾插入
+o     在下一行新建一行并插入
+O     在上一行新建一行并插入
+C     Change the rest of the current line.
+r     覆盖一个字符。在覆盖完成以后，回到命令模式。
+R     进入插入模式，但是不再是插入文本，而是覆盖文本。跟word里insert键的作用类似
+ESC   退出插入/改写 模式，回到命令模式。
+ 
+删除文本
+x         删除光标后的字符
+X         删除光标前的字符
+dd or :d  删除当前行
+ 
+进入可视模式（Visual mode）
+v     开始定义高亮字符，用定位键（j or 向下键等）来选择要高亮的文本。
+V     开始定义高亮行。
+ESC   退出可视模式(visual mode)并返回命令模式
+ 
+编辑块文本
+改变字符的大小写。在命令模式和可视模式下都可以工作。在可视模式下，它用来改变。 在命令模式下，改变光标处字符的大小写。
+> (V)                   右移
+< (V)                   左移
+c (V)                   改变高亮的文本
+y (V)                   拖动（Yank）高亮的文本。在Windows术语中叫做：拷贝选定的文本到剪切板
+d (V)                   删除高亮文本。
+yy or :y or Y           拖动（yank）当前行，你不必首先高亮该行。
+dd or :d                删除当前行。同样，你不必先高亮该行。
+p                       在windows术语中，“粘贴”“剪切板”的内容。在Vim术语中，你“放置”“拖动
+                       （yank）”或删除的文本。如果是字符则放在光标后面，如果是行则放在当前行下面。
+P                       如果是字符则放在光标前面，如果是行则放在当前行上面。
+ 
+撤销（undo）和重做（redo）
+u                       撤销上一个动作
+U                       撤销所有最近针对该行的更改。
+Ctrl + r                重做
+ 
+搜索
+/pattern                根据模式(pattern)搜索文件。
+n                       搜索同方向的下一个匹配。
+N                       搜索反方向的下一个匹配。
+ 
+替换
+:rs/foo/bar/a           用bar来替换foo。r确定替换的范围，a确定替换的参数。
+替换范围（r）可以是：
+空白（nothing）     只在当前行起作用
+数字（number）      在你指定的哪一行起作用
+%                   整个文件
+参数（a）可以是：   
+g                  替换该行内所有的匹配。如果不要该参数，Vim仅仅替换第一次的匹配。
+i                  在搜索模式中忽略大小写。
+I                  不忽略大小写。
+c                  对每一次替换都确认。你可以键入y来替换这次匹配，n去跳过这次匹配，或者a来替换
+                   所有剩下的匹配，或者q来退出替换。
+ 
+例子：
+:452s/foo/bar/
+替换第452行首次出现的foo为bar。
+:s/foo/bar/g
+替换当前行中所有出现的foo为bar
+:%s/foo/bar/g
+替换整个文件中所有出现的foo为bar
+:%s/foo/bar/gi
+和上面一样，不过忽略大小写。
+:%s/foo/bar/gc
+和第三个一样，不过每次替换都要确认。
+:%s/foo/bar/c
+对文件的每一行，替换foo的首次出现为bar并且每次替换都要确认。
+
+

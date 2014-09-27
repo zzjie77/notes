@@ -1,0 +1,13 @@
+Tab的addTab方法(添加一个panel)
+	如果通过href方式添加tab中引入的内容是目标页面中<body></body>内的代码片段，<head>中的script也不会引入，所以使用href方式如果需要引入js，要把js写在<body>中。
+	如果通过content方式添加tab引入的是整个页面(content='<frame src="">'). href方式的目标页面不需body以外的内容，content方式需要是完整的页面。content方式的好处是
+目标页面是一个完整的页面，可以直接访问看到效果。href方式的好处在于目标页面可以直接使用主页面的js,而content方式内外frame之间的交互十分麻烦。
+frame第二个缺点不能弹出模式化窗口的时候不能全屏模式化（解决：在外层定义函数弹出模式化窗口，内调用外的函数）。第三个缺点是频繁的打开关闭tab可能会导致frame
+没有销毁而出现内存泄露。推荐href
+
+easyui有些地方可能在panel右侧多了滚动条，可以通过在div中设置style="overflow:hidden;"和设置height="98%"去掉
+
+datagrid：
+	column的width在1.3后可以不具体指定，如果不指定渲染时间会很慢，建议指定
+	fitcolumn让列填充满父容器，在列少的时候可以使用，列多的时候不建议使用
+	

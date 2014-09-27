@@ -1,0 +1,303 @@
+actino配置：
+	<!--可以为一个Action写多个方法进行对应，这样可以减少Action类的数量，但是无法减少配置的数量 
+	<action name="user_addInput" class="org.zttc.itat.action.UserAction" method="addInput">
+		<result name="success">/WEB-INF/user/addInput.jsp</result>
+	</action>
+	<action name="user_add" class="org.zttc.itat.action.UserAction" method="add">
+		<result name="success">/WEB-INF/user/add.jsp</result>
+	</action>
+	<action name="user_list" class="org.zttc.itat.action.UserAction" method="list">
+		<result name="success">/WEB-INF/user/list.jsp</result>
+	</action> -->
+	<!-- 以下方式可以仅仅写一个Action，之后通过在调用的时候确定方法 （调用：UserAction!add 或 UserAction?method:add）
+		这个方法虽然减少了action的配置，但是依然得增加大量的结果集进行配置
+	-->
+	<!-- <action name="user" class="org.zttc.itat.action.UserAction">
+		<result name="add">/WEB-INF/user/add.jsp</result>
+		<result name="addInput">/WEB-INF/user/addInput.jsp</result>
+		<result name="list">/WEB-INF/user/list.jsp</result>
+	</action> -->
+	<!-- 基于通配符的方式 -->
+	<action name="*_*" class="org.zttc.itat.action.{1}Action" method="{2}">
+	<!-- 在action中引入相应的拦截器,如果在action中引入了相应的拦截器之后，
+	原有的继承于struts-default.xml的拦截器就不起作用了，此时需要手动引入 -->
+		<interceptor-ref name="helloStack"/>
+		<result>/WEB-INF/{1}/{2}.jsp</result>
+		<result name="input">/WEB-INF/{1}/{2}Input.jsp</result>
+		<result type="redirect" name="r_list">/{1}_list.action</result>
+	</action>
+
+参数传递：
+	actino中设置值：
+	//传值的第一种方式，直接通过在action中设置相应的get和set方法
+	this.setUsername("张三");
+	this.setPassword("123");
+	//第二种方式通过ActionContext完成值的传递
+	ActionContext.getContext().put("aaa", 12345);
+	ActionContext.getContext().put("bbb", 34567);
+	ActionContext.getContext().put("ccc","abc");
+	User u = new User(10,"laozhang","老张");
+	ActionContext.getContext().getValueStack().push(u);
+	//第三种传值方式，可以直接通过Servlet的API传值
+	ServletActionContext.getRequest().setAttribute("hello","world");
+
+	页面获取：
+	${username }----${password }<br/>
+	<s:property value="username"/>----<s:property value="password"/> --取action中的值
+	<br/>
+	${aaa }----${bbb }
+	<!-- 使用s:property来访问actionContext中的数据都需要加#,在struts2.3之后，如果ActionContext中的数据
+	是String的类型就不用加#,但是在将来的开发中，只要是ActionContext中的数据一定加个#访问 -->
+	<s:property value="#aaa"/>----<s:property value="#bbb"/>---<s:property value="#ccc"/> --取actionContext中的值
+	<br/>
+	${hello}
+	<s:property value="#request.hello"/>  --取request范围的值
+
+ognl:
+	@Test
+	public void test01() {
+		try {
+			User u = new User(1,"tangsheng","唐僧");
+			Department dep = new Department("财务处");
+			u.setDep(dep);
+			//第二个参数是root
+			System.out.println(Ognl.getValue("nickname",u));
+			System.out.println(Ognl.getValue("dep.name",u));
+		} catch (OgnlException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void test02() {
+		try {
+			Map<String,Object> ctx = new HashMap<String,Object>();
+			User u = new User(1,"tangsheng","唐僧");
+			Department dep = new Department("财务处");
+			u.setDep(dep);
+			Role r = new Role(1,"超级管理员");
+			ctx.put("user",u);
+			ctx.put("role", r);
+			//以下表达式是在root中找,u是root
+			System.out.println(Ognl.getValue("username",ctx,u));
+			//#user.username是在ctx这个map中找
+			System.out.println(Ognl.getValue("#user.username",ctx,u));
+			System.out.println(Ognl.getValue("#role.name",ctx,u));
+			//目前root是ctx所以可以直接取得到
+			System.out.println(Ognl.getValue("role.name",ctx,ctx));
+			//Ognl其实就是一个大的Context,根的key就是root，所以可以通过#root.xx来取值
+			System.out.println(Ognl.getValue("#root.username",ctx,u));
+		} catch (OgnlException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void test03() {
+		try {
+			List<User> users = new ArrayList<User>();
+			users.add(new User(1,"ts","唐僧"));
+			users.add(new User(2,"ss","沙僧"));
+			users.add(new User(3,"bj","八戒"));
+			users.add(new User(4,"wk","悟空"));
+			//如果要取list中的元素，需要通过#root[index]来完成取值
+			System.out.println(Ognl.getValue("#root[1].nickname", users));
+		} catch (OgnlException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Test
+	public void test04() {
+		try {
+			List<User> users = new ArrayList<User>();
+			users.add(new User(1,"ts","唐僧"));
+			users.add(new User(2,"ss","沙僧"));
+			users.add(new User(3,"bj","八戒"));
+			users.add(new User(4,"wk","悟空"));
+			//如果要取list中的元素，需要通过#root[index]来完成取值
+			System.out.println(Ognl.getValue("#root[1].nickname", users));
+			//Ognl还可以完成方法的调用
+			System.out.println(Ognl.getValue("#root[0].sum(1,3)", users));
+			
+			User u  = new User();
+			System.out.println(Ognl.getValue("hello('world')", u));
+			//可以通过调用list中的get()方法获取某个下标的对象，然后完成导航
+			System.out.println(Ognl.getValue("get(0).username", users));
+		} catch (OgnlException e) {
+			e.printStackTrace();
+		}
+	}
+	注：加#就从map中找，不加就从root中找。
+
+ValueStack:
+	ActionContext:   是一个map结构
+		request
+		session
+		application
+		xx_valueStack   具体名称记不清，对应compoundRoot
+		...
+	CompoundRoot:   栈结构，通过push添加，pop弹出
+		通过ActionContext.getActionContext().getValueStack()取得
+		栈底存放的是UserAction，使用ActionContext.getActionContext().getValueStack().push(new User())会在栈顶添加User
+		<s:property value="username"/>，会从CompoundRoot（即ValueStack）的栈顶的元素开始找，找不到就向下移
+		假设valueStack只添加了一个User, <s:property value="#root[0]"/> 代表栈顶的User，<s:property value="#root[1]"/> 代表栈底的UserAction
+
+迭代与选择标签：
+	<!-- 当使用了s:iterator之后，会将相应的迭代对象放置到CompoundRoot中 -->
+	<!-- 当定义了var="u"之后，会将这个迭代的对象再在actionContext中存一份，ActionContext中的key就是u -->
+	<s:iterator value="#users" var="u" status="st">
+	<s:if test="#st.odd">style="background:#ff0"</s:if>
+
+ModelDriven（实现接口后会把model压入栈顶）:
+	如果我们在UserAction中添加一个User对象，那在页面中就要以<input name="user.username">这种方式来传递数据，以这种方式来<s:property value="user.username"/>显示
+	实现ModelDriven接口后，重写getModel()方法，这样在拦截器中就会将model放入到compoundRoot中（栈顶）,就可以<input name="username">这样传，显示的时候使用<s:property name="username">
+	问题：如果updateInput方法中这样写： user = userDao.load(1);在更新页面 <input name="usernmae" value="<s:property value='username'>">是显示不出来的
+	因为user原来是指向值栈的栈顶，这样写只是让user引用指向了一个新的对象，而原来对象的内容还是没改变
+	解决：
+	1. 在updateInput页面中input name="usernmae" value="<s:property value='user.username'>">这样显示，就会找UserAction中的user对象
+	2. 在updateInput方法中tuser = userDao.load(1); 然后 BeanUtils.copyProperties(user, tuser);把tuser的所有属性拷贝到user中
+	3. 在updateInput方法中ActionContext.getActionContext.getValueStack().push(userDao.load(1))
+
+转换器：
+	假设Action中有Point属性，要求页面中<input name="point" />输入"1,2"，在Action中就自动转换为Point，这就要写转换器
+	首先得创建一个类继承StrutsTypeConverter
+	public class PointConverter extends StrutsTypeConverter {
+		/**
+		 * 完成字符串到对象的转换
+		 */
+		@Override
+		public Object convertFromString(Map context, String[] values, Class toClass) {
+			Point p = null;
+			if(values.length<=1) {
+				String str = values[0];
+				//12,22
+				p = new Point();
+				String[] cods = str.split(",");
+				p.setX(Integer.parseInt(cods[0]));
+				p.setY(Integer.parseInt(cods[1]));
+			}
+			return p;
+		}
+
+		/**
+		 * 完成对象到字符串的转换
+		 */
+		@Override
+		public String convertToString(Map context, Object o) {
+			Point m = (Point)o;
+			return m.getX()+","+m.getY();
+		}
+	}
+	然后在src中创建xwork-conversion.properties来编写哪些类要使用什么转换器， 在此文件编写的是全局的转换器
+	org.zttc.itat.model.Point = org.zttc.itat.converter.PointConverter
+
+	如果要写局部的转换器，就在xxAction对应的包下创建xxAction-conversion.properties
+	msg.createDate=org.zttc.itat.converter.DateConverter01  --messageAction中的msg的createDate使用DateConverter01转换器
+	endDate = org.zttc.itat.converter.DateConverter02
+
+文件上传：
+	在action中添加：
+		private File[] photo;   //多文件上传使用数组，如果是单文件可以private File photo;
+		private String[] photoFileName;
+		private String[] photoContentType;
+		//getter and settter
+	上传方法：
+		System.out.println(photoFileName+","+photoContentType);
+		for(int i=0;i<photo.length;i++) {
+			File p = photo[i];
+			String name = photoFileName[i];
+			String type= photoContentType[i];
+			//FileUtils.copyFile(p, new File("d:/test/"+name));
+			photo.rename("d:/test/"+name);
+		}
+
+	修改文件上传的相关配置，如上传文件大小，文件后缀，在struts.xml中添加常量，常量可以在default.properties中找到
+	<constant name="struts.multipart.maxSize" value="10240000"></constant>  --字节为单位
+
+拦截器：
+	1. 编写拦截器
+		public class HelloInterceptor extends AbstractInterceptor {
+			public String intercept(ActionInvocation invocation) throws Exception {
+				System.out.println("system interceptor");
+				return invocation.invoke();
+			}
+		}
+	2. 在struts.xml中配置
+	<interceptors>
+    	<!-- 创建了一个拦截器的配置，但是此时配置并没有生效，需要在action中配置之后才能生效 -->
+    		<interceptor name="helloInterceptor" class="org.zttc.itat.interceptor.HelloInterceptor"/>
+			<interceptor name="authInterceptor" class="org.zttc.itat.interceptor.AuthInterceptor"/>
+		<!-- 一个拦截器栈中可以加入多个拦截器 -->
+			<interceptor-stack name="helloStack">
+				<interceptor-ref name="defaultStack"/>
+				<interceptor-ref name="helloInterceptor"/>
+			</interceptor-stack>    	
+			<interceptor-stack name="authStack">
+				<interceptor-ref name="defaultStack"/>
+				<interceptor-ref name="authInterceptor"/>
+			</interceptor-stack>
+    	</interceptors>
+	
+	<action name="*_*" class="org.zttc.itat.action.{1}Action" method="{2}">
+    	<!-- 在action中引入相应的拦截器,如果在action中引入了相应的拦截器之后，
+    	原有的继承于struts-default.xml的拦截器就不起作用了，此时需要手动引入。或者编写自己的拦截器栈 -->
+    		<interceptor-ref name="helloStack"/>
+    		<result>/WEB-INF/{1}/{2}.jsp</result>
+    		<result name="input">/WEB-INF/{1}/{2}Input.jsp</result>
+    		<result type="redirect" name="r_list">/{1}_list.action</result>
+    	</action>
+
+当action中可能要重定向到多个地方时，struts.xml中要配置多个<result name=".." type="redirect" >xx</result>
+可以这样简化，只配置一个<result name="redirect" type="redirect" >${url}</result>，action要重定向的全部返回"redirect"
+需要在return之前执行ActionContext.getContext().put("url","/xx.action"); 通过${url}获取action中传递进来的值
+这种方式简化了配置，但使struts.xml的页面流转流程没那么清晰。
+
+国际化
+	一、国际化就是通过使用不同的配置文件来指定相应的显示结果
+		如果要指定一个中文类型的显示，一般要创建Message_zh_CN.properties文件来输入中文的名称，zh表示中文，CN可以不加，表示基于中文区域
+		如果要显示英文:Message_en_UK.properties文件，同样UK可以不加
+		特别注意:properties文件只支持ISO-8859-1的类型，这就意味着无法直接加入中文
+		Message_en_UK.properties
+		其中Message表示基础名称，en表示英文，UK表示美国英语
+		ResourceBundle rb = ResourceBundle.getBundle("Message", Locale.CHINESE);
+		System.out.println(rb.getObject("hello")+","+rb.getObject("world"));
+	二、Struts如何解决国际化的问题
+	    1、局部的方案(基本不用):就是在Action所在的包中创建相应的Action所对应的prop文件，这样需要为不同的Action创建不同的文件，工作量较大，一般不用
+	    2、基于包的国际化方案：在action所在的包路径中创建相应的package_cn.properties文件
+	      2.1、在包的任意路径下创建需要国际化的prop文件
+	      2.2、让Action继承ActionSupport,ActionSupport提供了一些非常常用的方法
+	      2.3、在页面中通过<s:text name="message.id"/>来引入名称
+	    3、可以将国际化文件写在类路径下，然后通过配置
+	    <constant name="struts.custom.i18n.resources" value="Message"></constant>指定国际化文件的baseName
+
+常用form标签
+	<s:form action="Group_add" method="post">  <!-- 不需加.action，自动加 --》
+		<s:textfield label="组标识" name="id"/> <!--label是,表单样式为xhtml时才起作用，一般使用simple,通过常量改变-->
+		<s:textfield label="组名称" name="name"/>  <!-- 会自动到valuestack中找name回显-->
+		<!-- 在struts2中要在struts2的标签中引入相应的ActionContext中的值，要使用%{xxx} -->
+		<s:textfield label="用户名" name="useraname" value="%{username}"/>
+		<%-- 对于列表而言，在新版本中已经可以使用#..来访问，但是依然建议使用%{..}来访问 --%>
+		<s:checkboxlist label="兴趣" name="interest" list="#{'football':'足球','basketball':'篮球','ping':'乒乓球'}" 
+			listKey="key" listValue="value" value="%{interest}"/>
+		<s:radio list="#{'0':'男','1':'女' }" name="gender" label="性别" value="0"></s:radio>
+		<s:select list="#groups" listKey="id" listValue="name" label="选择组" 
+		headerKey="-1" headerValue="选择相应的工作组" value="2"></s:select>  <!-- 这里的listkey="id"，id是groups的属性，与上面listkey="key"不同 -->
+		<s:submit value="添加"/>
+	</s:form>
+
+服务器端验证
+	1. 编写xxAction-validation.xml，在struts.blank.war中有demo
+	执行xxAction中的某些方法会自动进行验证，出错就返回input对应的页面。 注：action要继承ActionSupport
+	2. 另一种方式是直接在xxAction中添加validate..方法，如要验证add,就添加validateAdd方法进行验证
+	验证不同过就this.addFieldError("xx") 注：action要继承ActionSupport
+
+
+
+
+
+
+
+
+
+

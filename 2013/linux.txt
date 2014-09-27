@@ -1,0 +1,505 @@
+ls -l /boot/vmlinz-2.6.9-22.EL  2.6版是稳定版本，9是小版本，第22次修正， el是hedhat的修改的企业版
+kernel的偶数版本是稳定版，基数版是测试版 
+uname -a查看kernel版本
+
+alt + f1/f2.. 从tty终端切换到其他终端，f7是第一个xwindow，如果开了第二个xwindow，那f8就代表第二个xwindow
+ctrl + alt + f1.. 从pts/0,pts/1..(xwindow)终端切换到其他终端
+startx启动xwindow   如果已经启动了xwindow就要使用startx -- :1 启动第二个xwindow
+tty终端对应/dev/tty0文件  
+w 查看当前登录的所有用户
+skill -9 pts/2 杀掉pts/2终端登录的用户，强制让他退出
+vi /etc/inittab 第一行非注释的行，可修改系统运行级别,5是xwindow，改成3就不以xwindow启动
+id:3:initdefault:  修改这个文件也可以删掉不需要的tty终端
+
+rhel安装方式：
+1. linux dd  driver disk安装，机房服务器通常硬盘插在一个scasii卡上，这时就需要使用这种安装方式
+2. linux ks  kickstart安装，即无人制安装，需要指定一个配置文件
+/dev/sda1 saccii硬盘， a表示第一块硬盘，1表示第一个分区  hd代表ide硬盘
+一般会创建/boot, /swap, /  这3个分区， 这3个分区是主分区
+为什么要创建/boot,因为把启动的文件放在硬盘的最开始的地方，启动会快点。
+系统启动的时候加载kernel，kernel在/boot下，如果/boot在硬盘最后的位置下，启动时就要把硬盘都扫描一遍才找到
+linux和windows一个硬盘只有4个分区，第4个分区是扩展分区
+创建第4，5，6分区其实对应第4个扩展分区(/dev/sda4)下面/dev/sda5,/dev/sda5,/dev/sda6
+
+RAID是磁盘阵列，把多个磁盘看成一个磁盘，如把一个文件拆分成多份同时写到多个硬盘上，从而提高效率
+raid0速度最快，但是如果其中一个硬盘的数据坏了，所有数据都没用了
+raid1是一个文件写了两份，相当于做了一个镜像，适用于系统盘
+raid4，raid5至少要4块硬盘，提供一份冗余，raid4是把前三个硬盘的数据块生成一个奇偶校验块，当其中一个硬盘坏了，
+就可以通过这个冗余的就校验块来恢复数据。raid4是把所有奇偶校验块的数据写到一个硬盘上，问题是都在一个硬盘上会带来速度瓶颈
+而raid5是把所有的奇偶校验块分布到每个硬盘上，所以速度更快。 但如果raid4的奇偶校验块的硬盘使用固态硬盘或者加个缓存会比5快
+raid6至少需要5块硬盘，用2块硬盘提供冗余，除了横向校验，还进行纵向校验。所以速度最慢
+raid10是指先用两块硬盘做raid1，然后再和另外两块硬盘做raid0
+software RAID指用分区来模拟实现RAID，软raid如果在同一个硬盘上，速度是不会加快的，除非想做数据冗余，否者没有任何意义
+lvm： logic volumn manage 逻辑卷。 如在/的1T空间用完了，传统的做法是把1T硬盘上的东西拷贝到新硬盘上，而且要停掉相关的服务
+使用lvm就可以不停相关服务，在旧硬盘的基础上动态扩充新硬盘的空间
+
+/tmp/, /var/log/有时也会单独分一个独立的分区，而不在/下。因为这样能限制他们的大小，当这两个分区满的时候也不至于把/分区撑满
+如oracle突然宕机，当时的所有临时数据都会存在/tmp中，数据量大的话可能会有10g，如果/tmp在/下就会占用/的10几g空间
+
+system-config-network 图形方式修改ip，实际上也是修改配置文件
+vi /etc/sysconfig/network-scripts/ifcfg-eth0 修改ip
+service network restart 重启network服务，让修改ip生效,
+如果在rhel6，要先将ifcfg-eth0中的onboot改成yes，然后service NetworkManager restart,再service network restart才行
+chkconfig network on,chkconfig NetworkManager on   当前级别开机启动
+ifconfig eth0 192.168.1.12 这种方式修改，重启后不生效 
+
+内部命令与外部命令：echo是内部命令，把/bin/echo改名为/bin/kk依然可以执行echo
+ls是外部命令，把/bin/ls改名为/bin/kk就不能执行ls了，只能通过kk来执行
+内部命令可以通过help + command来查看用法，而外部命令则不行
+man + command 可以查看部分外部命令
+man passwd默认等于man 1 passwd, man fdisk默认等于man 8 fdisk
+man 1 passwd查看passwd命令的帮助，man 5 passwd查看/etc/passwd配置文件的帮助
+man 7 man可以查看所有数字代表哪些类型
+man帮助的第一行可以看到当前查看的帮助是哪个类型的
+info 可以man类似，只是现实的格式不一样，带星号开头的类似超链接可以回车进入，大写U返回
+
+bash 快捷键：
+	ctrl+c终止进程
+	ctrl+z暂停并把进程丢到后台
+	jobs可以查看后台的进程
+	ctrl+r搜索命令历史
+
+基本命令：
+	touch会创建一个空白的文件，如果文件已经存在，就会更新3个时间
+	stat filename会显示3个时间，访问时间，最后修改内容时间，最后修改文件属性时间
+	ls -F  如果是目录会加/，如果是可执行文件在会后加*，如果是链接会加@。 也可通过颜色判断
+	一般ls 是/bin/ls --color=tty的别名，直接使用/bin/ls时就没有颜色
+	cd - 后退   cd ~aa 切换到aa的home目录，即/home/aa
+	alias ll='ls -l' 设置别名，重启后不生效，可修改~/.bashrc文件添加别名
+	unalias ll解除别名
+	useradd zhangsan 此时还没设置密码，不能登录
+	passwd zhangsan 设置密码
+	su - zhangsan 切换到zhangsan用户，如果想切换回root应该使用exit，而不是再次su, 如果再通过su - root 来切换就会开启3个bash，每次su都会开启一个，pstree可查看
+
+系统命令初步：
+	hostname 查看主机名 hostname www.aa.com修改主机名
+	vi /etc/sysconfig/network 文件方式修改主机名,永久生效
+	uname 会显示Linux， 但unix下会显示不同的unix名。 
+	uname -r内核版本号， uname -a查看更多信息
+	id 查看当前用户信息   id -u当前用户uid， id -g当前用户组id
+	date 查看日期  date +%y%m%d 以yymmdd日期格式显示
+	cal 现实当月日历 cal 2012 显示2012年所有日历
+	file filename 查看文件类型，如一压缩文件没扩展名就可通过file来查看
+	mount -t vfat /dev/sdb1 /mnt 将u盘挂载到/mnt下，如果/mnt之前有文件，挂载后看不到了，卸载后又会出现。-t vfat指定fat格式
+	umount /mnt 或 umount /dev/sdb1卸载
+	mount -t iso9960 /dev/cdrom /mnt 挂载光驱
+	mount -t cifs //192.168.0.1/tools /mnt 挂在windows的共享目录
+	mount -t cifs -o username=admins.. //192.168.0.1/tools /mnt 
+	mount 192.168.0.254:/var/ftp/pub /mnt 挂在linux、unix的nfs目录，nfs比samba快一倍
+
+	du 查看文件大小  du -s查看文件夹大小 以k为单位
+	du -h 会显示单位，自动根据大小现实k,m,g，  一般不用ls -l看大小，ls看的文件夹大小不准
+	df -h查看分区的使用情况
+	ssh root@192.168.1.2  如果以当前用户ssh登录远程可以不加root@
+	exit退出当前shell
+	logout退出登录shell
+	关机:shutdown -h now 会消息通知所有人，然后调用init 0
+	init 0  关闭所有服务，然后调用halt -p -f
+	halt -p -f 或 poweroff 直接切电源
+	重启：shutdown -r now  调用init 6
+	init 6 
+	reboot
+
+用户及组管理：
+	uid为0的用户就是管理员
+	useradd zhangsan 实际上是创建/home/zhangsan,添加记录到/etc/passwd,然后拷贝/etc/shel/.*到/home/zhangsan下
+	userdel -r zhangsan 删除用户，-r是彻底删除，包括主目录等
+	usermod 可修改uid，组，密码，shell.... 相当于修改/etc/passwd
+	users 查看有哪些用户登录
+	who  类似users，还显示从什么终端登录。tty1是ctrl+shift+f1,startx和外部ssh登录都是pts/x
+	w显示最多的信息，还现实外部登录的ip
+	skill -9 pts/3可让当前在pts/3登录的用户强制退出
+	write 发送单个消息   wall 发送广播消息   ctrl+d结束
+	last 查看用户的登录日志
+	lastlog 查看每个用户最后登录的情况
+
+文件存储和权限：
+	dd if=/dev/sda1 of=/mnt/a.img  备份分区、硬盘
+	文件的类型有- d l b c s p  通过ls -l的第一个字母看
+	- 普通文件  
+	d 目录 
+	l 软链接文件
+	b 块设备文件，慢速设备文件,有缓冲 /dev/sda
+	c 字符设备文件，快速设备文件 /dev/tty1
+	s socket文件，一般不自己创建，unix socket编程可能会使用
+	p 管道文件 /dev/initctl     ls -l /dev/ | grep ^p
+软连接与硬连接： 一般软连接用得比较多，因为可以跨分区，也可以给目录做软连接。
+而硬链接十分隐秘，一般看不出它是否是硬链接,ls -l查看硬链接的文件类型是-，一般怕某个文件被误删才会使用硬链接
+/tmp/a.jpg   分区中分为inode和block，每个block都是固定大小，假设block为4k，a.jpg为10k，则a.jpg要3个block来存储
+a.jpg的3个block会在inode中索引，通过inode来找到这3个block。 文件的其他信息，如ls -l查看的信息也会保存在inode中，假设a.jpg对应的inode号为10000
+文件夹也是文件，/tmp这个文件会保存a.jpg的文件名和inode号码，然后更具这个inode会找到对应的inode，然后就获取到文件的信息，
+然后就可根据这些信息找到对应的block获取文件的数据。  
+文件分为3部分存储：1.文件夹（文件名和inode号码） 2.inode（文件信息，储存在哪些block上） 3.block （真正的文件数据存储在block）
+ln src dest 创建一个硬链接，其实是在文件夹中增加了一个（新文件名-旧inode号），inode引用数就会加一
+而ln -s src dest软连接是创建了一个新的文件
+删除文件时，只要inode被应用数不为0，就不会真正删除文件数据
+文件夹的权限：
+	x-cd  r-ls   
+	wx cd touch rm vi(self others)  有w权限时可以强制修改不属于自己的文件
+	wxt cd touch rm(self) vi(self)   chmod o+t   加了t权限没升，反而降低了
+	linux中大部分的权限都是755
+	chmod 1777 /tmp 第一位对应的是suid,sgid,sticky. 1是黏着位，即chmod o+t
+	觉有suid权限，代表执行该文件的时候，该文件具有root的权限
+~/.bashrc写如果uid<=99,umask=022，如果uid>99，umask=002. umask也可以自己设
+新建文件夹的默认权限是777-umask
+新建文件的默认权限是666-umask
+
+vim:
+	三种模式： 命令模式， 插入模式， 命令行模式
+	已经入vim就是命令模式，切换到插入模式可以用iIaAoO任何一键，回到命令模式按esc
+	进入命令行模式按:  回到插入模式按esc
+命令模式：	
+	0  G 15G ctrl+G  w  $  []
+	6i  dd  3dd p yy  x  4x  r  "a3yy  "ap
+	/   ?  n  u  ctrl+r
+		ctrl+r redo, 3dw 删除3个单词， 3x 删除3个字母， r 替换一个字母
+		"a3yy  把3行复制到剪贴板a上。"表示对缓冲区操作，a表示剪贴板a   
+		"ap 从剪贴板a中拷贝
+		ctrl+G 显示当前行的状态
+		[] 一段段跳
+命令行模式：
+	:set nu     :15    15G
+	:r  aa.file  :w  :w!  :q  :wq  :q!  :e  :e! aa.txt :e b.file
+	:1,5 w >> aaa.file   :w a.file
+	:1,$ s/aaa/bbb/g    :1,5  s/aaa/bbb/c
+		r aa.file 读取aa.file的内容，插入到当前
+		!<命令> 执行命令
+		r !ls 执行ls命令，将结果插入到当前。 
+		:1,5 w >> aa.file   将1到5行追加保存到aa.file
+		e! 可将放弃当前修改，会到上次保存的状态。  
+		e! aa.txt 放弃当前修改，并编辑aa.txt
+		:1,$ s/aaa/bbb/g  /g不用确认，全部替换。  ../c是每个都要确认
+		:sh 转到shell，执行完命令后，exit退出shell回到vim
+vim -o /etc/passwd  /etc/group 同时编辑多个文件，-o多个文件窗口竖直排列，-O水平排	
+
+	set nu显示行号，直接输入命令，下一次启动vi又没了。vi ~/.vimrc加入一行set nu即可	
+
+查找命令：
+	which: 查找可执行命令所在目录，只查找$PATH指定的目录
+	whereis: 和which相似，多了帮助， whereis ls，会把ls的帮助所在目录也显示出来
+	slocate/locate: 会查找所有文件，查找数据库，速度快，要updatedb更新数据库后才能找, updatedb实际上每天早上4点会执行
+	find /etc passwd 如果不指定路径就从当前路径开始找
+	grep
+	locate  -r '.*network.*''  -r使用正则表达式查找,用单引号引起来
+	find /etc -name "*newfile*"  find不使用正则，使用通配符
+	find /etc -name "*network*" -ls 查找之后ls出来
+	find /etc -name "*network*" -exec file {} \; 查找之后执行file命令，file是查看文件信息
+	find /etc -name "*network*" -exec rm {} \; 查找后删除，把-exec换成-ok会询问是否删除
+	find /home -user -type -name -group -perm -size -mtime
+	find /home -user zzjie -a -group zzjie -a type d -ls 查找用户名和组为zzjie的目录
+	grep shrek /etc/passwd 搜索/etc/passwd文件中出现shrek的行
+	grep -R -l shrek /etc 递归搜索/etc目录出现shrek的文件。 -R递归。 -l只列出文件名。 如果没有-l，则还会显示出文件中匹配行的内容
+
+解压缩：
+	gzip: gzip file,  gunzip file或gzip -d file     .gz
+	bzip2: bzip2 file, bunzip2 file或bzip2 -d file  .bz2 压缩率很高，gzip还高
+	tar: tar cvf rvf xvf tvf /tmp/root.tar .
+		cvf是打包并创建文件，rvf是追加到已存在的tar包中。xvf解压，tvf是查看包的内容
+		tar xvf /tmp/root.tar -C /tmp/ddd/ 解压到指定目录
+		tar cvfz /tmp/root.tar.gz /root /etc/passwd /etc/shadow 打包3个目录并压缩. z是gz，j是bz2
+		tar xvfz /tmp/root.tar.gz  -C /tmp/ddd 注意，上面的打包的时候以/root打包，所以解压时会有root文件夹，
+		如果打包的时候在root目录下并以.（当前目录打包）就不会把root目录也打包进去
+	zip: zip file, unzip file
+
+文本处理：
+	head tail more less cat
+	tail -n 3或tail -3 查看后3行， tail -f 动态观察文件内容
+	grep -l -R '': -R递归检索文件夹中的文件，-l表示只现实文件名不现实内容. 单引号引起regex
+	grep -v -l -R -c -A2 -B2  -v表示不包含， -c显示行号
+	cut -d: -f2-4 /etc/passwd 以:分割，截取第2到第4段，不加-4只截取第2段
+	cut -c1-5 /etc/passwd  截取每行的第1到第5个字符
+	sort -n -r -t: +2   -t:指定以:分隔，+2以分割的第3区域排序，注意这里是从0开始的 -n以数字排序，否者一个个字母比较，-r反向排序
+	grep root -A5 -B5 /etc/passwd  -A5是after,-B5是before. 同时显示root上下的5行
+	wc /etc/passwd 会显示出行数、单词数、字符数。也可以指定-l -w -c
+	cut -d: -f7 /etc/passwd | uniq   检索sh，并去掉重复的
+	du | sort -r -n | head -n 3   查找当前目录文件大小最大的3个
+
+正则表达式：
+	grep locate vim less awk sed
+	grep '\<s..k\>'  以s开头以k结尾，中间有两个字符的单词
+	\<aaa 以aaa开头的单词       />
+	a\{18\} a重复18次
+	grep '.\{40,\}'  超过40个字母的单词
+	grep -v '^#' /etc/squid/squid.conf | grep -v '^$' 去注释和空行
+	grep '^[abc]' 以a或b或c开头的
+	grep '^[^a-c]' /etc/passwd  不以a,b,c开头的.  []中的^表示非
+	vi中替换 :%s/shrek/ttt/g   %s是全部替换，g是不询问。 把shrek替换成ttt
+
+输入输出及重定向：
+	find / -name shrek > /tmp/findfile 2>&1  信息和错误信息都重定向到/tmp/findfile
+	find / -name shrek &> /tmp/findfile 和上面的效果一样
+	cat < /etc/passwd  与cat /etc/passwd的效果是一样的，<的用处是：有些命令后面不能接文件参数，这时就可以用<
+	tr "a-z" "A-Z" < /etc/passwd  tr就不能指定文件参数，这时就可以使用<
+	cat << EEE  直接使用cat,会输入一句打印一句。用了<< EEE后，不马上打印，直到遇到EEE才打印
+	cat > a.txt << EEE 从键盘输入内容，直到遇到EEE才把内容输出到a.txt. 好处是不需要交互
+
+网络：
+	ab -n 100 -c 100 http://www.baidu.com 压力测试命令，100个客户端发100个请求，平均每个客户端发一个
+	telnet www.baidu.com 80  然后输入GET / 回车。 telnet是http协议的
+	ping，traceroute，mtr是icmp协议的。 traceroute所不同的是能看每个路由节点,mtr还能看每个节点的掉包率
+	arping IPgw  查看 网关IP的mac地址，如果局域网中有超过一个mac地址返回，说明有arp欺骗
+	arp -s ip macAddr 找到正确的网关ip后，通过这命令手动设置arp指定网关ip和对应的mac
+	查看服务器性能：top, vmstat, ps -efL , netstat -antup
+	etho 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 修改内核参数为可以相应广播
+	内核参数都在/proc/sys下， 不能使用vi来修改，可以通过echo来修改/proc/sys/..文件内容
+	sysctl -w net.ipv4.icmp_echo_ignore_broadcasts=1 通过命令来修改内核参数。
+	通过echo修改/proc/sys/..或sysctl都是临时生效，重启不生效。
+	要重启生效就要vi /etc/sysctl.conf. 之后sysctl -p让配置文件生效
+	sysctl -a > /tmp/a.sysctrl显示所有可以修改的内核参数，如果两条服务器的系统和配置差不多，可以把这个配置备份到另一台机器上
+	scp /tmp/a.sysctl 192.168.. 拷贝到另一台机
+	ssh 192..
+	sysctl -f a.sysctl -p 读取新的文件，让其生效
+
+linux状态检测及进程控制：
+系统日志：/var/log
+	messages 系统大部分日志保存在这里，最常用
+	secure 安全相关日志，
+	wtmp 登录信息，如lastlog命令就是读这个文件，这个文件是二进制的
+	maillog 邮件系统日志，mysqld.log mysql 日志，xfer.log ftp日志，cron 计划任务日志
+	boot.log 启动相关日志，Xorg.log 启动xwindow的信息，/var/log/dmesg 内核相关日志
+top:
+	?帮助 M按内存排序 k杀死进程 r调整优先级 < >翻页 q退出  
+	load average: x,x,x 过去1，5，15分钟等待执行的任务书
+	cpu: us用户线程占cpu百分比，sy系统占用，id(idle)空闲，wa(wait)IO等待
+	pr  ni: 进程优先级
+	virt: 占用虚拟内存大小
+	res: 实际占用内存大小
+	shr: 占用物理内存大小
+	s: 状态
+	%cpu：占用cpu百分比
+	%mem: 占用内存百分比
+	默认以占用cpu排序，按M就会以占用内存排序，
+	按k输入pid结束进程，这是会问是否发信号15来结束，也可以发信号9来结束，15是让进程自己结束，如果进程屏蔽了15信号就不起作用，9是强制结束，强制结束可能会导致子进程没回收，从而导致僵尸进程
+	kill -l 可以查看所有进程间信号
+	kill pid 其实默认是发15信号，   kill -9 pid 强制结束进程
+	killall httpd 也可以用进程名字，因为httpd有多个进程，所以用killall方便点， killall -9 httpd
+	skill shrek 把shrek用户的所有进程干掉，skill -9 shrek
+	skill pts/2 还可以结束某个终端的所有进程
+	pkill -u shrek 比skill更精确，有可能用户名和终端名相同
+	ps auxf  a显示所有终端，u显示多列，格式类似top，x显示后台进程
+	ps -ef  注意必须有-，和ps aux类似，只是显示的列不一样。 f显示父子关系，
+	ps aux显示的进程状态有：S(sleep) T(stop) R(run) D(deep sleep) Z(zome)   <高优先级  N优先级
+	D一般是读写硬盘的时候才会出现深度睡眠，Z是僵尸进程
+	nice -n -20 updatedb 让下次执行updatedb优先级为-20
+	renice -10 1 调整已经存在进程的优先级，pid=1的进程优先级调为-10
+	优先级是-20到19.  -20最高。  小于0为高优先级(<)，大于0为低优先级(N)
+
+前台与后台进程：
+	find / -name sss & 丢到后台运行
+	ctrl+z 把当前的程序放到后台，并暂停
+	jobs 查看所有后台作业，一个作业可能有多个进程，如一个sh脚本中打开了多个进程
+	kill %2 干掉第2个作业
+	bg %2 运行后台的第2个作业
+	fg %2 把第2个作业放到前台并运行
+	nohup updatedb &  关闭bash后仍继续运行updatedb. updatedb属于bash的子进程，bash结束后updatedb也会结束，使用nohup xx &就可以在父进程死掉后子进程继续运行
+
+bash:
+	环境变量： PATH  PS1(root@localhost.. sh前面的提示符/u@/h..，可以man bash查看/u..的含义)
+	修改~/.bash_profile可设置环境变量
+	DDD=...  定义环境变量
+	export DDD 或 export DDD=... 设置全局变量
+	SET 查看变量(所有变量)   ENV 查看全局变量
+	在一个shell中定义了局部变量，打开另一个shell之后就不能访问之前那个局部变量，但可以访问全局变量
+	./c.sh  执行一个sh的时候，默认会打开一个sh来执行，所以要注意sh中是否使用了局部变量，如果使用了，就要将其export
+
+bash快捷键：
+	ctrl+z 暂停当前任务并放到后台
+	ctrl+s 停止屏幕输出   ctrl+q恢复屏幕输出
+	ctri+l 清屏
+	ctrl+d 标准输入结束
+
+bash命令历史：
+	history 查看，默认保留1000条
+	ctrl+r 搜索命令历史
+	!4 调用第4条命令
+	!! 调用上一条命令  !$ 上一条命令的最后一个参数
+
+bash的特性：
+	cd, history，alias, >, <, |, tab提示，通配符，作业控制，用户化配置bash
+
+bash运算符：
+	ls [abc]* 以a,b,c开头。 [^abc]不以a,b,c开头
+	touch {ab}-{12} 会创建2*2=4个文件 a-1,a-2,b-1,b-2
+	aaa()   定义函数，  (echo aa) 在子shell中执行
+	''  ""  ``  双引号中的字符有特殊意思，如$PATH可以翻译，而单引号不能。 反引号中的命令会先执行
+	[ -f /etc/passwd ]  []里面加了两个空格，就判断true or false，返回1(true)或0(false)
+	echo $?  打印上一条命令的执行结果
+	[ -f ..] -f是否文件 -d目录 -l链接 -b块设备文件 -c字符设备 -x可执行 -r可读 -w可写
+
+定制shell:
+	login时执行顺序：/etc/profile, ~/.bash_profile, ~/.bashrc, /etc/bashrc。  /etc/profile会调用/etc/profile.d/*.sh
+	logout会执行 ~/.bash_logout
+	/etc是所有用户的，profile是login shell的时候执行，rc是每打开一个shell都会执行
+	/etc/profile.d/lang.sh 是语言的sh,里面有两个变量控制系统语言$LANG, $LC_ALL
+	如果想为某个用户修改系统语言，在~/.bashrc添加 export $LANG=zh_CN.UTF-8和export $LC_ALL=zh_CN.UTF-8
+	如果想为所有用户都生效，则修改/etc/bashrc或/etc/sysconfig/i18n
+
+shell脚本：
+	$1 第一个参数
+	$# 有几个参数
+	$? 上一条命令是否成功执行，false-1，true-0
+	$$ 当前进程pid
+
+shell的3种执行方式：
+	1. /root/backup 或 ./backup
+	2. bash/sh /root/backup  sh是bash的软链接
+	3. . /backup 或 . /root/backup
+	第1种要求文件要有x权限，2,3不需要。 第1，2种会打开新shell来执行。 第3种不会
+	export的变量只能被当前shell和子shell使用，不能被父shell使用。 所以在shell脚本设置变量必须使用第3种方式
+
+shell 调试：bash -vx xx.sh   v显示执行到哪条语句，x将变量显示为真实值
+
+shell语法：
+if:
+	if [ -f /etc/passwd ]
+	then echo passwd exist
+	elif [ -f /etc/shadow ]
+	then echo shadow exist
+	else echo dddd
+	fi	
+case:
+	read AAA
+	case $AAA in 
+		shrek )
+			echo hello shrek
+			;;
+		root )
+			echo hello root
+			;;
+		*)
+			echo get out here
+			;;
+	esac
+
+-z 判断是否为空， -n 是否非空
+for:
+	AAA="`pgrep httpd`"  # 获取httpd进程的pid，会返回多个
+	[ -z "$AAA" ] && echo 'httpd is not running' && exit
+	for i in $AAA
+	do 
+		kill -9 $i
+	done
+	echo httpd is killed
+	# ----------
+	for i in /etc/*
+		do
+			echo $i  # 打印/etc下所有文件名
+		done
+	# ----------
+	for aaa in `seq 1 100`  # seq会产生1到100的所有整数
+	do
+		echo -n "$aaa " # -n不换行
+		sleep 1  # 没打印一次睡眠1秒
+	done
+while/until:
+	i=0
+	#until [ $i -ge 100] # until是条件为false执行
+	while [ $i -lt 100] # while是条件为true执行
+	do
+		i=$[$i+1]   # $[]是进行运算
+		echo -n "$i "
+	done
+	unset i # 如果i变量不在子shell中执行，执行完后i变量还会存在，所以可以清除i变量
+	# start() {  # 定义一个函数， 函数也可以通过unset start清除
+	#
+	#}
+
+sed (在shell脚本中修改文件时使用):
+	sed -e 's/root/shrek/g' /etc/passwd > /tmp/a -e执行  将所有root替换为shrek
+	cp /tmp/a /etc/passwd   sed不会修改文件，只会打印出修改后的内容
+	sed -e '/bash/d' /etc/passwd     删除含有bash的行
+	sed -n -e '/\<shrek\>/p' /etc/passwd   -n默认不打印   /p打印，即找到shrek单词的行才打印
+	sed -n -e '/\<shrek\>/s/bash/nologin/p' 查找对应的行，然后替换第一个bash为nologin，然后打印出来
+	sed -e '/\<shrek\>/s/bash/nologin/g' > /tmp/a  找到有shrek单词的行，替换所有bash为nologin
+	sed -e '/^#/d' -e '/^$/d' /etc/squid/squied.conf   删除注释和空行，sed和awk比grep要快
+	可以把多个命令s/root/shrek  s/bash/nologin写到一个文件aa
+	然后sed -f aa /etc/passwd 指定一个文件来执行多个的命令
+	info sed 帮助有有很多小例子
+	执行命令的最前面可以有过滤行的表达式，可以是正则表达式，也可以指定行号
+
+awk(awk除了可以过滤行还可以过滤列): 
+用法：awk 'program' inputfile 或将program保存成文件 awk -f programfile inputfile
+	chkconfig --list | awk '$1=="httpd" {print $5}'  $1第一列。  打印运行状态为3(第5列)的是否是否开启httpd服务
+	chkconfig --list | awk '{print $1 "on level " $5}' |head   $0表示整行
+	chkconfig --list |awk 'BEGIN {iii=0} { if ($5=="3:on") iii+=1 } END {print iii}'  
+	同级3:on的个数。开始的时候初始化iii变量，然后每行执行中间的大括号进行统计，最后打印出来。 awk使用==来判断是否等于，与shell基本不一样
+	awk -F: 'BEGIN {iii=0} {if ($7=="/bin/bash") iii=iii+1} END {print iii}' < /etc/passwd     统计bash的个数，-F:指定以冒号作为分隔符
+
+源代码安装的一般方式：
+	tar xvfz /xxx.tar.gz -C /usr/src/  -C指定解压路径
+	cd /usr/src/httpd-2.0.55
+	./configure --prefix=/usr/local/httpd --with-mpm=worker  --prefix指定安装路径，一般都会有这个参数，with-mpm是apache特有的参数
+	make
+	make install
+
+rpm软件包管理：
+	rpm -ivh --force xx.rpm    i安装 v过程可见 h水平进度条  包已经存在使用force强制安装
+	rpm -e --nodeps httpd   erase  不用加具体的版本号
+	rpm -ivh --aid httpd-suexec-2.0.52.19.ent.i386.rpm  上面删除了httpd，所以这里安装会失败，--aid是自动解决依赖关系，会自动安装httpd
+	但--aid在rhel4以上不能使用，因为要收费，只能通过yum install httpd-suexec来安装
+	rpm -qa | grep httpd
+	rpm -qil httpd   i查看包信息  l查看rpm包中的文件
+	rpm -qip httpd-xx.rpm   p也是查看rpm中的文件， p跟完整包名，通常用于查看还未安装的包
+	rpm -Uvh ... 升级，没有装就会安装	
+	rpm -Fvh ..  升级，没有装的不会安装。 通常rpm -Fvh *.rpm
+	rpm -qf /bin/ls 可以查看ls属于那个包
+
+图形环境：
+	linux连接linux的文本方式有：telnet, ssh. 图形方式：X, vnc
+	linux连接windows图形方式：rdesktop, vnc
+	windows链接linux图形方式：Xmanager, vnc.   vnc是不限制平台的
+
+	linux连接linux的协议是x协议，现在使用的是x11协议。linux的操作端是xserver端，而命令执行端才是xclient端. client输出画面到server
+	启动xserver：X （xorg是x-server的名字）, xinit （先X，然后再打开一个xterm终端）
+	启动xclient：startkde, gnome-session  （kde, gnome属于DE(桌面环境)，启动DE不需要登录，启动DM(桌面管理器，要登录后才启动DE)，启动DM的命令有gdm,kdm,xdm）
+	init 5 实际上是打开DM
+
+	startx   startx实际执行的操作：1. X   2. startkde
+	要先启动server，才可以启动client。 startx是server和client都在本机
+	启动server后，通过xhost + ip来指定允许哪些ip输出画面到本端(server),xhost + 表示允许所有ip
+	如果client端没有启动xserver服务，是无法执行(xterm/startkde/gnome-session..)。需要先指定server端
+	通过export DISPLAY="192.168.1.23:1" 指定,:1表示输出到第2个xwindow,然后执行xterm/stertkde启动client后，server会显示对应的操作
+
+	startkde   qt库
+	gnome-session  gtk+库, gnome是GNU的项目之一，linux也是GNU项目，GNU是开源组织
+	switchdesk gnome/kde 切换桌面环境，切换后下次登录也会使用新的桌面环境。相当于修改/etc/desktop文件
+	ctrl + alt + backspace  关闭xwindow
+
+
+kickstart 无人职守安装
+/root/anaconda.文件是安装的配置文件，安装好系统就会存在这个文件。可以修改配置后利用这个文件批量安装。
+一般不手动修改这个文件，有风险。通过system-config-kickstart命令通过图形来生成配置文件
+然后将配置文件和安装光盘的所有文件通过ftp或nfs共享出去，然后就可以通过kickstart来安装
+
+sudo:
+	visudo 编辑sudo配置文件
+	shrek ALL = NOPASSWD: /sbin/sutdown,/bin/hostname     也可通过%shrek指定shrek组
+	shrek用户 从所有ip来 = 可以执行命令 不用输入密码，否者要输入shrek的密码
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+

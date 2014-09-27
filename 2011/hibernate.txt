@@ -1,0 +1,66 @@
+session.load(Customer.class, new Integer(3)
+session.get(Customer.class, new Integer(3)
+区别：1 如果没有id=3的记录，load会报错。get会返回null
+ 2 load默认会采用延迟加载，缓存中只有保存id的代理，真正使用的时候才到数据库加载。  get直接到数据库加载
+
+
+query.iterate()与query.list()
+iterator返回代理
+list返回完整对象
+
+一对多的延迟加载一般设置：
+一的一方延迟加载多的一方
+多的一方不延迟加载一的一方
+
+在hibernate中的java对象的三种状态
+transient临时  persistent持久化  detached游离
+
+左外连接的应用场景： 多对一  ， 一对一
+
+
+一对一 load函数默认延迟策略是lazy=false，要想修改lazy=true,在<one-to-one>加
+constrained=true并且将待加载的一方的 class 元素中的lazy属性设为 true
+（或者不去设置，因为该属性默认值就是 true）。
+
+
+一对一 查询对象时默认采取的是左连接(fetch=join)，要想分开来查询就在
+<one-to-one>上加fetch=select.    (当表连接数大于3,效率可能比分开来查效率要低)
+
+一对一 映射的两中方式：
+主键-主键：
+student: <id></id>
+IdCard: <id > <generator class="foreign" >
+	<param name="property">student</param>
+	</generator> </id>
+
+主键-外键：(多对一的退化)
+student: <id></id>
+IdCard: <many-to-one name="student" column="student_id" unique="true"></many-to-one>     //增加一列student_id关联student的id
+
+
+更新丢失
+脏读
+不可重复读
+幻读
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

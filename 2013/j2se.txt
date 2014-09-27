@@ -1,0 +1,727 @@
+ 线程有自己的名 new Thread(Runnable run, String name)
+线程的常用的调度方式有：
+	1. 基于时间片的调度：先到先执行， 没个线程执行指定的时间片。 这种方式的缺陷是没有优先级，无法处理紧急的线程
+	2. 基于优先级的调度：优先级高的先执行。 这种方式的缺陷的如果某个线程的优先级低，可能永远也无法执行
+
+java中的线程调度方式我们并不知道，文档中没写。
+linux系统的调度方式是结合两者：在时间片的基础上再加上优先级，但线程的优先级在每次执行之后都会下降(-1),当优先级降到0的时候就会重新复位到原来的优先级。 这样的好处是优先级低的也能被调度，优先级高的线程被调度的几率高
+
+线程有3个状态： 
+	running(同一时刻只能有一个running)
+	block(调用了Thread.sleep之后进去block状态)
+	runnable(多个线程在排队等待被cpu执行)
+
+Thread mt = new Thread();
+mt.sleep(); //不是代表mt这个线程去睡觉，而是当前线程去睡觉。因为sleep是static方法，相当于Thread.sleep()
+mt.join(); //调用了join之后，mt这个线程被调度之后就一直不会轮换，直到mt这个线程执行完才会让其他线程来抢
+mt.yield(); //Thread.yield() 执行后会将当前线程从running转换到wait。 这是单核cpu的情况，多核就不一定
+
+线程共享变量：
+	MyThread mt = new MyThread();
+	//new MyThread("mt1").start(); //这种方式创建,mt1,mt2不会共享变量index
+	new MyThread("mt2").start();
+	new Thread(mt, "mt1").start(); //这种方式创建， mt1, mt2都会共享mt中的变量
+	new Thread(mt, "mt2").start();
+	class MyThread implements Runnable {
+		int index;
+		public void run(){
+			for(;index<100;index++){
+				System.out.println(Thread.currentThread().getName()+":"+index);
+			}
+		}
+	}
+
+停止线程：线程的stop方法已经废弃的，因为不能释放资源。应该用一个布尔变量来记录运行状态，自己写停止方法来释放资源
+
+多个线程同时修改一个变量可能会导致会出现问题，如更新丢失，读脏数据..
+解决的办法是通过synchronized, synchronized块中的代码在同一时刻只能有一个线程执行，执行需要先拿到唯一的钥匙
+钥匙可以是任意的对象，不能为null，也可以为this。某个线程拿到钥匙后，其他线程就不能执行该块中的代码，知道这个线程执行完把钥匙释放
+synchronized方法就是以this做为钥匙的，synchronized加在方法上，粒度变大，性能就会变差
+
+synchronized导致的问题
+	1. 由于同一时刻只能一个线程在执行，所以会影响性能
+	2. 可能会出现死锁
+		public class TestDeadLock {
+
+			public static void main(String[] args) {
+				new TestDeadLock().run();
+			}
+			
+			public void run(){
+				MyThread mt = new MyThread();
+				new Thread(mt, "mt1").start();
+				new Thread(mt, "mt2").start();
+			}
+			
+			class MyThread implements Runnable {
+				Object key1 = new Object();
+				Object key2 = new Object();
+				boolean flag=true;
+				@Override
+				public void run() {
+					if(flag){
+						flag = false;
+						synchronized (key1) {
+							System.out.println(Thread.currentThread().getName()+"--key1");
+							try {
+								Thread.sleep(100);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							synchronized (key2) {
+								System.out.println(Thread.currentThread().getName()+"--key2");
+							}
+						}
+					}else {
+						flag = true;
+						synchronized (key2) {
+							System.out.println(Thread.currentThread().getName()+"--key2");
+							try {
+								Thread.sleep(100);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							synchronized (key1) {
+								System.out.println(Thread.currentThread().getName()+"--key1");
+							}
+						}
+					}
+				}
+			}
+		}
+	如果没有synchronized就不会有死锁，如果synchronized的粒度扩大到方法也不会有死锁
+	避免死锁的最佳方式，不要出现同步快嵌套，让同步块尽可能大(效率降低)
+
+不能依赖于sleep来控制线程，因为会存在很多的潜在风险，要使用wait和notify来控制
+wait，notify都是Object的方法， 调用wait方法的对象必须是同步块中的钥匙。
+调用了wait后，线程就会挂在一个池中停止执行，直到调用了钥匙的notify方法。 
+池中可能挂着很多线程，调用notify的时候并不知道会唤醒哪个线程，会随机唤醒一个线程
+
+后台线程： mt.setDaemon(true) 其他线程都结束后，后台线程自动会结束
+
+生产者与消费者代码
+	public class Cooker implements Runnable{
+		private String name;
+		private String[] foods;
+		private Disk d;
+		private static Random ran = new Random();
+		// getter and setter
+		public Cooker(String name, Disk d) {
+			this.name = name;
+			this.d = d;
+			foods = new String[]{"大米","馒头","包子","稀饭","果汁",
+						"馊饭","砒霜","批萨","汉堡","红酒","火药","毒药","盐巴"};
+		}
+		
+		public void make() {
+			synchronized (d) {  //customer和cooker两个线程都会修改disk
+				if(d.isEmpty()) {
+					int index = ran.nextInt(foods.length);
+					String f = foods[index];
+					System.out.println(name+"制作了"+f);
+					d.setFood(f);
+					d.setEmpty(false);
+					//生产完后先通知挂起的线程干活，然后马上挂起自己
+					d.notify();
+					try {
+						//Thread.sleep(2000);
+						d.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					/*不能依赖于sleep来控制线程
+					 * try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}*/
+				} else {
+					try {
+						d.wait(); //如果消费者还没拿走食物，继续等待
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			
+		}
+		
+		@Override
+		public void run() {
+			for(int i=0;i<20;i++) {
+				make();
+			}
+		}
+	}
+	--------------
+	public class Disk {
+		private String food;
+		private boolean empty;
+		private boolean end;
+		
+		//getter and settter
+		public Disk() {
+			empty = true;
+			end = false;
+		}
+	}
+	--------------
+	public class Custom implements Runnable{
+		private String name;
+		private Disk d;
+		
+		public Custom(String name, Disk d) {
+			this.name = name;
+			this.d = d;
+		}
+		
+		public void eat() {
+			synchronized (d) {
+				if(!d.isEmpty()) {
+					String food = d.getFood();
+					System.out.println(name+"正在享受"+food);
+					d.setEmpty(true);
+					d.notify();
+					try {
+						Thread.sleep(2000);
+						d.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				} else {
+					try {
+						d.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		
+		@Override
+		public void run() {
+			while(true) {
+				eat();
+			}
+		}
+	}
+	------------------
+	public class Test {
+		public static void main(String[] args) {
+			Disk d = new Disk();
+			Cooker co = new Cooker("刘大厨", d);
+			Custom cu = new Custom("李小胖", d);
+			Thread cot = new Thread(co);
+			Thread cut = new Thread(cu);
+			//cut为后台线程，只要所有的线程结束，这个线程就自动结束
+			cut.setDaemon(true);
+			cot.start();
+			cut.start();
+		}
+	}
+
+--------------网络-------------------
+处理字符最好的输入输出流是BufferedReader, PrintWriter
+new PrintWriter(outputStream, true); //可以自己传输出流， printWriter默认是带缓冲的，true表示自动flush缓冲
+关闭socket自动会关闭其输入输出流
+
+socket服务器客户端基本编写：
+	public class Server {
+		public static void main(String[] args) {
+			//服务器端就是创建相应的ServerSocket
+			ServerSocket ss = null;
+			Socket s = null;
+			try {
+				ss = new ServerSocket(5858);
+				//因为服务器端一般都是不停止工作的，所以需要使用死循环
+				while(true) {
+					try{//此处就接收了一个客户端的请求
+						s = ss.accept();
+						String name = s.getInetAddress().getHostAddress()+":"+s.getPort();
+	//					System.out.println("a client connect:"+s.getPort()+","+s.getInetAddress());
+						BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+						String str = br.readLine();
+						System.out.println(name+"--"+str);
+						PrintWriter out = new PrintWriter(s.getOutputStream(),true);
+						out.println("Receive:"+str);
+					} finally {
+						if(s!=null) s.close();  //关闭socket会自动关闭输入输出流
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(ss!=null) ss.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	public class Client {
+		public static void main(String[] args) {
+			Socket s = null;
+			try {
+				//客户端通过Socket连接服务器端
+				s = new Socket("192.168.0.199", 5858);
+				PrintWriter out = new PrintWriter(s.getOutputStream(),true);
+				out.println("你好");
+				BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+				String str = br.readLine();
+				System.out.println(str);
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(s!=null) s.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	----------------------
+修改为客户端可以在命令行发送消息
+	public class Server {
+		public static void main(String[] args) {
+			ServerSocket ss = null;
+			Socket s = null;
+			try {
+				ss = new ServerSocket(5858);
+				while(true) {
+					try {
+						s = ss.accept();
+						String name  = s.getInetAddress().getHostAddress()+":"+s.getPort();
+						System.out.println(name+"连接上来了");
+						BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+						PrintWriter out = new PrintWriter(s.getOutputStream(),true);
+						String str = null;
+						while((str=br.readLine())!=null) {
+							if(str.equalsIgnoreCase("quit")) {
+								//关闭,进行资源的释放
+								out.println("disconnect");
+								break;
+							}
+							System.out.println(name+":"+str);
+							out.println("Receive:"+str);
+						}
+						System.out.println(name+"已经离开了");
+					} catch (IOException e) {
+						e.printStackTrace();
+					} finally {
+						if(s!=null) s.close();
+					}
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(ss!=null) ss.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	public class Client {
+		public static void main(String[] args) {
+			Socket s = null;
+			//专门用来处理标准输入流的对象
+			BufferedReader sbr = null;
+			try {
+				s = new Socket("127.0.0.1",5858);
+				PrintWriter out = new PrintWriter(s.getOutputStream(),true);
+				BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+				//专门用来读取标准输入
+				sbr = new BufferedReader(new InputStreamReader(System.in));
+				String str = null;
+				while((str=sbr.readLine())!=null) {
+					//使用?写到服务器端
+					out.println(str);
+					// 问题：需要发送消息sbr.readLine()!=null才能读一行服务器发送过来的消息
+					String rs = br.readLine();
+					if(rs.equalsIgnoreCase("disconnect")) {
+						break;
+					}
+					System.out.println(rs);
+				}
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(s!=null) s.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				try {
+					if(sbr!=null) sbr.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	问题：多个客户端连接服务器会出现阻塞，服务器要改为用一个单独的线程来接受一个客户端的消息
+	需要发送消息sbr.readLine()!=null才能读一行服务器发送过来的消息.客户端也要用一个线程来接收消息
+	-----------------------
+加入多线程
+	public class Server {
+		//用来存储所有的连接上来的客户端
+		private List<ServerThread> clients = null;
+		public static void main(String[] args) {
+			new Server().startup();
+		}
+		
+		private void startup() {
+			ServerSocket ss = null;
+			Socket s = null;
+			try {
+				ss = new ServerSocket(5858);
+				clients = new ArrayList<ServerThread>();
+				while(true) {
+					s = ss.accept();
+					ServerThread st = new ServerThread(s);
+					new Thread(st).start();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(ss!=null) ss.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		private class ServerThread implements Runnable {
+			private Socket s = null;
+			private BufferedReader br;
+			private PrintWriter out;
+			private String name;
+			private boolean flag = true;
+			public ServerThread(Socket s) throws IOException {
+				this.s = s;
+				br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+				out = new PrintWriter(s.getOutputStream(),true);
+				String str = br.readLine();//得到姓名
+				name  = str+"["+s.getInetAddress().getHostAddress()+":"+s.getPort()+"]";
+	//			System.out.println(name+"连接上来了");
+				clients.add(this);
+				send(name+"上线了");
+			}
+			
+			private void send(String msg) {
+				for(ServerThread st:clients) {
+					st.out.println(msg);
+				}
+			}
+			
+			private void receive() throws IOException {
+				String str = null;
+				while((str=br.readLine())!=null) {
+					if(str.equalsIgnoreCase("quit")) {
+						//关闭,进行资源的释放
+						stop();
+						out.println("disconnect");
+						break;
+					}
+	//				System.out.println(name+":"+str);
+					send(name+":"+str);
+				}
+			}
+			private void stop() {
+	//			System.out.println(name+"已经离开了");
+				clients.remove(this);
+				flag = false;
+				send(name+"已经下线了");
+			}
+			@Override
+			public void run() {
+				try {
+					while(true) {
+						if(!flag) break;
+						receive();
+					}
+				} catch(SocketException e){ //客户端直接关闭
+					stop();
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					try {
+						if(s!=null) s.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+	public class Client {
+		private Socket s;
+		private BufferedReader br;
+		private PrintWriter out;
+		private boolean flag = true;
+		
+		public static void main(String[] args) {
+			new Client().startup();
+		}
+		
+		public void startup() {
+			BufferedReader sbr = null;
+			try {
+				s = new Socket("127.0.0.1",5858);
+				out = new PrintWriter(s.getOutputStream(),true);
+				br = new BufferedReader(new InputStreamReader(s.getInputStream()));
+				out.println("孔老师");
+				//专门用来读取标准输入
+				sbr = new BufferedReader(new InputStreamReader(System.in));
+				new Thread(new ClientThread()).start();
+				String str = null;
+				while((flag)&&(str=sbr.readLine())!=null) {
+					if(!flag) break;
+					//使用?写到服务器端
+					out.println(str);
+				}
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if(s!=null) s.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				try {
+					if(sbr!=null) sbr.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		private void receive() {
+			try {
+				String rs = br.readLine();
+				if(rs.equalsIgnoreCase("disconnect")) {
+					flag = false;
+					//此时ClientThread已停止，但startup方法还在while循环中停止，要多输入一次才能停止
+					System.out.println("点击回车退出"); 
+				}
+				System.out.println(rs);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		private class ClientThread implements Runnable {
+			@Override
+			public void run() {
+				while(true) {
+					if(!flag) break;
+					receive();
+				}
+			}
+		}
+	}
+
+------------正则表达式------------------------
+public class TestReg01 {
+	public static void main(String[] args) {
+		//.表示任意字符
+		System.out.println("a".matches("."));
+		System.out.println("aa".matches(".a"));
+		System.out.println("\\d");
+		//\\d表示是否是数字
+		System.out.println("123".matches("\\d\\d\\d"));
+		System.out.println("1d32e".matches("\\d\\D\\d\\d\\D"));
+		//\\s表示是否是空白字符,可以是空格，制表，回车，换行
+		System.out.println("1  2		d".matches("\\d\\s\\s\\d\\s\\sd"));
+		//\\w表示常用输入字符:a-z,A-Z,0-9,_
+		System.out.println("aa b1 22".matches("\\w\\w\\s\\w\\w\\s\\w\\w"));
+		//[abcd]表示是否是abcd这是个字符中的某一个
+		System.out.println("a".matches("[abcd]"));
+		//[a-z]表示是否是a-z之间的字符
+		System.out.println("D".matches("[a-zA-D]"));
+		//[^a-z]表示不在a-z之间
+		System.out.println("h".matches("[^a-z]"));
+		//也支持&&和||
+		System.out.println("a".matches("[a-z&&[def]]"));
+		System.out.println("H".matches("[a-z]||[A-D]"));
+	}
+}
+// * . ? {}
+public class TestReg02 {
+	public static void main(String[] args) {
+		//*表示任意多个字符(0个或多个)
+		System.out.println("aaaa".matches("a*"));
+		//为false因为*表示的多个
+		System.out.println("abcd".matches("a*"));
+		System.out.println("abcdlskdjff".matches("a[a-z]*"));
+		//为true
+		System.out.println("".matches("a*"));
+		//+表示1个或者多个
+		System.out.println("aa".matches("a+"));
+		System.out.println("a".matches("a+"));
+		//false，+表示一个或者多个
+		System.out.println("".matches("a+"));
+		//?表示0个或者1个
+		System.out.println("a".matches("a?"));
+		System.out.println("aa".matches("a?"));
+		System.out.println("".matches("a?"));
+		//{n,m}表示至少出现n次最多出现m次
+		System.out.println("2013-12-22".matches("\\d{4}-\\d{1,2}-\\d{1,2}"));
+		//第一个:检测一个字符串是否是数字
+		System.out.println("2334.99".matches("\\d+\\.?\\d+"));
+		System.out.println("38".matches("\\d{1}||[12]{1}\\d{1}|3{1}[0-5]{1}")); //是否小于35
+		//第二个:检测一个字符串是否是一个电话号码0870-2233445-01
+		System.out.println("0870-2233445-01".matches("\\d{3,4}-\\d{7}-\\d{2,5}")); //只能匹配有分机的情况
+		System.out.println("0870-2233445".matches("\\d{3,4}-\\d{7}-*\\d*"));  //有无分机均可
+		//第三个:匹配一个IP地址 111.22.33.22
+		System.out.println("192.168.0.33".matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"));
+		System.out.println("92".matches("[1-2]?\\d{0,2}"));
+		System.out.println("192.234.22.33".matches("[1-2]?\\d{0,2}\\.[1-2]?\\d{0,2}\\.[1-2]?\\d{0,2}\\.[1-2]?\\d{0,2}"));
+		//第四：匹配一个身份证号
+		System.out.println("53210119761209005X".matches("\\d{15}||\\d{18}||\\d{17}[X]"));
+		//匹配一个电子邮件
+		System.out.println("ynkonghao@gmail-pun.com.ddfdfdf".matches("[\\w-\\.]*\\w+@[\\w\\.-]*\\w+\\.\\w{2,6}"));
+	}
+}
+// ^ $
+public class TestReg03 {
+	public static void main(String[] args) {
+		System.out.println("helloworld".matches("^h\\w+"));
+		System.out.println("h".matches("^h\\w+"));
+		//^不在[]中就表示以xx为开头，特别注意:[^abc]
+		System.out.println("1you".matches("^\\d\\w+"));
+		//$表示以xx为结尾
+		System.out.println("1you1".matches("\\w*\\d$"));
+		System.out.println("1you".matches("\\w*\\d$"));
+	}
+}
+//Pattern Matcher matches reset find group start end
+public class TestReg04 {
+	public static void main(String[] args) {
+		//可以先将一个正则表达式编译成为一个Pattern对象，可以提高效率
+		Pattern p = Pattern.compile("\\d{4}");
+		//通过Pattern可以获取一个Matcher对象，通过Matcher对象可以获取大量的有用信息
+		Matcher m = p.matcher("23338888-3233-1111");
+		//判断是否匹配
+		System.out.println(m.matches()); //matches后，指针会指向匹配字符串的下一个字符
+		//将查找的指针重置 
+		m.reset();
+		//以下或报错，必须在find之后才能执行group
+		//System.out.println(m.group());
+		//find指的是顺序匹配相应的字符串
+//		System.out.println(m.find());
+		//每进行一次find，就可以将字符串通过group获取，一定要执行了find之后才能执行group
+//		System.out.println(m.group());
+//		System.out.println(m.find());
+//		System.out.println(m.group());
+//		System.out.println(m.find());
+//		System.out.println(m.group());
+		while(m.find()) {
+			//m.start和m.end可以获取匹配字符串的开始位置和结束位置
+			System.out.println(m.group()+"["+m.start()+","+m.end()+"]");
+		}
+	}
+}
+// replaceAll
+public class TestReg05 {
+	public static void main(String[] args) {
+		String str = "234445sdsff3444sdss";
+		//第一个参数是正则表达式，第二参数是要替换的值
+		System.out.println(str.replaceAll("\\d", "*"));
+		System.out.println(str.replaceAll("\\d+", "*"));
+		System.out.println("13222331111".replaceAll("\\d{4}$", "****"));
+	}
+}
+//分组   贪婪模式与非贪婪模式
+public class TestReg06 {
+	public static void main(String[] args) {
+		String str = "532101197612210039,532122199802120034,534501198212110029,532101780203009";
+		//使用括号进行分组   第一个左括号为第一组，第二左括号为第二组..
+		Pattern p = Pattern.compile("((\\d{6})(\\d{8}))\\d{4}");
+		Matcher m = p.matcher(str);
+		while(m.find()) {
+			System.out.println(m.group()); //group默认是输出匹配整个pattern的字符串
+			System.out.println("生源地:"+m.group(2)+"出生日期:"+m.group(3)); 
+		}
+		String h = "<table><td>你好</td><td>大家好</td><td>每个人都好</td></table>";
+		//贪婪模式，指的是.*会匹配所有的信息，此处会找整个信息
+		p = Pattern.compile("<td>(.*)</td>");
+		m = p.matcher(h);
+		while(m.find()) {
+			System.out.println(m.group(1));
+			System.out.println(m.start()+","+m.end());
+		}
+		//找到的结果:你好</td><td>大家好</td><td>每个人都好
+		
+		//非贪婪模式，仅仅只是匹配第一个结尾,特别注意:？接在*+之后就表示使用了非贪婪模式
+		p = Pattern.compile("<td>(.*?)</td>");
+		m = p.matcher(h);
+		while(m.find()) {
+			System.out.println(m.group(1));
+			System.out.println(m.start()+","+m.end());
+		}
+	}
+}
+//获取页面的所有邮箱
+public class TestEmail {
+	public static void main(String[] args) {
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader("d:/test/01.htm"));
+			String str = null;
+			StringBuilder sb = new StringBuilder();
+			while((str=br.readLine())!=null) {
+				sb.append(str);
+			}
+			List<String> es = getEmail(sb.toString());
+			for(String e:es) {
+				System.out.println(e);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(br!=null) br.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	public static List<String> getEmail(String str) {
+		List<String> es = new ArrayList<String>();
+		//邮箱
+		Pattern p = Pattern.compile("[\\w\\.-]*\\w+@[\\w\\.-]*\\w+\\.\\w{2,5}");
+		//超链接
+		//Pattern p = Pattern.compile("<a.*?\\s+href=['\"]([^\"'>]*?)['\"].*?>(.*?)</a>");
+		Matcher m = p.matcher(str);
+		while(m.find()) {
+			es.add(m.group());
+		}
+		return es;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,346 @@
+helloworld:
+	1. 拷贝dwr.jar到lib下。(direct web remote 直接调用远程java代码)
+	2. 编写web.xml文件，添加dwr的servlet
+		<servlet>
+			<servlet-name>dwr-invoker</servlet-name>
+			<servlet-class>org.directwebremoting.servlet.DwrServlet</servlet-class>
+			<init-param>
+				<param-name>debug</param-name>
+				<param-value>true</param-value>
+			</init-param>
+			<load-on-startup>1</load-on-startup>
+		</servlet>
+
+		<servlet-mapping>
+			<servlet-name>dwr-invoker</servlet-name>
+			<url-pattern>/dwr/*</url-pattern>   <!-- 该dwr目录是加载dwr的jar包时自动产生的 /**/ -->
+		</servlet-mapping>
+	3. 编写功能程序
+		public class FirstDWR {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+			public String sayHi(String name) {
+				return "hi,"+name+","+sdf.format(new Date());
+			}
+		}
+	4. 在web-inf下添加dwr.xml文件。
+		<?xml version="1.0" encoding="UTF-8"?>
+		<!DOCTYPE dwr PUBLIC "-//GetAhead Limited//DTD Direct Web Remoting 3.0//EN" "http://getahead.org/dwr/dwr30.dtd">
+		<dwr>
+		  <allow>
+		    <create creator="new">  <!-- 默认会产生FirstDWR.js, 也可以修改，在create中添加javascript="hello", 就会修改为hello.js -->
+		      <param name="class" value="com.dwr.test.FirstDWR"/>   <!-- 将一个java类共享为一个js对象 -->
+		    </create>
+		  </allow>
+		</dwr>
+	5. 测试
+		http://lcoalhost:8080/DWR/dwr/     debug页面
+	6. 在页面中使用
+	<script type='text/javascript' src='/DWR/dwr/engine.js'></script>
+	<script type='text/javascript' src='/DWR/dwr/interface/FirstDWR.js'></script>
+	<script type='text/javascript' src='/DWR/dwr/util.js'></script>  <!-- 以上3个js可以再debug页面中找到.这些js是由dwr的servlet产生的 -->
+	<script type="text/javascript">
+		function updateResult(){
+			var username = dwr.util.getValue("username"); //会根据name="username"或者id="username"来获取值
+			FirstDWR.sayHi(username, callback);         //使用类名调用java对象的方法
+			function callback(data){ //回调函数，data是返回的数据
+				var oldResult = dwr.util.getValue("result");
+				dwr.util.setValue("result", data+"\r\n"+oldResult); //为result(name或id)设置值
+			}
+		}
+	</script>
+	username:<input type="text" name="username" onchange="updateResult()" />
+	result:<textarea rows="10" cols="30" name="result"></textarea>
+
+在线聊天室雏形：
+	页面：
+		<script type='text/javascript'>
+			function sendMessage(){
+				var text = dwr.util.getValue("text");
+				ChatUtil.sendMessage(text);
+			}
+		</script>
+		<pre>
+			发送内容
+			<input type="text" id="text" onkeypress="dwr.util.onReturn(event, sendMessage)">
+			<input type="button" value="send" onclick="sendMessage()">
+			<hr>
+			<ul id="chatlog" style="list-style: none;">
+			</ul>
+		</pre>
+	vo:
+		public class WebMessage {
+			private long id=System.currentTimeMillis();
+			private String text;
+			public WebMessage(String newText) {
+				text=newText;
+				if(text!=null&&text.length()>30) {
+					text=text.substring(0, 30)+"......";
+				}
+			}
+			// getter
+		}
+	生成js的pojo：
+	public class ChatUtil {
+		private LinkedList<WebMessage> messages = new LinkedList<WebMessage>();
+		//1. 要保证每页显示信息的条目数，比如显示只10条信息，显示第11条信息的同时清除第1条信息。使用LinkedList来模拟队列
+		//2. 自动刷新接受信息， ajax
+		public void sendMessage(String text) {
+			WebContext wctx = WebContextFactory.get(); //在dwr中获取web容器，从而获得request,session等对象
+			String remoteAddr = wctx.getHttpServletRequest().getRemoteAddr();
+			WebMessage webMessage = new WebMessage("来自"+remoteAddr+"朋友的信息："+text);
+			messages.addFirst(webMessage);
+			//保证链表的长度
+			while(messages.size()>10) {
+				messages.removeLast();
+			}
+			notifyAllClient(wctx, messages);
+		}
+		
+		//必须是公有的方法，否则无法生成对应的js函数
+		public void notifyAllClient(WebContext wctx, LinkedList<WebMessage> msgQueue) {
+			//1. 清空发信息页面的输入框
+			String currentPage = wctx.getCurrentPage();
+			Util utilThis = new Util(wctx.getScriptSession());
+			utilThis.setValue("text", "");
+			//2. 把信息广播到与当前页面连接的其他页面
+			Util utilAll = new Util(wctx.getScriptSessionsByPage(currentPage));
+			utilAll.removeAllOptions("chatlog");  //清空ul
+			utilAll.addOptions("chatlog", messages, "text"); //第三个参数是 页面id为text的input，
+		}
+	}
+	dwr.xml:
+	<dwr>
+	  <allow>
+	    <create creator="new" javascript="ChatUtil" scope="application">
+		<param name="class" value="com.zzjie.chat.invoker.ChatUtil"></param>
+		<include method="sendMessage" /> <!--只公布sendMessage方法，默认会公布所有public方法。类似有exclude。 必须显式声明javascript才能其启作用 -->
+	    </create>
+	    <convert match="com.zzjie.chat.vo.WebMessage" converter="bean"></convert> <!-- ChatUtil里使用了WebMessage，所以要声明，否则无法识别 -->
+	  </allow>
+	</dwr>
+
+dwr组件分析：
+	实现一种操作：js到java之间的操作
+	
+	dwr的数据类型转换：
+	<convert>:java和js之间类型的转换
+	java			js
+	List,Collection,数组	Array
+	Boolean			Boolean
+	Map,JavaBean		Object
+	String			String
+	Date			Date
+	int float double	number
+	dom			XMLDom
+	null			undefined
+
+	util.js中的常用函数：
+	addOptions 添加下拉列表选项，可以使用Map来添加
+	removeAllOptions 删除下拉列表所有选项
+	addRows("tbodyId") 给表格添加行
+	removeAllRows(ele, option) 删除表格所有行
+	onReturn()
+	getValue/setValue
+
+使用Annotation替换dwr.xml
+	1. 引入dwrAnnotation.jar
+	2. 在web.xml的dwrservlet中加上参数配置 <init-param>..</init-param>
+	3. 使用：
+		@Create(name="xx")
+		class xx {
+			private YY yy
+			//所有方法会转换成js函数
+		}
+		
+		@Convert
+		class YY {
+			@RemoteProperty
+			private int id;
+		}
+
+dwr与spring整合：
+	<create creator="spring" javascript="UserDao">
+		<param name="beanName" value="userDao"></param>
+	</create>
+
+dwr与hibernate整合:
+	<convert match="com.vo.User" converter="hibernate3"></convert>
+
+--------------------------------------------------------------------、
+转换器：
+	1. MyDwr中使用到了自定义的pojo类
+	public class MyDwr {
+		public User load() {
+			User u = new User(1,"张三",new Group(1,"财务处"));
+			return u;
+		}
+		
+		public List<User> list() {
+			List<User> users = new ArrayList<User>();
+			users.add(new User(1,"张三",new Group(1,"财务处")));
+			users.add(new User(2,"李四",new Group(2,"科技处")));
+			users.add(new User(3,"王五",new Group(3,"宣传部")));
+			return users;
+		}
+		
+		public void add(User user) {
+			System.out.println(user);
+		}
+
+		public void deleteUser() {
+			throw new MyException("在删除用户的时候有错");
+		}
+		
+		public int add(int a,int b) {
+			return a+b;
+		}
+		
+		public String upload(InputStream is,String filename) throws IOException {
+			//WebContext可以获取HttpServlet的对象
+			WebContext wc = WebContextFactory.get();
+			HttpServletRequest req = wc.getHttpServletRequest();
+			String realpath = req.getSession().getServletContext().getRealPath("upload");
+			String fn = FilenameUtils.getName(filename);
+			String filepath = realpath+"/"+fn;
+			FileUtils.copyInputStreamToFile(is, new File(filepath));
+			return filepath;
+		}
+	}	
+	2. 在dwr.xml中用转换器声明使用的pojo类。 
+	<create creator="new">
+		<param name="class" value="org.konghao.dwr.model.MyDwr"/>  
+	</create>
+	<convert converter="bean" match="org.konghao.dwr.model.User"/> <!-- MyDwr中load返回User，add接受User，所以要使用转换器 -->
+	<convert converter="bean" match="org.konghao.dwr.model.Group"/>
+
+	<!-- 异常处理，需要定义如下两个转换器 -->
+	<convert match="java.lang.Exception" converter="exception"/>
+	<convert converter="bean" match="java.lang.StackTraceElement"/>
+	
+	MyDwr.deleteUser(function(data){ alert(data) });
+	在页面中调用MyDwr.deleteUser时会抛异常，如果没有使用转换器,默认返回的异常信息是"Error"。如果希望得到更详细的异常信息，就使用转换器
+	MyDwr.deleteUser({           //上面是使用回调函数的方式，这里使用原型的方式{callback:.. , errorHandler:.. }
+		callback: deleteUser,
+		errorHandler: function(msg, exception){ //这样每个方法都要设置errorHandler,很麻烦，可以设置全聚德
+			alert(msg)
+			alert(dwr.util.toDescriptiveString(exception,1));  //使用dwrUtil获取异常信息		
+		}
+	});
+
+	function deleteUser(data){
+	}
+	// 设置全局的异常处理
+	dwr.engine.setErrorHandler(errorHandler);
+	function errorHandler(msg, exception){
+		alert(msg)
+		alert(dwr.util.toDescriptiveString(exception,1));  //使用dwrUtil获取异常信息		
+	}
+
+util: （用得不多，因为jquery都可以满足， 并且dwr的$会与jquery的冲突）
+	$("user")  获取id或name为user的元素。 
+	dwr.util.getValue("a"); //获取id为a的元素的值
+	dwr.util.addOption()  //为id为address的select添加option
+		dwr.util.removeAllOptions();
+		var data = [{id:1,name:"北京"},{id:2,name:"天津"},{id:3,name:"上海"}];
+		dwr.util.addOptions("address",data,"id","name");  //为id为address的select添加option，value为data中的id,text为data中的name
+	dwr.util.addRows()  为边个添加行
+		function initUser() {
+			MyDwr.list(function(data){   
+				dwr.util.addRows("user",data,cellFuncs,{ escapeHtml:false }); //为id为user的tbody添加行
+			});
+		}
+		var cellFuncs=[
+			function(data){return data.id},  //返回第一列
+			function(data){return data.username},  //第二列
+			function(data){return data.group.name}
+		];
+
+无刷新上传：
+	1. 后台
+	public String upload(InputStream is,String filename) throws IOException {
+		//WebContext可以获取HttpServlet的对象
+		WebContext wc = WebContextFactory.get();
+		HttpServletRequest req = wc.getHttpServletRequest();
+		String realpath = req.getSession().getServletContext().getRealPath("upload");
+		String fn = FilenameUtils.getName(filename);
+		String filepath = realpath+"/"+fn;
+		FileUtils.copyInputStreamToFile(is, new File(filepath));  //commons-io
+		return filepath;
+	}
+	2. jsp
+	<script type="text/javascript">
+	function upload() {
+		var file = dwr.util.getValue("myfile");
+		MyDwr.upload(file,file.value,function(data){  //file.value是文件名，file是文件对象。注意file.value不同浏览器不一样(有些浏览器加路径)
+			alert(data);
+		}); 
+	}
+	</script>
+	<input type="file" id="myfile"/>	
+	<input type="button" value="上传文件" onclick="upload()"/>
+	
+与spring整合的三种方式(以dwr3为例)：
+	1. dwr的servlet和listener还是在web.xml中配置
+		<create creator="spring" javascript="dwrService">  <!-- 生成的js对象名为dwrService -->
+			<param name="beanName" value="dwrService"></param>  <!-- spring容器中名为dwrService的对象 -->
+		</create>	
+	2. 与spring-mvc整合，不需要在web.xml中配置dwr的serlvet和listener，也不需要dwr.xml。 spring配置文件如下：
+		<!-- spring mvc的serlvet要加上/dwr/* 的路径  */-->
+		<servlet-mapping>
+			<servlet-name>dwr</servlet-name>
+			<url-pattern>/dwr/*</url-pattern>  <!-- */ -->
+		</servlet-mapping>
+
+		<context:component-scan base-package="org.konghao.cms.controller"/>
+		<bean class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
+		  <property value="true" name="alwaysUseFullPath"></property> 
+		  <property name="mappings">
+		    <props> 
+		      <prop key="/dwr/**/*">dwrController</prop>
+		    </props>
+		 </property> 
+		</bean>
+		
+		<dwr:controller id="dwrController" debug="true"/>
+		<dwr:configuration>
+			<dwr:convert type="bean" class="org.konghao.service.User"/>
+		</dwr:configuration>
+		
+		<bean id="helloService" class="org.konghao.service.HelloService">
+			<dwr:remote javascript="hello">
+			    <dwr:include method="load" />
+			</dwr:remote>
+		</bean>
+	3. 与spring-mvc整合，使用annotation来公布方法，以及配置convert(不推荐)
+		<bean class="org.springframework.web.servlet.handler.SimpleUrlHandlerMapping">
+		  <property value="true" name="alwaysUseFullPath"></property> 
+		  <property name="mappings">
+		    <props> 
+		      <prop key="/dwr/**/*">dwrController</prop>
+		    </props>
+		 </property> 
+		</bean>
+		
+		<dwr:controller id="dwrController" debug="true"/>
+		
+		<dwr:annotation-config id="dwrAnnotationConfig" />
+	  	<dwr:annotation-scan base-package="org.konghao.service" scanDataTransferObject="true"/>
+	 service:
+	 	@RemoteProxy(name="helloService")
+	 	public class HelloService implements IHelloService {
+	 		@RemoteMethod
+	 		public User load() {
+	 			return new User(1,"abc");
+	 		}
+	 	}
+	 转换类：
+	 	@DataTransferObject
+	 	public class User {  
+	
+
+
+dwr获取servletAPI:
+	WebContext wc = WebContextFactory.get();
+	HttpServletRequest req = wc.getHttpServletRequest();
+
+

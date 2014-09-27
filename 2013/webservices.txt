@@ -1,0 +1,216 @@
+AXIS：使用Axis的服务平台，创建和发布web service（这是依赖于axis平台的，要将axis项目拷贝到webapps下）
+发布服务的手段:
+	即时发布 JWS
+		1.编写java代码：定制服务（编写类--方法）
+			public class HelloWS {
+				public String test(String a, String b){
+					return "you input a="+a+", b="+b;
+				}
+			}
+		2.修改文件的后缀为jws 
+			HelloWS.java --> HelloWS.jws   
+		3.发布web service服务
+			拷贝HelloWS.jws到webapps/axis下(不能有包结构)。  可访问http://localhost:8080/axis/HelloWS.jws查看是否发布成功
+		4.编写客户端测试
+			//要访问的服务地址
+			String url = "http://localhost:8080/axis/HelloWS.jws";
+			//创建一个web service服务
+			Service service = new Service();
+			//创建一个调用
+			Call call = (Call) service.createCall();
+			//指定服务来源
+			call.setTargetEndpointAddress(url);
+			//指定调用的具体方法名
+			call.setOperationName(new QName(url,  "test"));
+			String result = (String) call.invoke(new Object[]{"kk", "dd"});
+			System.out.println(result);
+		注意： 如果没有java源代码（class/jar）或要带包结构，不能使用这种方式。
+	定制发布 WSDD
+		1. 只有class，包含包结构
+		实现步骤：
+			1.编写带有包结构的java代码
+			2.将class文件(带包的结构)拷贝到Axis/web-inf/classes
+			3.使用命令在axis服务平台上注册服务(声明服务的方法)
+				Axis/web-inf/
+				1.编写一个当前的项目配置文件server-config.xml
+					1.编写一个个人*.wsdd文件，描述某一个web服务
+						<deployment name="test" xmlns="http://xml.apache.org/axis/wsdd/">
+						  <service name="HelloWSDD" provider="java:RPC"> <!-- name服务名，provider服务类型，常用的2种是RPC,message -->
+						    <parameter name="className" value="scom.zzjie.client.HelloWSDD" />  <!-- 服务类 -->
+						    <parameter name="allowedMethods" value="add" /> <!-- 对外提供的方法 -->
+						  </service>
+						</deployment>
+					2.在Axis/web-inf/下执行命令
+						java org.apache.axis.client.AdminClient *.wsdd //axis中的类，要配置好CLASSPATH
+						执行完后就可在Axis/web-inf下生成server-config.xml，将个人的*.wsdd的类容附加到server-config.xml，如果已有server-config.xml也可以直接把类容手动添加上去。
+			4.注册后在Axis/web-inf下就会有server-config.xml
+			5.修改server-config.xml，自动生产的有些地方要改.如className，allowedMethods
+			6.取消服务：
+				1.编写取消的*.wsdd 
+					<undeployment name="test" xmlns="http://xml.apache.org/axis/wsdd/">
+						<service name="要取消的服务名">
+					</undeployment>
+				2. 执行命令 （和添加服务一样）
+				以上不推荐，可以直接在server-config.xml中删除对应<service>更好
+			7.web service object的声明范围
+				<service ..> <parameter name="scope" value="request/session/application" /> </service>
+		注：WSDD方式发布web service，url = "http://localhost:8080/axis/HelloWSDD"; 与jws(xx/HelloWSDD.jws)不同
+
+传递java bean:
+	先定义java bean实现序列化接口
+		public class Order implements Serializable{
+			private String id;
+			private String name;
+		}
+	编写服务类的方法，方法返回定义的java bean
+		public class OrderService {
+			public Order returnOrder(Order order) {
+				Order newOrder = new Order();
+				if(order.getId().equals("1")){
+					newOrder.setName("Jacky");
+				}else{
+					newOrder.setName("Tom");
+				}
+				return newOrder;
+			}
+		}
+	把class拷贝到axix/web-inf/classes/下
+	修改server-config.wsdd(定制发布)
+		<service name="OrderService" provider="java:RPC">
+		    <parameter name="className" value="com.zzjie.client.OrderService" />
+		    <parameter name="allowedMethods" value="returnOrder" />
+		    <beanMapping qname="ns:Order" xmlns:ns="urn:BeanService" languageSpecificType="java:com.zzjie.client.Order"/>
+		</service>
+		注：beanMapping是描述OrderService中使用到的Order类， BeanService是自定义的命名空间名称，客户端使用：new QName("urn:OrderService", "Order")
+	客户端测试（客户端应先创建对应的java bean对象）：
+		Order order = new Order(); //用于orderService的方法参数
+		order.setId("11");
+
+		// 创建ws连接服务
+		String url = "http://localhost:8080/axis/services/OrderService";
+		Service service = new Service();
+		Call call = (Call) service.createCall();
+		// 注册JavaBean 注意:和server-config.wsdd编写的内容一致
+		QName qn = new QName("urn:BeanService", "Order");
+		call.registerTypeMapping(Order.class, qn, new BeanSerializerFactory(
+				Order.class, qn), new BeanDeserializerFactory(Order.class, qn));
+		String name="no  !";
+		call.setTargetEndpointAddress(new URL(url));
+		call.setOperationName(new QName("order","returnOrder"));
+		//设定传入的参数
+		call.addParameter("arg1", qn, ParameterMode.IN); //arg1是参数名，可随便起;qn是参数类型;in表明是传入参数
+		//设置返回的类型
+		call.setReturnType(qn,Order.class);
+		//接受结果
+		Order result=(Order) call.invoke(new Object[]{order});
+		if(result!=null){
+			name=result.getName();
+		}
+		System.out.println(name);
+
+web service的Handler
+	1.Handler的作用：类似于servlet的filter
+	filter作用：对客户的验证，对用户操作记录日志，加密/解密
+	2.ws的工作原理
+		soap消息-------------web服务器(部署Handler)
+	3.实现方式：
+		接口：org.apache.axis.Handler
+		继承：org.apache.axis.handlers.BasicHandler
+			----MessageContext--接受和响应客户端请求的SOAPMessage
+	日志Handler:
+		1. 编写Handler
+		public class LogHandler extends BasicHandler{
+			public void invoke(MessageContext msgcontext) throws AxisFault {
+				//每当web服务被调用,记录log中
+				//通过MessageContext对象,获取web服务
+				Handler handler = msgcontext.getService();
+				//生成log的文件名
+				String filename=(String) this.getOption("filename");//获取当前web上的log日志文件名
+				if((filename==null)||filename.equals("")){
+					throw new AxisFault("Server nologFile","No log file configuration for the LogHandler",null,null);
+				}
+				FileOutputStream fos=new FileOutputStream(filename,true);
+				PrintWriter writer=new PrintWriter(fos);
+				Integer count=(Integer) handler.getOption("accesses"); //统计web服务,被调用了几次
+				if(count==null){
+					count=new Integer(0);
+					count=new Integer(count.intValue()+1);//计数1次
+					Date date=new Date();
+					//创建日志信息
+					String result="在"+date+"  : web 服务: "+msgcontext.getTargetService()+"  被调用,截止到现在一共调用了"+count+" 次";
+					handler.setOption("accesses", count);
+					writer.println(result);
+					writer.close();
+				}
+			}
+		}
+		2. 编写server-config.xml
+			<handler name="LogHandler" type="com.zzjie.handler.LogHandler" >
+				<parameter name="" value=""> <!-- 通过msgContext.getOption("")获取初始化参数 -->
+			</handler>
+			<service name="xxService" provider="java:RPC">
+			    <parameter name="className" value="com.zzjie.client.xxService" />
+			    <parameter name="allowedMethods" value="xxMethod" />
+			    <requestFlow>     <!-- 请求时使用Handler -->
+			    	<handler type="LogHandler"></handler>
+			    	<handler type="xxHandler"></handler>
+			    </requestFlow>
+			    <responseFlow></responseFlow>        <!-- 响应时使用Handler --> 
+			</service>
+
+
+创建web service通常有2种方式：1. 根据wsdl文件生成(top-bottom) 2. 根据服务接口和实现类生成。(bottom-top)  
+
+上面可以看出axis十分麻烦
+XFire:
+	XFire是基于servlet的，它的核心就是Servlet.XFire建议采用服务接口和实现类的方式来发布服务
+	服务类声明的配置文件/webservices/services.xml
+	helloworld(导入所需jar):
+	1. 编写服务类
+	public interface HelloService { 
+		public String hello(); //返回的对象要实现序列化接口
+	}
+	public class HelloServiceImpl implements HelloService {
+		public String hello() {return "hi";}
+	}
+	2. 编写services.xml声明服务的配置文件，放到classpath:META-INF/xfire/services.xml
+	<?xml version="1.0" encoding="UTF-8" ?>
+	<beans xmlns="http://xfire.codehaus.org/config/1.0">
+	  <service>
+	    <name>BookService</name>
+	    <namespace>http://xfire.codehaus.org/BookService</namespace>
+	    <serviceClass>org.codehaus.xfire.demo.BookService</serviceClass>
+	    <implementationClass>org.codehaus.xfire.demo.BookServiceImpl</implementationClass>
+	    <inHandlers>
+	     <handler handlerClass="org.codehaus.xfire.demo.handlers.CheckVersionHandler" />
+	    </inHandlers>
+	  </service>
+	</beans>
+	3. 在web.xml中加入xfire的servilet
+	  <servlet>
+	    <servlet-name>XFireServlet</servlet-name>
+	    <display-name>XFire Servlet</display-name>
+	    <servlet-class>
+	        org.codehaus.xfire.transport.http.XFireConfigurableServlet
+	    </servlet-class>
+	  </servlet>
+	  <servlet-mapping>
+	    <servlet-name>XFireServlet</servlet-name>
+	    <url-pattern>/servlet/XFireServlet/*</url-pattern>
+	  </servlet-mapping>
+	  <servlet-mapping>
+	    <servlet-name>XFireServlet</servlet-name>
+	    <url-pattern>/services/*</url-pattern>
+	  </servlet-mapping>
+	4. 发布到tomcat上测试 http://localhost:8080/xfire/services/HelloService?wsdl
+	5. 新建一个项目作为客户端测试
+		String url = "http://localhost:8080/xfire/services/HelloService";
+		Service serviceModel = new ObjectServiceFactory().create(HelloService.class); 
+		HelloService helloService = (HelloService) new XFireProxyFactory().create(serviceModel, url);
+		System.out.println(bookService.hello());
+		注：这种方法要在客户端保留服务器端的服务接口及接口中使用到的实体类，不需包含接口实现类。
+		   也可以使用xfire的Wsgen类根据wsdl生产客户端的stub
+
+
+axix,xfire已经很少用了，现在用cxf比较多。或者直接用jax-ws
+

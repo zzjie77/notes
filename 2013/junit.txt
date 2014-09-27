@@ -1,0 +1,772 @@
+单元测试
+	1. 自动化测试
+	2. 基于测试的开发
+	3. stub和mock
+	4. 在容器中测试
+		4.1. jetty
+		4.2. catcus
+	5. dbunit
+
+1、junit的安装和测试原则
+	1、导入junit的jar，不建议直接使用eclipse中所提供的包
+	2、在src目录下编写服务代码
+	3、创建测试类
+	   基本原则：1、在eclipse中创建一个source folder命名为test
+	                   2、创建一个测试类所在的包，包的名称和要测试的类一致
+	4、Junit3和Junit4两者之间的区别是非常明显的
+	   在Junit3中，如果某个类需要是测试类，必须将其继承于TestCase,如果某个方法需要是测试方法，必须让这个方法通过testXX开头，在junit3中，如果希望指定某个测试方法运行之前运行某个初始化方法，这个方法的名称必须是setUp,如果希望在某个测试方法运行之后运行某个释放资源的方法，这个方法的名称必须是tearDown
+	  在Junit4中，一个POJO类就是一个测试类，测试方法通过@Test来标识，初始化方法通过@Before，释放资源的方法通过@After来标注。但是为了让junit4中的测试类在Junit3中也可以使用，习惯于把初始化方法命名为setUp，释放资源的方法命名为tearDown，测试方法也同样以test开头
+	5、如何使用断言
+	   在junit4中提供了一个Assert的类，这个类中有大量的方法进行断言的处理，在junit3中由于继承了TestCase,这个TestCase中提供了大量的assert的方法	
+
+	public class TestCalcuate {
+		Calcuate cal;
+		
+		//执行任意一个方法之前都会仔细setUp方法
+		@Before
+		public void setUp() {
+			cal = new Calcuate();
+		}
+		
+		//加了@Test表示该方法是一个单元测试方法
+		@Test
+		public void testAdd() {
+			int rel = cal.add(12,22);
+			/*
+			 * 以下就是一个简单的断言的编写
+			 * 第一个参数是如果出错给出的提示信息
+			 * 第二个参数表示方法执行完成之后预期的一个值
+			 * 第三个参数表示实际值
+			 */
+			//Assert.assertEquals("加法有问题", rel, 34);
+			/**
+			 * 当进行了静态导入之后，import static org.junit.Assert.*;
+			 * Assert中的所有静态方法就不用在添加类名来调用
+			 * 这样可以有效的兼容junit3
+			 */
+			assertEquals("加法有问题", rel, 34);
+		}
+		
+		//表示这个测试类应该抛出ArithmeticException,如果不抛出就报错
+		@Test(expected=ArithmeticException.class)
+		public void testDivideException() {
+			int rel = cal.divide(20,0);
+		}
+		
+		//表示这个方法应该在300毫秒内执行结束才算是正确
+		@Test(timeout=300)
+		public void testTime() {
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.println("abc");
+		}
+
+		@Test
+		public void testHamcrest() {
+			//首先需要静态导入import static org.hamcrest.Matchers.*;
+			//判断50是否大于20并且小于60，具体的hamcrest的比较参数可以在文档中查询
+			assertThat(50,allOf(greaterThan(20),lessThan(60)));
+			//判断某个字符串是否以另一个字符串结尾
+			assertThat("abc.txt",endsWith("txt"));
+		}
+	}
+
+hamcrest: 
+	hamcrest可以有效增加junit的测试能力，用一些相对通俗的语言来进行测试
+	要使用junit中的assertThat来进行断言
+	第一个参数表示实际值，第二个参数表示hamcrest的表达式
+	特别注意：如果使用junit4.10，必须把hamcrest的jar包移到junit的jar之前，否则，组合条件allOf,anyOf都会抛出异常
+	常用的比较方式
+	逻辑
+	  allOf - 如果所有匹配器都匹配才匹配, short circuits (很难懂的一个词,意译是短路,感觉不对,就没有翻译)(像 Java &&)
+	  anyOf - 如果任何匹配器匹配就匹配, short circuits (像 Java ||)
+	  not - 如果包装的匹配器不匹配器时匹配,反之亦然
+	对象
+	  equalTo - 测试对象相等使用Object.equals方法
+	  hasToString - 测试Object.toString方法
+	  instanceOf, isCompatibleType - 测试类型
+	  notNullValue, nullValue - 测试null
+	  sameInstance - 测试对象实例
+	  Beans
+	  hasProperty - 测试JavaBeans属性
+	集合
+	  array - 测试一个数组元素test an array’s elements against an array of matchers
+	  hasEntry, hasKey, hasValue - 测试一个Map包含一个实体,键或者值
+	  hasItem, hasItems - 测试一个集合包含一个元素
+	  hasItemInArray - 测试一个数组包含一个元素
+	数字
+	  closeTo - 测试浮点值接近给定的值
+	  greaterThan, greaterThanOrEqualTo, lessThan, lessThanOrEqualTo - 测试次序
+	文本
+	  equalToIgnoringCase - 测试字符串相等忽略大小写
+	  equalToIgnoringWhiteSpace - 测试字符串忽略空白
+	  containsString, endsWith, startsWith - 测试字符串匹配
+
+TestSuite(测试套件):
+	//RunWith表示这个类是一个suite的类
+	@RunWith(Suite.class)
+	//说明这个类中包含哪些测试组件
+	@SuiteClasses({TestA.class,
+				   TestB.class,
+				   TestCalcuate.class})
+	public class TestSuite {
+		/*
+		 * 测试原则：
+		 * 1、建议创建一个专门的source folder-->test来编写测试类代码
+		 * 2、测试类的包应该保持和需要测试的类一致
+		 * 3、测试单元中的每一个测试方法都必须可以独立执行，没有顺序
+		 *    测试方法之间不能有任何的依赖性
+		 */
+	}
+
+测试驱动开发:
+	正常的开发流程
+	编码--->测试--->重复--->提交
+	基于测试驱动的开发
+	测试--->编码--->重复--->提交  (先写好接口, 然后在测试代码中使用接口, 然后写实现, )
+	先写了测试之后，由于测试的覆盖率要求为100%，所以就会让代码中可能存在的分支都进行测试，这样先写测试单元，可以为将来的代码提供一种有效的参考
+
+	正常的开发流程
+	public void addUser {
+		判断用户是否存在
+		判断用户是否在某个库中
+		添加用户
+	}
+	在addUser中有多个判断, 在编写测试的时候就要为addUser编写多个测试方法, 为每种分支情况都要添加相应的方法
+	如: testAddExistUser, testAddNotExistUser .... 这样的话看起来就不清晰
+	如果是测试驱动开发, 就先编写好测试代码. testAddExistUser, ...
+	然后在编写代码的时候就可以根据测试方法编写一个个独立的方法(existUser..),即把分支的情况单独写一个方法, 要求方法protected,而不是private
+
+极限编程(xp编程)
+	一个人写测试, 一个人写实现
+
+cobertura (可生成测试覆盖率报告, 要结合maven才方便,否则要在命令行中使用, 不方便)
+	1、将cobertura的路径设置到path中
+	2、将要测试的源代码，编译之后的字节码文件和所需要的jar包拷贝到一个单独的目录中做处理
+	3、在命令提示符中使用命令为要生成测试覆盖率报告的代码生成一个ser的文件
+	3.1、生成cobertura.ser文件
+	cobertura-instrument --destination instrumented org/konghao/manager/
+	4、基于ser文件运行测试
+	4.1、java -cp lib/junit-4.10.jar;lib/cobertura.jar;instrumented;.;-Dnet.sourceforge.cobertura.datafile=cobertura.ser org.junit.runner.JUnitCore org.konghao.manager.TestUserManager
+	5、根据ser文件生成测试覆盖率的报告
+	  特别注意：如果文件的编码是utf-8的，在生成报告前需要为cobertura-report.bat文件增加DfileEncoding的处理
+	cobertura-report --format html --datafile cobertura.ser --destination reports src
+
+stubs(存根,桩) & mocks
+	stub是关注的状态(数据库),mock关注的是监护
+	stub使用场景
+	当我们测试的时候可能会把数据库的原来的数据污染了.
+	stub就可以帮我们完成数据的隔离, 如原来使用userDao来操作数据库, 我们可以用userStubDao通过map来模拟数据库
+	从而完成数据的隔离,我们的测试不会影响数据库的数据. 
+	stub也可以有其他的实现方式, 例如:在测试之前先备份数据,然后清空数据,开始测试,测试结束后还原数据
+	------
+	mock的使用场景
+	如a开发service,b开发dao. a开发完后想测试, 但b还没开发完, 那么a就可以使用mock来模拟dao的存在
+
+dbunit:dbunit用来隔离数据库的访问
+	1. 环境搭建
+		1、导入jar包
+		 dbunit.jar
+		 slf4j.jar
+		2、创建dbunit的测试数据xml文件(tuser.xml)
+		<?xml version="1.0" encoding="UTF-8"?>
+		<dataset>
+		  <!-- <t_user>
+		    <id>1</id>
+		    <username>kh</username>
+		    <password>123</password>
+		    <nickname>孔浩</nickname>
+		  </t_user> -->
+		  <t_user id="1" username="admin" password="123" nickname="超级管理员"/>
+		</dataset>
+
+		3、创建dbunit的Connection
+		dbunit的Connection是用来对数据文件进行操作的，这个Connection必须依赖于目前项目中所使用的Connection
+		IDatabaseConnection con = new DatabaseConnection(DbUtil.getConnection());
+
+		4、创建IDataSet，通过DATASet来获取测试数据中的数据
+		/*
+        * FlatXmlDataSet用来获取基于属性存储的属性值
+        * XMLDataSet用来获取基于节点类型存储的属性值
+        */
+       IDataSet ds = new FlatXmlDataSet(
+           new FlatXmlProducer(
+           new InputSource(
+           TestDbUnit.class.getClassLoader().getResourceAsStream("t_user.xml"))));
+
+		5、初始化数据并且完成测试
+		//会将数据库中的数据清空，并且把测试数据插入
+		DatabaseOperation.CLEAN_INSERT.execute(con, ds);
+
+		//从DAO中获取数据并且完成测试
+		IUserDao ud = new UserDao();
+		User tu = ud.load("admin");
+		assertEquals(tu.getId(), 1);
+		assertEquals(tu.getUsername(), "admin");
+		assertEquals(tu.getPassword(), "123");
+		assertEquals(tu.getNickname(), "超级管理员");
+	2. 备份与还原数据库
+		1、备份
+		@Test
+	    public void testBackup() {
+	       //创建dbunit的Connnection，需要传入一个数据库的connection作为参数
+	       IDatabaseConnection con = new DatabaseConnection(DbUtil.getConnection());
+	       //根据con创建相应的dataset,这个dataset包含了所有的表
+	       IDataSet ds = con.createDataSet();
+	       //将ds中的数据通过FlatXmlDataSet的格式写到文件中
+	       FlatXmlDataSet.write(ds, new FileWriter("d:/test.xml"));
+	    }
+		以上演示的是备份数据库的所有文件
+		备份某些特定的表:
+		@Test
+		public void testBackupTable() {
+	       //创建dbunit的Connnection，需要传入一个数据库的connection作为参数
+	       IDatabaseConnection con = new DatabaseConnection(DbUtil.getConnection());
+	       //通过QueryDataSet可以有效的选择要处理的表来作为数据集 
+	       QueryDataSet backup = new QueryDataSet(con);
+	       //添加t_user这张表作为备份表
+	       backup.addTable("t_user");
+	       FlatXmlDataSet.write(backup, new FileWriter("d:/test.xml"));
+	    }
+		2、还原数据库
+			@Test
+			public void testResume() {
+				//创建dbunit的Connnection，需要传入一个数据库的connection作为参数
+				IDatabaseConnection con = new DatabaseConnection(DbUtil.getConnection());
+				//根据备份文件创建dataset
+				IDataSet ds = new FlatXmlDataSet(
+						new FlatXmlProducer(
+								new InputSource(
+										new FileInputStream("d:/test.xml"))));
+				DatabaseOperation.CLEAN_INSERT.execute(con, ds);
+			}
+		}
+		
+以上就是备份与还原, 如果在我们的测试方法的开始和结束分别执行testBackup(testBackupTable)和testResume是不好的
+我们应该把这些写到一个base的test类中,我们的测试类继承这个base类,然后就可以方便调用备份与还原方法
+AbstractDbUnitTestCase:
+	public class AbstractDbUnitTestCase {
+		public static IDatabaseConnection dbunitCon;
+		private File tempFile;
+		
+		//BeforeClass只会执行一次,它的方法要为static,而Before是每个测试方法执行前都执行
+		@BeforeClass
+		public static void init() throws DatabaseUnitException, SQLException {
+			dbunitCon = new DatabaseConnection(DbUtil.getConnection());
+		}
+		
+		@AfterClass
+		public static void destory() {
+			try {
+				if(dbunitCon!=null) dbunitCon.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
+		protected IDataSet createDateSet(String tname) throws DataSetException {
+			InputStream is = AbstractDbUnitTestCase
+						.class
+						.getClassLoader().getResourceAsStream("dbunit_xml/"+tname+".xml");
+			Assert.assertNotNull("dbunit的基本数据文件不存在",is);
+			return new FlatXmlDataSet(new FlatXmlProducer(new InputSource(is)));
+		}
+		
+		protected void backupAllTable() throws SQLException, IOException, DataSetException {
+			IDataSet ds = dbunitCon.createDataSet();
+			writeBackupFile(ds);
+		}
+		
+		private void writeBackupFile(IDataSet ds) throws IOException, DataSetException {
+			tempFile = File.createTempFile("back","xml");
+			FlatXmlDataSet.write(ds, new FileWriter(tempFile));
+		}
+		
+		protected void backupCustomTable(String[] tname) throws DataSetException, IOException {
+			QueryDataSet ds = new QueryDataSet(dbunitCon);
+			for(String str:tname) {
+				ds.addTable(str);
+			}
+			writeBackupFile(ds);
+		}
+		
+		protected void bakcupOneTable(String tname) throws DataSetException, IOException {
+			backupCustomTable(new String[]{tname});
+		}
+		
+		protected void resumeTable() throws FileNotFoundException, DatabaseUnitException, SQLException {
+			IDataSet ds = new FlatXmlDataSet(new FlatXmlProducer(new InputSource(new FileInputStream(tempFile))));
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+		}
+	}
+
+EntitiesHelper:
+	public class EntitiesHelper {
+		private static User baseUser = new User(1,"admin","123","管理员");
+		
+		public static void assertUser(User expected,User actual) {
+			Assert.assertNotNull(expected);
+			Assert.assertEquals(expected.getId(), actual.getId());
+			Assert.assertEquals(expected.getUsername(), actual.getUsername());
+			Assert.assertEquals(expected.getPassword(), actual.getPassword());
+			Assert.assertEquals(expected.getNickname(), actual.getNickname());
+		}
+		
+		public static void assertUser(User expected) {
+			assertUser(expected, baseUser);
+		}
+	}
+
+	 
+TestUserDbunitService(继承AbstractDbUnitTestCase):
+	public class TestUserDbunitService extends AbstractDbUnitTestCase{
+		private IUserService us;
+		private IDataSet ds;
+		
+		@Before
+		public void setUp() throws DataSetException, IOException {
+			//初始化
+			us = new UserService(new UserDao());
+			bakcupOneTable("t_user");  //测试开始前, 先备份数据
+			ds = createDateSet("t_user");  //测试数据
+			//dbunit_xml/t_user.xml:  <t_user id="1" username="admin" password="123" nickname="管理员"/>
+		}
+
+		@After
+		public void tearDown() throws FileNotFoundException, DatabaseUnitException, SQLException {
+			resumeTable();  //测试结束, 还原数据
+		}
+		
+		@Test
+		public void testLoad() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon,ds);
+			User u = us.load("admin");
+			EntitiesHelper.assertUser(u);
+		}
+		
+		@Test
+		public void testAddNotExists() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.TRUNCATE_TABLE.execute(dbunitCon, ds);//truncate, id会重新计数
+			User u = new User(1,"admin","123","管理员");
+			us.add(u);
+			User tu = us.load("admin");
+			EntitiesHelper.assertUser(tu, u);
+		}
+		
+		@Test(expected=UserException.class)
+		public void testAddExists() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+			User u = new User(1,"admin","123","管理员");
+			us.add(u);
+		}
+		
+		@Test
+		public void testDelete() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+			us.delete("admin");
+			User tu = us.load("admin");
+			Assert.assertNull(tu);
+		}
+		
+		@Test
+		public void testLogin() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+			String username = "admin";
+			String password = "123";
+			User tu = us.login(username, password);
+			EntitiesHelper.assertUser(tu);
+		}
+		
+		@Test(expected=UserException.class)
+		public void testNotExistsUserLogin() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+			String username = "admin1";
+			String password = "123";
+			us.login(username, password);
+		}
+		
+		@Test(expected=UserException.class)
+		public void testPasswordErrorUserLogin() throws DatabaseUnitException, SQLException {
+			DatabaseOperation.CLEAN_INSERT.execute(dbunitCon, ds);
+			String username = "admin";
+			String password = "1234";
+			us.login(username, password);
+		}
+	}
+
+easymock:
+	1. 运行环境:
+		1、导入easymock的jar包
+		2、Mock对象的生命周期
+		  三个阶段：record，replay,verify
+		 Mock的关注点是在交互上，主要解决的问题是对象之间的交互，诸如:Service就依赖于DAO，如果DAO没有实现，我们可以通过Mock来模拟DAO的实现。
+		record阶段就是用来说明这个DAO上面可能存在的值
+		@Test
+		  public void testLoad() {
+		    //1、创建DAO的Mock对象，目前就进入了record阶段
+		    IUserDao ud = EasyMock.createMock(IUserDao.class);
+		    User u = new User(1,"admin","123","管理员");
+		    //2、记录ud可能会发生的操作的结果
+		    /*
+		     * 以下代码所指的是，当在dao中调用了load方法并且参数为admin的时候，返回值是u对象
+		     */
+		    //必须把交互的所有过程都记录下来
+		    EasyMock.expect(ud.load("asd")).andReturn(u);
+		    ud.delete("abc");
+		    //以下用来操作没有返回值的方法
+		    EasyMock.expectLastCall();
+		    EasyMock.expect(ud.load("admin")).andReturn(u);
+		    //3、进入测试阶段，也就是replay阶段
+		    EasyMock.replay(ud);
+		    //创建Service和DAO的关联
+		    IUserService us = new UserService(ud);
+		    //完成测试
+		    User tu = us.load("admin");
+		    EntitiesHelper.assertUser(tu,u);
+		    //3、验证交互关系是
+		    //验证上面记录的期待的操作,与实际dao执行的操作是否一致. 报错执行的方法, 和次数都要一致
+		    EasyMock.verify(ud);
+		  }
+		@Test
+		public void testLoadStrictMock() {
+			//1、创建DAO的Mock对象，目前就进入了record阶段
+			IUserDao ud = EasyMock.createStrictMock(IUserDao.class); //strictMock要求记录的顺序与dao调用的顺序要一致
+			User u = new User(1,"admin","123","管理员");
+			EasyMock.expect(ud.load("asd")).andReturn(u);
+			//使用的createStrictMock,方法的顺序不一致，所以会抛出异常
+			ud.delete("abc");
+			EasyMock.expectLastCall();
+			EasyMock.expect(ud.load("admin")).andReturn(u);
+			EasyMock.replay(ud);
+			//创建Service和DAO的关联
+			IUserService us = new UserService(ud);
+			//完成测试
+			User tu = us.load("admin");
+			EntitiesHelper.assertUser(tu,u);
+			//3、验证交互关系是否正确
+			EasyMock.verify(ud);
+		}
+		------------------
+		@Test
+		public void test03() {
+			/**
+			 * ms的m2方法的调用顺序 s1.method1();s2.method3();s1.method2();s2.method4();
+			 * 但此时不会报错, 因为只会分别验证s1中的method1和method2的顺序是否一致, s2中method2和method的顺序是否一致
+			 */
+			s1 = createStrictMock(IService1.class);
+			s2 = createStrictMock(IService2.class);
+			s1.method1();
+			expectLastCall();
+			s1.method2();
+			expectLastCall();
+			s2.method3();
+			expectLastCall();
+			s2.method4();
+			expectLastCall();
+			replay(s1,s2);
+			ms.setS1(s1);
+			ms.setS2(s2);
+			ms.m2();
+			verify(s1,s2);
+		} 
+		要想将同时验证s1,s2的顺序, 写法如下:
+		/**
+		 * 使用mockControl可以检查一组调用对象之间的关系
+		 * 所以如果希望使用Strict的方式，而且依赖了两个类以上，这两个依赖类应该通过control的方式创建
+		 */
+		@Test
+		public void test05() {
+			//可以通过control来创建一组mock
+			IMocksControl mc = createStrictControl();
+			s1 = mc.createMock(IService1.class);
+			s2 = mc.createMock(IService2.class);
+			s1.method1();
+			expectLastCall();
+			s1.method2();
+			expectLastCall();
+			s2.method3();
+			expectLastCall();
+			s2.method4();
+			expectLastCall();
+			//让mock控制器中的进行操作
+			mc.replay();
+			ms.setS1(s1);
+			ms.setS2(s2);
+			ms.m2();
+			//验证mock控制器中的所有mock调用
+			mc.verify();
+		}
+----------
+public class TestUserServiceByEasyMock {
+	private IUserService us;
+	private IUserDao ud;
+	private User baseUser;
+	
+	@Before
+	public void setUp() {
+		ud = createStrictMock(IUserDao.class);
+		us = new UserService(ud);
+		baseUser = new User(1,"admin","123","管理员");
+	}
+	
+	@Test
+	public void testLoad() {
+		expect(ud.load("admin")).andReturn(baseUser);  //假设dao返回的都正确, 从而检测service中的逻辑
+		replay(ud);
+		User tu = us.load("admin");
+		EntitiesHelper.assertUser(tu, baseUser);
+		verify(ud);
+	}
+	
+	@Test
+	public void testDelete() {
+		ud.delete("admin");
+		expectLastCall();
+		replay(ud);
+		us.delete("admin");
+		verify(ud);
+	}
+	
+	@Test
+	public void testAddNotExistUser() {
+		expect(ud.load(baseUser.getUsername())).andReturn(null);
+		ud.add(baseUser);
+		expectLastCall();
+		replay(ud);
+		us.add(baseUser);
+		verify(ud);
+	}
+	
+	@Test(expected=UserException.class)
+	public void testAddExistUser() {
+		expect(ud.load(baseUser.getUsername())).andReturn(baseUser);
+		ud.add(baseUser);
+		expectLastCall();
+		replay(ud);
+		us.add(baseUser);
+		verify(ud);
+	}
+	
+	@Test
+	public void testLoginOk() {
+		String username = "admin";
+		String password = "123";
+		expect(ud.load(username)).andReturn(baseUser);
+		replay(ud);
+		User tu = us.login(username, password);
+		EntitiesHelper.assertUser(tu, baseUser);
+	}
+	
+	@Test(expected=UserException.class)
+	public void testLoginUsernameError() {
+		String username = "admin1";
+		String password = "123";
+		expect(ud.load(username)).andReturn(null);
+		replay(ud);
+		User tu = us.login(username, password);
+		EntitiesHelper.assertUser(tu, baseUser);
+	}
+	
+	@Test(expected=UserException.class)
+	public void testLoginPasswordError() {
+		String username = "admin";
+		String password = "1234";
+		expect(ud.load(username)).andReturn(baseUser);
+		replay(ud);
+		User tu = us.login(username, password);
+		EntitiesHelper.assertUser(tu, baseUser);
+	}
+}
+
+mock测试servlet:
+	public class LoginServlet extends HttpServlet {
+	
+		@Override
+		protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+				throws ServletException, IOException {
+			//以下的这些方法(还有很多), 都是没办法通过mock来测试的, 需要通过cactus来测试
+			resp.setContentType("text/json;charset=utf-8");
+			resp.getWriter().println("abc");
+			req.getRequestDispatcher("/test.jsp").forward(req, resp);
+		}
+
+		public boolean isLogin(HttpServletRequest req) { //req, session这些有接口没有实现的东西, 我们都可以考虑用mock
+			HttpSession session = req.getSession();
+			if(session==null) return false;
+			User u = (User)session.getAttribute("loginUser");
+			if(u==null) return false;
+			return true;
+		}
+	}
+	--------
+	public class TestLoginServletByMock {
+		private LoginServlet servlet;
+		private HttpServletRequest req;
+		private HttpSession session;
+		
+		@Before
+		public void setUp() {
+			servlet = new LoginServlet();
+			req = createStrictMock(HttpServletRequest.class);
+			session = createStrictMock(HttpSession.class);
+		}
+		
+		@Test
+		public void testSessionIsNull() {
+			expect(req.getSession()).andReturn(null);
+			replay(req,session);
+			Assert.assertFalse(servlet.isLogin(req));
+			verify(req,session);
+		}
+		
+		@Test
+		public void testSessionNoUser() {
+			expect(req.getSession()).andReturn(session);
+			expect(session.getAttribute("loginUser")).andReturn(null);
+			replay(req,session);
+			Assert.assertFalse(servlet.isLogin(req));
+			verify(req,session);
+		}
+		
+		@Test
+		public void testSessionHasUser() {
+			expect(req.getSession()).andReturn(session);
+			expect(session.getAttribute("loginUser")).andReturn(new User());
+			replay(req,session);
+			Assert.assertTrue(servlet.isLogin(req));
+			verify(req,session);
+		}
+	}
+
+
+cactus. cactus可以完成模拟J2EE的容器做测试
+可以测试Servlet,JSP,Filter和EJB
+cactus主要是基于junit3.8来进行操作的，并不支持junit4中的annotation
+	1. 创建web项目, 并导入cactus的包.
+	2. 在src中创建cactus.properties.  测试的时候就默认就会访问contextURL/ServletRedirector
+		cactus.contextURL=http://localhost:8080/cactus
+	3. 创建动态web环境并且配置web.xml
+	<servlet>
+	  <servlet-name>ServletRedirector</servlet-name>
+	  <servlet-class>org.apache.cactus.server.ServletTestRedirector</servlet-class>
+	</servlet>
+	<servlet-mapping>
+	  <servlet-name>ServletRedirector</servlet-name>
+	  <url-pattern>/ServletRedirector</url-pattern>
+	</servlet-mapping>
+	4. 创建Servlet的测试类
+		/**
+		 * 只要写了一个类继承于 ServletTestCase，就会拥有相应的request等方法
+		 * 需要注意的一点就是：此时junit4中的Annotation全部不起作用
+		 * 就得按照junit3的方法来:setUp和tearDown用来做初始化和结束释放资源
+		 * testXX用来做测试
+		 * beginxx, endxx是在客户端执行的, 其他方法在服务器端执行.  顺序: bedinxx -> supUp -> testxx -> tearDown -> endxx
+		 */
+		public class TestLoginServletByCactus extends ServletTestCase { //测试Servlet继承ServletTestCase, 还有jsp,filter对应的TestCase
+		  private LoginServlet servlet;
+		  //begin是在客户端执行的
+		  public void beginNoSession(WebRequest request) {
+		    request.setAutomaticSession(false);
+		    request.addParameter("username", "kh");
+		  }
+		  
+		  //在服务器端执行
+		  public void setUp() {
+		    servlet = new LoginServlet();
+		  }
+		  public void testNoSession() {
+		    //服务器端执行
+		    Assert.assertFalse(servlet.isLogin(request));
+		    Assert.assertEquals(request.getParameter("username"),"kh");
+		  }
+		  
+		  public void testSessionNoUser() {
+		    Assert.assertFalse(servlet.isLogin(request));
+		  }
+		  
+		  public void testSessionHasUser() {
+		    session.setAttribute("loginUser", new User());
+		    Assert.assertTrue(servlet.isLogin(request));
+		  }
+		  
+		  public void testDoGet() throws ServletException, IOException {
+		    servlet.doGet(request, response);
+		  }
+		  
+		  //客户端执行  endxx有两个重载一个是com.meterware.httpunit.WebResponse, 另一个是org.apache.cactus.WebResponse
+		  public void endDoGet(WebResponse resp) {  //httpunit这个WebResponse提供更多的方法
+		    try {
+		       Assert.assertEquals(resp.getTables()[0].getCellAsText(0,0),"111");  //测试jsp
+		       Assert.assertEquals(resp.getTables()[0].getCellAsText(0,1),"222");
+		    } catch (SAXException e) {
+		       e.printStackTrace();
+		    }
+		  }
+
+		}
+		------
+		public class LoginServlet extends HttpServlet {
+			@Override
+			protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+					throws ServletException, IOException {
+				resp.setContentType("text/html;charset=utf-8");
+				resp.getWriter().println("<table><tr><td>111</td><td>222</td></tr></table>");
+				resp.getWriter().flush();
+			}
+
+			public boolean isLogin(HttpServletRequest req) {
+				HttpSession session = req.getSession();
+				if(session==null) return false;
+				User u = (User)session.getAttribute("loginUser");
+				if(u==null) return false;
+				return true;
+			}
+		}
+	5. 启动服务器, 运行测试TestLoginServletByCactus
+	tips: 以上的测试会访问contextURL/ServletRedirector来完成, 需要启动服务器. 
+	但在自动化测试中, 我们是不可能手启动服务器的.可以使用jetty来在代码中启动jetty服务器
+
+jetty:
+	1. 启动jetty, 通过java -jar start.jar.  bin目录下的可执行文件都是sh文件, 只能在linux执行
+	2. 部署项目到jetty
+		1. 直接拷贝war或部署文件夹到webapps
+		2. 通过配置文件. 拷贝一份contexts/javadoc.xml,名字随便命令,修改其中的contextPath,resourceBase
+			<Set name="contextPath">/hello</Set> <!-- 访问路径 -->
+  			<Set name="resourceBase">d:/hello</Set> <!-- 部署文件夹所在的硬盘位置 -->
+  	3. 在项目中嵌入jetty
+  		1. 引入lib下的jar包, 不用包含lib中的文件夹中的jar包
+  		2. 编写启动jetty的程序.   jetty的核心是由三大部分组成的,其中container是用来接收请求, handler是用来处理请求
+  			public class MyServer {
+  				public static void main(String[] args) throws Exception {
+  					Server server = new Server(8888);
+  					//创建了WebAppContext必须设置resouseBase
+  					WebAppContext wac = new WebAppContext();
+  					wac.setContextPath("/jay");
+  					wac.setResourceBase("d:/ok/hello");
+  					server.setHandler(wac); 
+
+  					// 也可以不指定项目路径, 直接添加servlet. 我们可以使用这种方法来测试我们的Servlet
+  					// ServletContextHandler sch = new ServletContextHandler();
+  					// sch.addServlet(MyServlet.class, "/ok");
+  					// sch.setContextPath("/jay");
+  					// server.setHandler(sch);
+
+  					server.start();
+  				}
+  			}
+
+cactus整合jetty (我们要在cactus的begin之前启动服务器, 但是junit3并不支持@BeforeClass. 所以通过以下方法):
+	public class TestJettyInCactus {
+		public static Test suite() {
+			System.setProperty("cactus.contextURL", "http://localhost:2323/test"); //在这设置, 不需要cactus.properties了
+			TestSuite suite = new TestSuite();
+			suite.addTestSuite(TestLoginServletByCactus.class);
+			return new Jetty5xTestSetup(suite);
+		}
+	}
+	直接运行suite方法, 不需要启动服务器, cactus会自动启动jetty,并把Servlet添加到jetty运行测试
+
+

@@ -1,0 +1,1119 @@
+什么是JNI? 
+	JNI 是一个协议.这个协议用来沟通java代码和外部的本地代码(c/c++). 通过这个协议,java代码就可以调用外部的c/c++代码，外部的c/c++代码也可以调用java代码
+
+为什么用JNI？
+	1. JNI扩展了java 虚拟机的能力, 驱动开发  (wifi-hotspot) 2.3 无线热点共享  
+		java是不能编写驱动的，因为java是一次编译到处执行，对于不同的环境(window,linux)生成的.class都是一样的。
+		无线热点共享，操作手机网卡, 把手机网卡的状态置为混杂模式.
+	2. Native code效率高,数学运算,实时渲染的游戏上,音视频处理 (极品飞车,opengl,ffmpeg)
+	3. 复用代码c/c++的代码库 (文件压缩,人脸识别…)
+		开源的c的代码库.
+		opencv  intel开发, 图形和视频实时处理的方法库.(人脸识别会用到)
+		ffmpeg(rmvb, avi格式) 视频和音频编解码的代码库. (引擎) 
+		opengl （2d/3d图形渲染）
+	4. 特殊的业务场景
+
+怎么用JNI
+	1.C/C++语言
+	2.掌握java jni流程 
+	3.NDK  google开发的（android native develop kits ）本地开发工具集
+		可以把c/c++ ->编译成一个 linux下可以执行的二进制文件 
+		java代码里面就可以通过jni 调用执行二进制的文件 
+
+c语言有很多的变种. 我们用c99标准. 
+c语言demo:
+HelloWorld:
+	# include<stdio.h>  // java  import xxx.xx.pack    引用函数的声明  
+	# include<stdlib.h>
+	main()
+	{
+		printf("Hello World!\n");
+		//system("java -classpath c:\\ HelloWorld");
+		system("pause");      
+	}
+
+基础数据类型:
+	// java数据类型 和长度int  4个字节 double  8个字节  float 4个字节 long 8个字节 
+	// short 2个字节 boolean  1个字节 char 2个字节 byte   1个字节 
+	// char, int, float, double, signed, unsigned, long, short and void
+	// c语言中 数据类型比java少一些 在c语言中没有 boolean类型的数据  int 1 代表真 0 代表假
+	// c 语言中没有String类型的数据   java中表示一个字符串 String  , c语言中表示字符串 通过char类型的数组来表示字符串
+	// c 语言没有byte类型   所有用char的类型表示byte类型 
+	#include <stdio.h>
+	#include <stdlib.h>
+	main()
+	{
+		printf("char的长度是%d\n", sizeof(char)); //c语言的一个函数 可以把 某种数据类型的长度获取出来 int 
+		printf("int的长度是%d\n", sizeof(int));   
+		printf("float的长度是%d\n", sizeof(float));   
+		printf("double的长度是%d\n", sizeof(double));   
+		printf("long的长度是%d\n", sizeof(long));   //在c语言99语法中，long的长度跟int的一样，4个字节 。其他语法中可能long的长度是8位。long一定不会比int短 
+		printf("short的长度是%d\n", sizeof(short));   
+
+		printf("unsigned int的长度是%d\n", sizeof(unsigned int));   
+		printf("signed int的长度是%d\n", sizeof(signed int));   
+		//printf("signed float的长度是%d\n", sizeof(signed float)); //错误，signed，unsigned只能修饰整型 char short, int, long 
+
+		system("pause");
+	}
+
+c语言输入输出函数:
+	/*%d  -  int
+	%ld – long int
+	%c  - char
+	%f -  float
+	%lf – double
+	%x – 十六进制输出 int 或者long int 或者short int
+	%o -  八进制输出
+	%s – 字符串
+
+	Int len;
+	Scanf(“%d”,&len);*/
+	#include <stdio.h>    
+	#include <stdlib.h>
+	 main()   
+	{ 
+        int i = 1;
+        float f = 3.141;
+        double d = 6.123;
+        char c = 'a'; //通过单引号定义字符 
+        short s = 2;
+        
+        printf("int i=%d\n", i);
+        printf("float f=%f\n", f); //如果写成%d，编译时不会报错，但输出的数据不正确。 
+        printf("double d=%lf\n", d);
+        printf("char c=%c\n", c);
+        printf("short s=%d\n", s);
+        
+        char arr[20];   //不能写成char[20] arr, char arr[]  
+        scanf("%s", arr);  // 从键盘接受一个字符串,放在c数组里面
+        printf("s=%s\n", arr);
+        
+        int j;
+        scanf("%i", &j); // &是取地址符号 
+        printf("j=%d\n", j);
+        
+        system("pause");    
+	}
+
+指针入门：
+	所有的变量都会分配一块内存空间
+    指针就是用来表示一块内存空间的地址的  
+    地址可以用过 &这个符号获取到某个变量的在内存中的地址 
+    这个地址如果想把他存放起来 就需要有一个变量 去存放这个地址
+    存放内存地址的变量 就是指针变量  
+    指针和指针变量 区别：
+    指针是用来表示一块内存地址的,
+    指针变量是用来存放一个内存地址的 .
+    main() 
+	{    
+	      //指针是什么?   指针就是一个地址
+	      //地址代表的就是一块内存空间  
+	     
+	      int i =5;// 定义一个int 类型的变量i 值 =5 
+	      printf("i的地址 %#X\n",&i); 
+	      
+	      int* p ; // 指针变量 定义一个int* 类型的变量p  
+	      //int *p, int * p; //都可以
+	      
+	      p = &i;  // 就是把i的指针赋给指针变量p  ,现在指针变量p里面存放的内容(数据)  就是i的地址  
+	     
+	      printf("p里面的内容为(i的地址) %#X\n",p); 
+	     
+	      //*号 操作符
+	      // *号的几种含义  
+	      //1 . *号放在某种数据类型的后面,代表就是这种数据类型的指针  int*   float* 
+	      //2 . *号 代表一个乘法符号  3*5  = 15;
+	      //3 .  *号放在一个指针变量的前面 -> 代表取这个指针变量所存放的地址里面对应的数据  
+	       printf("i=%d\n",i);
+	       printf("*p的值%d\n",*p); 
+	     
+	       // 改变p的值 会不会影响i的值? 
+	        //p = NULL;
+	       // printf("i=%d\n",i);
+	       
+	       // 改变i的值 会不会影响p的值? 
+	       // i = 100;
+	       //  printf("p里面的内容为(i的地址) %#X\n",p); 
+	       // 通过上述实验 p和 i 是两个不同的变量 ,改变i的值 不会影响 p的值,同理,更改p的值 也不会影响i的值  
+	       
+	       // 更改*p的值 会不会影响i的值  
+	      // *p  = 88;
+	       // printf("i=%d\n",i);
+	       
+	       // 更改i的值 会不会影响 *p的值呢?
+	      // i = 99;
+	      // printf("*p的值%d\n",*p);  
+	        
+	        //*p 和i 其实代表的是同一个变量,代表是同一块内存空间  
+	       system("pause");    
+	}
+
+交换2个变量：
+	#include <stdio.h>    
+	#include <stdlib.h>
+	void swap2(int* p , int* q){ // 传递的形参为 i 和j 变量的地址  
+	     // *p  代表 i   *q 代表就是 j
+	     int temp;
+	     temp = *p;
+	     *p = *q; 
+	     *q = temp;
+	} 
+
+	void swap1(int i ,int j){ //  形参 i 和j 跟主函数里面的i和j是两个不同的变量 
+       int temp;
+       temp  = i;
+       i = j;
+       j = temp;
+	}
+	 main() 
+	{   
+       //利用指针 可以在子函数里面修改主函数里面的数据  
+       int i = 3;
+       int j = 5; 
+       printf("i=%d\n",i);
+       printf("j=%d\n",j);
+       printf("主函数 i 地址%#X\n",&i);
+       printf("主函数 j 地址%#X\n",&j);
+       
+       // swap1(i,j);
+       swap2(&i,&j); 
+       printf("交换后\n"); 
+       printf("i=%d\n",i);
+       printf("j=%d\n",j);
+
+       system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+
+指针常见错误：
+	 main() 
+	{   
+        int* p; //定义一个指针变量   垃圾值 -> 野指针  
+          
+         printf("*p=%d\n",*p);  //指针没有赋初值，是垃圾值，如果打印会报错，内存#12d244不能被read
+         *p = 1231;   //指针没有赋初值，是垃圾值，不知道之指向哪一块内存区域，可能会是系统在使用的内存。如果写数据会报错，内存#12d244不能被write
+         //蓝屏死机  有可能是因为向显卡，网卡..的内存中乱写了一些数据
+         //1. 指针变量如果没有赋值就不能使用  
+         
+         int d = 324233;
+         char* c; ;  // 如果类型不兼容，编译会错误  
+         
+         c = &d;
+         printf("*p = %c\n",*c);  //会打印出?, 因为在码表中找不到对应数字的字符
+         //2. 类型不相同的指针不可以互相转换 
+         
+         system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+
+主函数使用子函数中的变量：
+	f(int** q){
+	    int i = 3; 
+	    printf("子函数 i的地址 %#X\n",&i); 
+	    // *q   代表的就是p变量  
+	    *q = &i; 
+	} 
+	/*
+	   结论：使用指针的时候 不可以访问已经被系统回收掉的数据  
+	   子函数执行完毕后 子函数里面所有的局部变量都会别系统回收  
+	*/
+	 main() 
+	{  
+	   // 希望在主函数里面去使用子函数里面的变量 i 
+	   // 希望在主函数里面得到子函数 里面int i变量的地址 
+	   int* p ; //存放子函数f中 int i的地址的一个变量
+	    
+	   f(&p); 
+       // printf("主函数 i的地址 %#X\n",p);  //不执行这句，下面就能打印出3；执行这句需要时间，在这段之间内临时变量被系统会后了，下面就打印出-1
+       printf("i的值为 %d\n",*p);//子函数的变量在子函数执行完后会被系统回收，所以这里打印的值为3或-1. 如果执行到这句的时候系统还没回收临时变量i，那么*p为3，如果回收了，那么*p为-1
+        
+       system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+
+返回1个以上的值：
+	/*
+	 如果让子函数 更改主函数里面的数据  
+	 如何让子函数 返回一个以上的值 
+	 	传地址
+	 */
+	 int f(int* p, int* q){
+	    *p =  33;
+	    *q = 55;
+	 }
+	 main() 
+	{   
+	    int i = 3;
+	    int j = 5;
+	    f(&i,&j);
+	    printf("i=%d\n",i);
+	    printf("j=%d\n",j);
+	    system("pause");   
+	}
+
+char指针表示字符串：
+	 main() 
+	{  
+	    char arr[20] ={'h','e','l','l','o','\0'}; //char数组的方式表示字符串很麻烦
+	    // 利用char类型指针 方便的表示一个字符串  
+	    char* arr1 = "hello world";
+	    printf("%s", arr1);    
+	    
+	    system("pause");    
+	}
+
+指针和数组：
+	// 数组是一块连续的内存空间  数组名 就是内存空间的首地址 
+	// 数组名[i]  ==  *(数组名+i); 
+	 main() 
+	{  
+         // 创建一个长度为5的int类型的数组  
+        int arr[5] ={1,2,3,4,5};
+        
+        printf("a[0]=%d\n",arr[0]);
+        printf("a[4]=%d\n",arr[4]);
+        // 逻辑上是错误的代码  数组下标越界  
+        // printf("a[5]=%d\n",arr[5]);  //java会数组越界接触，这里不会报错，打印出0
+        // windows xp  不安全，因为是使用c/c++编写，很多地方可能存在数组越界问题。   缓冲区越界补丁  
+        
+        // 以下2句的结果是一样的
+        printf("arr = %#X\n",arr); 
+        printf("arr[0]地址 = %#X\n",&arr[0]); 
+        
+        // 打印数组中的第二个元素 
+        printf("arr[1]=%d\n",arr[1]); 
+        printf("arr[1]=%d\n", *(arr+1));
+        //问题: arr[i]  *(arr+i)  代表的是同一个变量么? 
+        // 代表的是同一块内存空间 指向的是同一个变量  
+        
+        //通过实验 : 数组名表示的 就是这个数组第一个元素 的首地址 
+        system("pause");    
+	}
+
+案例2：
+	// 写一个子函数 打印数组里面的每一个元素 
+	void printArr(int* arr, int len){ // arr是数组的首地址  len数组的长度  
+	     int i=0;
+	     for(;i<len;i++){ // 在c99 的语法格式下  for循环的初始化条件 不能写在 for 循环的括号里面  
+	        // printf("arr[%d]=%d\n",i,arr[i]);  // arr[i] 和  *(arr+i) 代表的含义相同 
+	        printf("arr[%d]=%d\n",i, *(arr+i));
+	     }
+	} 
+	main() 
+	{  
+       int arr[10]={1,2,3,4,5};  //没显式初始化的元素为0
+        
+       printArr(&arr[0],10);   // &arr[0]等于arr
+        //1 .定义一个数组  缺陷 数组的长度 必须事先申请好 
+        //int arr[1000];   //  这一句代码一旦执行 ,就立刻会在内存里面申请 5个内存空间 每个内存空间的大小可以存放一个int类型的数据  
+        // 没有办法动态的增加这一块空间的大小, 也没办法减小这一块内存空间  
+        int* arr = (int* )malloc(sizeof(int)*10); 
+        
+        arr =  realloc(arr,sizeof(int)*8); //空间的长度为12了 
+    
+        system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+
+指针的运算：
+	main() 
+	{  
+        int i =3; 
+        int j =5;  
+        int* p = &i; 
+        int* q = &j; 
+        printf("p-q=%d\n", p-q);//这样的指针运算是没有意义的，指针运算一般要和数组结合使用
+       
+        char arr[5]={'a','b','c','d','e'};  //一块连续的内存空间 
+        char* p1 = &arr[2];
+        printf("char = %c\n", *(p1-1));   //偏移1个字节
+        
+        int intarr[5]={1,2,3,4,5};  //一块连续的内存空间 
+        int* q1 = &intarr[2];
+        printf("char = %d\n", *(q1-1));  //偏移4个字节
+        // 指针的运算 按照 约定好的数据类型   偏移相对应的内存空间的大小 (如果是char指针，+1就偏移1个字节，int指针+1就偏移4个字节，这就是为什么指针有数据类型的原因)
+        system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+
+在32位的操作系统上 因为程序 最大能使用的内存空间的地址 就是2的32次方
+指针只需要4位(字节) 就可以表示出来所有的内存空间 
+64 并且编译支持64位 8位 
+
+动态内存分配：
+	#include <malloc.h> // malloc memory allocate 内存申请 
+	 main() 
+	{  
+	 // 接受一个参数 申请多大(byte)的内存空间  
+	 int* p = (int*)malloc(sizeof(int)); // 在堆内存里面申请一块可以存放一个int类型数据的内存空间  
+	    
+	 *p = 4;  // 就是往 p 里面存放的地址 表示的那块内存空间里面存放一个int类型的数据 4 
+	 printf("*p=%d\n",*p);  
+	 system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+	}
+动态内存分配2：
+	#include <malloc.h>
+	f(int** address){ //address 存放的是q的地址 
+	   // 动态的在堆内存里面申请一块空间 ， 静态内存都是在栈中分配的
+	   int* p  = (int*)malloc(sizeof(int)*3); 
+	   *p = 3;
+	   *(p+1) = 4;
+	   *(p+2) = 5 ; 
+	   printf("子函数里面 地址%#X\n",p); 
+	   *address  = p; 
+	   
+	   // 在子函数里面把p释放掉了  
+	   //free(p);
+	} 
+	 main() 
+	{  
+       int* q ; 
+       f(&q); 
+       printf("主函数里面 地址%#X\n",q); 
+       printf("*q = %d\n",*(q+0));  //残留的内存映像,如果子函数执行了free(p),这里还会打印出0
+       printf("*q = %d\n",*(q+1)); // 残留的内存映像,如果子函数执行了free(p),这里还会打印出4,系统实际上已经释放掉了该内存空间，它把该内存标记为可以重新写入，而不是真的删除该块内存的数据 
+       printf("*q = %d\n",*(q+2));  // 残留的内存映像,如果子函数执行了free(p),这里还会打印出5,类似操作系统删除文件.所以，不要使用已经回收掉的内存空间里面的数据
+       
+       //动态内存分配 程序员可以自己手工的决定一个变量的生命周期。主函数就能使用子函数的变量了
+       //手工的释放调用内存空间  
+       free(q);
+       system("pause");    // 调用windows下系统的命令 让程序暂停执行  方便观察程序的执行结果  
+}
+
+动态内存与静态内存比较：
+	（1） 从静态存储区域分配。内存在程序编译的时候就已经分配好，这块内存在程序的整个运行期间都存在。例如全局变量，static 变量。
+	（2） 在栈上创建。在执行函数时，函数内局部变量的存储单元都可以在栈上创建，函数执行结束时这些存储单元自动被释放。栈内存分配运算内置于处理器的指令集中，效率很高，但是分配的内存容量有限。
+	（3） 从堆上分配，亦称动态内存分配。程序在运行的时候用malloc 或new 申请任意多少的内存，程序员自己负责在何时用free 或delete 释放内存。动态内存的生存期由我们决定，使用非常灵活，但问题也最多.
+	  堆和栈的区别:
+	1.申请方式
+	栈:   
+	由系统自动分配.例如,声明一个局部变量int  b; 系统自动在栈中为b开辟空间.例如当在调用涵数时，需要保存的变量，最明显的是在递归调用时，要系统自动分配一个栈的空间，后进先出的，而后又由系统释放这个空间. 
+	堆:   
+	需要程序员自己申请，并指明大小，在c中用malloc函数   
+	如char*  p1  =  (char  *)malloc(10);   
+	但是注意p1本身是在栈中的.
+	  2  申请后系统的响应   
+	 栈：只要栈的剩余空间大于所申请空间，系统将为程序提供内存，否则将报异常提示栈溢出。   
+	堆：首先应该知道操作系统有一个记录空闲内存地址的链表，当系统收到程序的申请时，    会遍历该链表，寻找第一个空间大于所申请空间的堆结点，然后将该结点从空闲结点链表中删除，并将该结点的空间分配给程序，另外，对于大多数系统，会在这块内存空间中的首地址处记录本次分配的大小，这样，代码中的delete语句才能正确的释放本内存空间。另外，由于找到的堆结点的大小不一定正好等于申请的大小，系统会自动的将多余的那部分重新放入空闲链表中。   
+	 
+	3.申请大小的限制   
+	栈：在Windows下,栈是向低地址扩展的数据结构，是一块连续的内存的区域。这句话的意思是栈顶的地址和栈的最大容量是系统预先规定好的，在WINDOWS下，栈的大小是2M（vc编译选项中可以设置,其实就是一个STACK参数,缺省2M），如果申请的空间超过栈的剩余空间时，将提示overflow。因此，能从栈获得的空间较小。   
+	堆：堆是向高地址扩展的数据结构，是不连续的内存区域。这是由于系统是用链表来存储的空闲内存地址的，自然是不连续的，而链表的遍历方向是由低地址向高地址。堆的大小受限于计算机系统中有效的虚拟内存。由此可见，堆获得的空间比较灵活，也比较大。   
+	 
+	 4.申请效率的比较：   
+	栈:由系统自动分配，速度较快。但程序员是无法控制的。   
+	堆:由malloc/new分配的内存，一般速度比较慢，而且容易产生内存碎片,不过用起来最方便.   
+	 
+	 5.堆和栈中的存储内容   
+	栈:在函数调用时，第一个进栈的是主函数中后的下一条指令（函数调用语句的下一条可执行语句）的地址，然后是函数的各个参数，在大多数的C编译器中，参数是由右往左入栈的，然后是函数中的局部变量。注意静态变量是不入栈的。   
+	当本次函数调用结束后，局部变量先出栈，然后是参数，最后栈顶指针指向最开始存的地址，也就是主函数中的下一条指令，程序由该点继续运行。   
+	堆：一般是在堆的头部用一个字节存放堆的大小。堆中的具体内容有程序员安排。   
+	 
+	6.内存的回收
+	栈上分配的内存，编译器会自动收回；堆上分配的内存，要通过free来显式地收回,否则会造成内存泄漏。
+	  堆和栈的区别可以用如下的比喻来看出：   
+	使用栈就像我们去饭馆里吃饭，只管点菜（发出申请）、付钱、和吃（使用），吃饱了就走，不必理会切菜、洗菜等准备工作和洗碗、刷锅等扫尾工作，他的好处是快捷，但是自由度小。   
+	使用堆就像是自己动手做喜欢吃的菜肴，比较麻烦，但是比较符合自己的口味，而且自由度大。
+
+realloc:
+	 int* arr = (int* )malloc(sizeof(int)*10); 
+     //arr =  realloc(arr,sizeof(int)*12); //空间的长度为12了,之前的10个int类型的数据还在
+     arr =  realloc(arr,sizeof(int)*8); //空间的长度为8了,最后2个int类型的数据被没了
+
+函数指针：
+	int add(int x , int y){
+	    return x+y;
+	}
+	 main() 
+	{ 
+       int (*pf) (int x, int y); //定义一个函数的指针的声明 名字叫pf  返回值 int 接受参数两个int  
+       pf = add; 
+       
+       printf("result=%d\n", pf(3,6)); 
+       system("pause");      
+	}
+
+结构体：
+	struct Student
+	{
+		int age; //4
+		float score; // 4
+		long id;  //4
+		char sex ; //4 编译器为了指针偏移方便会处理，sex占的字节也是4。 不同的编译器的实现可能不一样，如果是vc 6.0编译器，sex占2个字节   
+	};
+	 main() 
+	{ 
+	    struct Student st={80,55.6f,100010 ,'F'};   
+	    struct Student* pst; //结构体指针
+	    pst = &st;
+	      
+	    printf("age = %d\n",st.age);    
+	    printf("score = %f\n",st.score);     
+	    printf("id = %ld\n",st.id);    
+	    printf("sex = %c\n",st.sex);    
+	    // 结构体的长度 
+	    printf("长度 = %d\n",sizeof(st));   // 16 
+	    
+	    //printf("age = %d\n", (*pst).age);   
+	    printf("age = %d\n", pst->age); //pst所指向的结构体的age。   等于(*pst).age
+	    
+	    system("pause");    
+	}
+
+联合体：
+	main( )
+	{ 
+		struct date { int year, month, day; } today;  //定义一个结合体today的简易写法
+		 
+		// 联合体 是定义一块相同的内存空间 存放里面的数据  
+		union { long i; int k; char ii; } mix; //i, k, ii都存放在同一块内存中，给一个变量赋值，会覆盖求的变量
+
+		// 联合体的作用就是用来表示一组数据类型 数据的数据类型为这一组中的某一种数据类型 
+		//注意 :   联合体里面的数据内容会相互覆盖 
+
+		printf("date:%d\n",sizeof(struct date));  //12 
+		printf("mix:%d\n",sizeof(mix));  //4 长度等于  联合体里面最长数据类型的长度
+		mix.ii = 'A';
+		printf("k=%d\n",mix.k);   //65  'A'对应65
+		system("pause");
+	} 
+
+枚举：
+	typedef int haha; //haha就是int的别名
+	enum WeekDay
+	{
+	Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday  //默认Monday=0，后面一次+1.  
+	//Monday=10,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday  //如果指定Monday=10，那么Tuesday=11...
+	};
+
+	int main(void)
+	{
+	    
+	  haha i = 3; 
+	  printf("%d\n",i);
+	  //int day;
+	  enum WeekDay day = Sunday;
+	  printf("%d\n",day);
+	  system("pause");
+	  return 0;
+	}
+
+NDK环境搭建:
+	第一个工具:
+	NDK (native develop kits)   是一个交叉编译的工具链:
+	交叉编译: 在一个平台(处理器,操作系统)下 编译出来另外一个平台下可以运行的代码.
+	windows AMD intel x86 架构-> 手机 android arm处理器
+
+	.c .java 
+	1. 编译  把源代码(高级语言)编译成一个低级语言 (汇编语言)
+	2. 连接  根据具体平台的特性,(cpu的类型 x86 arm,操作系统的类型) 
+
+	第二个工具: 
+	cygwin: windows下linux环境的模拟器.   下载cygwin的离线安装包，NDK所需的只要20-40M，如果网络安装就要安装600多M
+	cygwin的安装目录 不能有空格,最好不要中文 
+
+	第三个工具:
+	cdt : c/c++ develop tools  (主要是用来让c和c++代码 完成高亮显示的作用) 下载cdt的eclipse插件，只安装勾选必须的就行了
+
+	安装cygwin的时候只需安装devp和shells。    安装好后执行make -v/-version 显示出版本信息说明cygwin安装成功
+	将ndk压缩包解压到没有空格，中文的目录下。 运行cygwin, cd /cygwindriver可进入windows的硬盘。cd到ndk的解压目录，执行./ndk-build,显示没有找到android project说明ndk的搭建也成功了
+	为了方便使用ndk-build,将ndk-build加入linux系统的环境变量中。  修改cygwin安装目录下的etc/profile文件，在PATH中加入ndk的解压目录 如：/cygwindriver/d/ndkFolder
+	加入后就可在任意路径下执行ndk-build了
+
+NDK HelloWorld：
+	1.创建一个android工程
+	2.JAVA代码中写声明native 方法 public native String helloFromJNI();
+	3.创建jni目录,编写c代码,方法名字要对应
+		Hello.c：
+		 #include <jni.h>
+		 // jstring, JNIENV* 的定义可查看D:\android-ndk-r7b\platforms\android-8\arch-arm\usr\include\jni.h
+		 jstring Java_cn_itcast_ndk_DemoActivity_helloFromC(JNIEnv* env ,jobject obj){  //方法签名为 Java_包名_类名_方法名((JNIEnv* env ,jobject obj)
+			//JNIEnv是结构体指针，  (*env)就是JNIEnv类型的， (*(*env))就是结构体指针， 结构体内定义了很多函数指针
+			//return  (*(*env)).NewStringUTF(env,"hello from c");  //NewStringUTF是函数指针，返回一个字符串
+		     return (*env)->NewStringUTF(env,"hello from c");
+		 }
+	4.编写jni/Android.mk文件  (交叉编译器 在编译c代码/c++代码依赖的配置文件    linux下 makefile的语法的子集 )  makefile是linux下c/c++编译的一个工具
+		
+		# 以下配置可在ndk的开发文档中找到 (android-ndk-r7b/docs/ANDROID-MK.html)
+		#LOCAL_PATH := $(call my-dir)
+	    #include $(CLEAR_VARS)
+	    #LOCAL_MODULE    := hello-jni
+	    #LOCAL_SRC_FILES := hello-jni.c
+	    #include $(BUILD_SHARED_LIBRARY)
+		# 获取当前Android.mk的路径  
+		LOCAL_PATH := $(call my-dir) #调用makefile工具集中的一个函数
+		#变量的初始化操作 特点: 不会重新初始化LOCAL_PATH 的变量
+		include $(CLEAR_VARS) 
+		#libHello.so 加lib前缀 .so后缀 makefile的语法约定的。 
+		LOCAL_MODULE    := Hello  #生成库文件的名称，会加上前后缀libHello.so  如果写成libHello,生成的库文件还是libHello.so
+		LOCAL_SRC_FILES := Hello.c #指定源文件的名称
+		include $(BUILD_SHARED_LIBRARY)
+		#一般只修改LOCAL_MODULE和LOCAL_SRC_FILES
+	5.Ndk编译生成动态库
+		在cygwin下安卓项目目录下执行ndk-build. 会生成libs/armeabi/liHello.so和/obj/..
+	6.Java代码load 动态库.调用native代码
+		static{
+			System.loadLibrary("Hello");  // 加载libHello.so到java虚拟机中
+		}
+		//然后就可以调用普通方法一样 调用native方法了
+	注：步骤3中，如果java中的方法名为hello_From_C,如果在Hello.c中声明成Java_cn_itcast_ndk_DemoActivity_hello_From_C，会被认为DemoActivity下的内部类hello..
+	    要写成Java_cn_itcast_ndk_DemoActivity_hello_1From_1C (加1). 要自己来控制太麻烦了， 可以使用jdk的工具javah来获取class文件对应的c文件方法签名
+	    进入项目目录/bin/classes执行javah com.zzjie.DemoActivity, 会生成对应的c语言头文件(com_zzjie_DemoActivity.h)。 可以打开头文件拷贝对应的函数签名。 
+	    也可将头文件复制到jni目录下，然后导入头文件 #include "com_zzjie_DemoActivity.h" (<>导入编译器所带头文件，""导入自己的同级目录下的头文件)
+	    导入头文件后，也要可拷贝函数签名到Hello.c，然后在Hello.c中实现头文件的方法
+	    JNIEXPORT jstring JNICALL Java_cn_itcast_ndk_DemoActivity_helloFromC(JNIEnv * env, jobject obj){
+			return (*env)->NewStringUTF(env,"hello from c");
+		}
+
+ndk开发常见错误
+	1. android.mk文件不存在 
+	$ ndk-build
+	Android NDK: Your APP_BUILD_SCRIPT points to an unknown file: ./jni/Android.mk  
+	/cygdrive/h/heima6/jni2/ziliao/android-ndk-r7b/build/core/add-application.mk:133: *** Android NDK: Aborting...    。 停止。
+
+	2.android.mk文件 的配置信息有错误
+	$ ndk-build
+	/cygdrive/h/heima6/jni2/ziliao/android-ndk-r7b/build/core/build-shared-library.mk:23: 
+	*** Android NDK: Missing LOCAL_MODULE before including BUILD_SHARED_LIBRARY in jni/Android.mk    。 停止。
+
+	3.c代码 语法出现错误,编译不通过 Error 1.
+	Compile thumb  : Hello <= Hello.c
+	jni/Hello.c: In function 'Java_cn_itcast_ndk_DemoActivity_helloFromC':
+	jni/Hello.c:21: error: 'ctr' undeclared (first use in this function) //c编译会出现很多error，后面的error很是依赖前面的，只要解决前面的，后面的error就解决了
+	jni/Hello.c:21: error: (Each undeclared identifier is reported only once
+	jni/Hello.c:21: error: for each function it appears in.)
+	jni/Hello.c:21: error: expected ';' before 'c'
+	/cygdrive/h/heima6/jni2/ziliao/android-ndk-r7b/build/core/build-binary.mk:240: recipe for target `obj/local/armeabi/objs/Hello/Hello.o` failed
+	make: *** [obj/local/armeabi/objs/Hello/Hello.o] Error 1
+
+	4.java层c代码库没有找到
+	Caused by: java.lang.UnsatisfiedLinkError: Library Hell0 not found
+	静态加载代码库的时候 代码库没有找到.
+
+	5.c代码函数签名出现错误
+	Caused by: java.lang.UnsatisfiedLinkError: hello_from_c
+
+	6.逻辑性的错误, 使用了已经回收的内存空间, 访问了不可以被访问的内存空间,修改了不能被修改的内存空间..
+		JNIEXPORT jstring JNICALL Java_cn_itcast_ndk_DemoActivity_hello_1from_1c (JNIEnv * env, jobject obj){
+		    char a1[] = {'a', 'b'};
+		    char a2[2] ={'e','f'};
+		    strcat(a1,a2); // 错误。把a2的内容 放到a1的后面 要求a1的大小必须> a1+a2
+			return (*env)->NewStringUTF(env,"hello from c ___-");
+		}
+
+	 程序挂掉，logcat又没有错误信息，很可能是底层的库挂掉了，这种错误需要我们看c的实现代码，如果源文件很长，我们就需要要通过debug来查错
+	 调试的2种方式：
+		1. 断点. ndk-gdb （调试起来非常麻烦，而且没什么参考意义）
+		2. 通过log 方式来观察程序执行流程 
+	 c代码中使用log:
+	 	1. c代码
+	 	#include <stdio.h>
+		#include <jni.h>
+		#include<malloc.h>
+		#include "cn_itcast_ndk_DemoActivity.h"
+		#include <android/log.h>  //导入ndk目录\platforms\android-8\arch-arm\usr\include\android\log.h
+		#define LOG_TAG "System.out.c"  //定义LOG_TAG为"System.out.c"
+		#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__) //为log.h中的函数__andr..起个别名LOGD
+		#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+		JNIEXPORT jstring JNICALL Java_cn_itcast_ndk_DemoActivity_hello_1from_1c
+		  (JNIEnv * env, jobject obj){
+			LOGI("method called");  //不能打印中文
+			LOGI("ARRAY init");
+		    char a1[] = {'a', 'b'};
+		    //找到错后后将char a1[] = {'a', 'b'}; 改成 char* a1 = (char*) malloc(sizeof(char)*10);
+		    LOGI("a1 = %s",a1);
+		    char a2[2] ={'e','f'};
+		    LOGI("ARRAY init finish");
+		    LOGI("copy array"); //程序打印到这里就不再往下打印了，说明strcat出问题了
+		    strcat(a1,a2); // 把a2的内容 放到a1的后面 要求a1的大小必须> a1+a2
+		    LOGI("a1  end = %s",a1);
+		    LOGI("copy array end");
+			return (*env)->NewStringUTF(env,"hello from c ___-");
+		}
+		2. 在Android.mk文件中引入log的库
+		# 引入android-ndk-r7b\platforms\android-8\arch-arm\usr\lib\liblog.so; libGLESv2.so(opengl库)
+		LOCAL_LDLIBS += -llog  # -llog等于-l+moduleName。 如果想引入opengl的库文件就写-lGLESv2
+
+ndk开发的中文乱码问题:（高版本的只需将c代码的文件换成utf-8编码）
+	1.低版本ndk 不支持中文 ndk-r4-crystal
+	iso-8859-1 转码 
+
+数据传递：
+	1. 创建一个类DataProvider
+		public class DataProvider {
+			/**
+			 * 把两个java中的int传递给c语言, c语言处理完毕后,把相加的结果返回给java
+			 */
+			public native int add(int x ,int y);
+			
+			public static native int sub(int x ,int y);
+			
+			public native char add(char x, char y); //String 
+			/**
+			 * 把java中的string传递给c语言, c语言获取到java中的string之后 ,在string后面添加 一个hello 字符串
+			 */
+			public native String sayHelloInC(String s);
+			/**
+			 * 把java中的一个int数组 传递给c语言,c语言处理完毕这个java数组 
+			 * 把int数组中的每一个元素+10 ;
+			 * 然后把结果返回给java
+			 */
+			public native int[] intMethod(int[] iNum); 
+
+			public native byte[] byteMethod(byte[] iByte);
+		}
+	2. DataProvider的c实现   Hello.c
+		#include<stdio.h>
+		#include<jni.h>
+		#include "cn_itcast_ndk3_DataProvider.h";   //使用javah生成
+		#include <android/log.h>
+		#include<malloc.h>
+		#define LOG_TAG "System.out.c"
+		#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+		#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+
+		/**
+		 * 返回值 char* 这个代表char数组的首地址
+		 *  Jstring2CStr 把java中的jstring的类型转化成一个c语言中的char 字符串
+		 */
+		char*   Jstring2CStr(JNIEnv*   env,   jstring   jstr)   //自己的工具方法
+		{
+			 char*   rtn   =   NULL;
+			 jclass   clsstring   =   (*env)->FindClass(env,"java/lang/String"); //String
+			 jstring   strencode   =   (*env)->NewStringUTF(env,"GB2312");  // 得到一个java字符串 "GB2312"
+			 jmethodID   mid   =   (*env)->GetMethodID(env,clsstring,   "getBytes",   "(Ljava/lang/String;)[B"); //[ String.getBytes("gb2312");
+			 jbyteArray   barr=   (jbyteArray)(*env)->CallObjectMethod(env,jstr,mid,strencode); // String .getByte("GB2312");
+			 jsize   alen   =   (*env)->GetArrayLength(env,barr); // byte数组的长度
+			 jbyte*   ba   =   (*env)->GetByteArrayElements(env,barr,JNI_FALSE);
+			 if(alen   >   0)
+			 {
+			  rtn   =   (char*)malloc(alen+1);         //"\0"
+			  memcpy(rtn,ba,alen);
+			  rtn[alen]=0;
+			 }
+			 (*env)->ReleaseByteArrayElements(env,barr,ba,0);  //
+			 return rtn;
+		}
+
+		JNIEXPORT jint JNICALL Java_cn_itcast_ndk3_DataProvider_add
+		  (JNIEnv * env, jobject obj , jint x, jint y){
+			LOGD("x=%d",x);
+			LOGD("y=%d",y);
+			return x+y;
+		}
+
+		JNIEXPORT jstring JNICALL Java_cn_itcast_ndk3_DataProvider_sayHelloInC
+		  (JNIEnv * env, jobject obj, jstring jstr ){
+			//在c语言中 是没有java的String
+			char* cstr = Jstring2CStr(env, jstr);
+			LOGD("cstr=%s",cstr);
+			// c语言中的字符串 都是以'/0' 作为结尾
+			char arr[7]= {' ','h','e','l','l','o','\0'};
+			strcat(cstr,arr);
+			LOGD("new cstr=%s",cstr);
+			return (*env)->NewStringUTF(env,cstr);
+		}
+
+		/**env java 虚拟机 结构体c实现的指针 包含的有很多jni方法
+		 *jobject obj 代表的是调用这个c代码的java对象 代表的是DataProider的对象
+		 */
+		JNIEXPORT jintArray JNICALL Java_cn_itcast_ndk3_DataProvider_intMethod
+		  (JNIEnv * env , jobject obj , jintArray arr){
+			//1.知道数组的长度
+			//2.操作这个数组里面的每一个元素
+			int len = (*env)->GetArrayLength(env,arr);
+			LOGD("shuzu len =%d",len);
+			//    jint*       (*GetIntArrayElements)(JNIEnv*, jintArray, jboolean*);
+			jint* intarr = (*env)->GetIntArrayElements(env,arr,1);  //这些方法目前没有文档，只能去看jni.h
+			int i =0; //c99
+			for(;i<len;i++){
+				//*(intarr+i) += 10;
+
+				LOGD("intarr[%d]=%d", i, intarr[i]);
+
+				intarr[i]+= 10;
+			}
+		//    void        (*ReleaseIntArrayElements)(JNIEnv*, jintArray,
+		//                        jint*, jint);
+		//
+
+		//	(*env)->ReleaseIntArrayElements(env,arr,intarr,0); // c语言释放掉 刚才申请的内存空间
+			return arr;
+		}
+
+		/**
+		 * 代表的是调用c代码 的class类  （java中的静态方法对应的jni声明是jclass，非静态的对应jobject）
+		 * jclass DataProvider  类
+		 */
+		JNIEXPORT jint JNICALL Java_cn_itcast_ndk3_DataProvider_sub
+		  (JNIEnv * env, jclass clazz, jint x, jint y){
+			LOGD("x=%d",x);
+			LOGD("y=%d",y);
+			return x-y;
+		}
+	3. Android.mk
+		LOCAL_PATH := $(call my-dir)
+		include $(CLEAR_VARS)
+		LOCAL_MODULE    :=Hello
+		LOCAL_SRC_FILES :=Hello.c
+		#liblog.so libGLESv2.so
+		LOCAL_LDLIBS += -llog
+		include $(BUILD_SHARED_LIBRARY)
+	4. 进入项目目录执行ndk-build，生成对应的libs/armeabi/liHello.so
+	5. activity(1.加载库文件，2.调用)
+		public class DemoActivity extends Activity implements OnClickListener {
+			static{
+				System.loadLibrary("Hello");
+			}
+			private Button bt1,bt2,bt3,bt4;
+			private DataProvider provider;
+		    public void onCreate(Bundle savedInstanceState) {
+		        ...
+		        provider = new DataProvider();
+		    }
+			public void onClick(View v) {
+				switch (v.getId()) {
+				case R.id.bt1:
+					int result = provider.add(3, 5);
+					Toast.makeText(this, "相加的结果"+result, 1).show();
+					break;
+				case R.id.bt2:
+					String str = provider.sayHelloInC("zhangsan ");
+					Toast.makeText(this, str, 1).show();
+					break;
+				case R.id.bt3:
+					int[] arr = {1,2,3,4,5};
+					provider.intMethod(arr);
+					
+					for(int i=0;i<arr.length;i++){
+						System.out.println("java "+ arr[i]);
+					}
+					break;
+				case R.id.bt4:
+					int subresult = DataProvider.sub(5, 3);
+					Toast.makeText(this, "相减的结果"+subresult, 1).show();
+					break;
+				}
+			}
+		}
+
+c调用java的方法：
+	1. DataProvider
+		public class DataProvider {
+			//C调用java空方法
+			public void helloFromJava(){
+				System.out.println("hello from java");
+			}
+			//C调用java中的带两个int参数的方法
+			public int Add(int x,int y){
+				int result = x+y;
+				System.out.println("java result"+ result);
+				return result;
+			}
+			//C调用java中参数为string的方法
+			public void printString(String s){
+				System.out.println("java "+ s);
+			}
+			
+			public static void printStaticStr(String s){
+				System.out.println("java static"+ s);
+			}
+
+			//让c代码调用对应的java代码
+			public native void callmethod1();
+			public native void callmethod2();
+			public native void callmethod3();
+			//调用一个静态的java代码
+			public native void callmethod4();
+		}
+	2. activity
+		public class DemoActivity extends Activity {
+			static{
+				System.loadLibrary("Hello");
+			}
+			private DataProvider dp;
+			
+			public native void call_dp_method1();
+			
+		    public void onCreate(Bundle savedInstanceState) {
+		        dp = new DataProvider();
+		    }
+		    
+		    public void click1(View view){
+		    	dp.callmethod1();
+		    }
+		    public void click2(View view){
+		    	dp.callmethod2();
+		    }
+		    public void click3(View view){
+		    	dp.callmethod3();
+		    }
+		    public void click4(View view){
+		    	dp.callmethod4();
+		    }
+		    public void click5(View view){
+		    	call_dp_method1();
+		    }
+		}
+	3. Hello.c
+		#include"cn_itcast_ndkcallback_DataProvider.h"
+		#include"cn_itcast_ndkcallback_DemoActivity.h"
+		JNIEXPORT void JNICALL Java_cn_itcast_ndkcallback_DataProvider_callmethod1(JNIEnv * env, jobject obj){
+			//在c代码里面调用java代码里面的方法
+			// java 反射
+		    //1 . 找到java代码的 class文件
+			//    jclass      (*FindClass)(JNIEnv*, const char*);
+			jclass dpclazz = (*env)->FindClass(env,"cn/itcast/ndkcallback/DataProvider"); 
+			if(dpclazz==0){
+				LOGI("find class error");
+				return;
+			}
+			LOGI("find class ");
+
+			//2 寻找class里面的方法
+			//   jmethodID   (*GetMethodID)(JNIEnv*, jclass, const char*, const char*);
+			jmethodID method1 = (*env)->GetMethodID(env,dpclazz,"helloFromJava","()V"); //第3参数是方法名，第4是方法签名. 可以用javap -s 查看方法签名
+			if(method1==0){
+				LOGI("find method1 error");
+				return;
+			}
+			LOGI("find method1 ");
+			//3 .调用这个方法
+			//    void        (*CallVoidMethod)(JNIEnv*, jobject, jmethodID, ...);
+			(*env)->CallVoidMethod(env,obj,method1);
+		}
+		JNIEXPORT void JNICALL Java_cn_itcast_ndkcallback_DataProvider_callmethod2(JNIEnv * env, jobject obj){
+		    //1 . 找到java代码的 class文件
+			//2 寻找class里面的方法
+			jmethodID method2 = (*env)->GetMethodID(env,dpclazz,"Add","(II)I");  //(int, int)返回int，可通过javap -s com.zzjie.DataProvider查看
+			// 3 调用这个方法
+			int result = (*env)->CallIntMethod(env,obj,method2,3,5);
+			LOGI("c code  RESULT = %d",result);
+		}
+		JNIEXPORT void JNICALL Java_cn_itcast_ndkcallback_DataProvider_callmethod3(JNIEnv * env , jobject obj){
+			  //1 . 找到java代码的 class文件
+			  //2 寻找class里面的方法
+				jmethodID method3 = (*env)->GetMethodID(env,dpclazz,"printString","(Ljava/lang/String;)V");
+				//3 .调用这个方法
+				(*env)->CallVoidMethod(env,obj,method3,(*env)->NewStringUTF(env,"haha in c"));
+
+		}
+		//调用static方法
+		JNIEXPORT void JNICALL Java_cn_itcast_ndkcallback_DataProvider_callmethod4(JNIEnv * env, jobject obj){
+			   //1 . 找到java代码的 class文件
+				//2 寻找class里面的方法
+				// 注意 :如果要寻找的方法是静态的方法 那就不能直接去获取methodid
+				//    jmethodID   (*GetStaticMethodID)(JNIEnv*, jclass, const char*, const char*);
+				jmethodID method4 = (*env)->GetStaticMethodID(env,dpclazz,"printStaticStr","(Ljava/lang/String;)V");
+				//3.调用一个静态的java方法
+				//    void        (*CallStaticVoidMethod)(JNIEnv*, jclass, jmethodID, ...);
+				(*env)->CallStaticVoidMethod(env,dpclazz,method4,(*env)->NewStringUTF(env,"static haha in c"));
+		}
+		//上面的native方法是DataProvider中的，obj是DataProvider。 下面这个方法在DemoActivity中,obj是DemoActivity的对象。在这个方法中再调用dataProvider的方法
+		 JNIEXPORT void JNICALL Java_cn_itcast_ndkcallback_DemoActivity_call_1dp_1method1(JNIEnv * env, jobject obj){
+			    //1 . 找到java代码的 class文件
+				//2 寻找class里面的方法
+				//   jmethodID   (*GetMethodID)(JNIEnv*, jclass, const char*, const char*);
+				jmethodID method1 = (*env)->GetMethodID(env,dpclazz,"helloFromJava","()V");
+				//3 .调用这个方法
+				//    jobject     (*NewObject)(JNIEnv*, jclass, jmethodID, ...);  //jmethodID构造方法
+				//  jobject     (*AllocObject)(JNIEnv*, jclass);
+				jobject dpobj= (*env)->AllocObject(env,dpclazz);   //创建dataProvider
+
+				(*env)->CallVoidMethod(env,dpobj,method1); //不能使用obj，因为obj是demoActivity. 而要调用的方法是在dataProvider.所以要先把dataProvider创建出来
+				//为了避免一个java类的native方法中调用另一个java类的方法 这种复杂的情况。我们可以把native和要在native回调的方法写在同一个类上
+		}
+
+锅炉压力监控：
+	1. Hello.c 模拟 返回锅炉压力的数据
+		int getpressure(){
+		  // c语言中的随机数
+		    return rand();
+		}
+
+		JNIEXPORT jint JNICALL Java_cn_itcast_monitor_DemoActivity_getPressure(JNIEnv * env, jobject obj){
+			return getpressure();
+		}
+	2. activity
+		public class DemoActivity extends Activity {
+			public native int getPressure();
+			private Timer timer;
+			private TimerTask task;
+			private Handler handler = new Handler(){   //主线程就收到子线程信息后的回调 更新界面
+				@Override
+				public void handleMessage(Message msg) {
+					int pressure = (Integer) msg.obj;
+					
+					int color = getColor(pressure);
+					if(color==404){
+						TextView tv = new TextView(DemoActivity.this);
+						tv.setTextColor(Color.RED);
+						tv.setTextSize(30);
+						tv.setText("锅炉快要爆炸了 快跑吧!");
+						// todo 播放报警声音
+						setContentView(tv);
+						timer.cancel();
+						return;
+					}
+					
+					MyView myview = new MyView(DemoActivity.this, pressure, color);
+					setContentView(myview);
+					
+					super.handleMessage(msg);
+				}
+				
+			};
+			
+			static{
+				System.loadLibrary("Hello");
+			}
+			
+		    public void onCreate(Bundle savedInstanceState) {
+		        //获取锅炉压力 ,根据压力显示不同的内容
+		        timer = new Timer();
+		        task = new TimerTask() {
+					public void run() {
+						int pressure = getPressure()%300;
+						System.out.println("压力"+pressure);
+						//把压力显示到ui界面上 
+						Message msg = new Message();
+						msg.obj = pressure;
+						
+						handler.sendMessage(msg);
+					}
+				};
+		        timer.schedule(task, 1000, 2000);  //执行定时器， 1秒后开始， 每隔2秒执行一次
+		    }
+		    
+		    //根据锅炉压力 获取应该显示的颜色
+		    public int getColor(int pressure){
+		    	if(pressure<100){
+		    		return Color.GREEN;
+		    	}else if(pressure<200){
+		    		return Color.YELLOW;
+		    	}else if(pressure<260){
+		    		return Color.RED;
+		    	}else{
+		    		return 404;
+		    	}
+		    }
+		}
+	3. MyView
+		public class MyView extends View {
+			private int bottom;
+			private Paint paint ;
+			
+			public MyView(Context context,int bottom, int color) {
+				super(context);
+				this.bottom = bottom;
+				paint = new Paint();
+				paint.setColor(color);
+				paint.setStrokeWidth(10);
+			}
+			
+			//所有android下的view控件的显示 其实是通过 ondraw
+			// canvas 代表的是屏幕的画布
+			@Override
+			protected void onDraw(Canvas canvas) {
+		//		Paint paint = new Paint();
+		//		paint.setColor(Color.RED);
+		//		paint.setStrokeWidth(10);
+		//		paint.setTextSize(20);
+		//		
+		//		canvas.drawText("哥是被画出来的", 20, 20, paint);
+				
+				//bottom值 需要根据锅炉的压力 动态确定 
+				canvas.drawRect(20, 20, 30, bottom, paint);
+				super.onDraw(canvas);
+			}
+		}
+
+上面说的都是java与c,调用c++稍有不同：
+	1. Android.mk加上 #LOCAL_CPP_EXTENSION := cpp  //扩展名可随意取，要和源文件的扩展名一致，推荐cc或cpp
+	2. Hello.cpp
+		JNIEXPORT jstring JNICALL Java_cn_itcast_cpp_DemoActivity_helloInC(JNIEnv * env, jobject obj){
+		//   return 	(*env)->NewStringUTF(env,"haha from c");  //c语言的调用方式
+		     return      env->NewStringUTF("haha from c");      //c++的调用方式
+		     // 区别：1.env不用加*, 2. 第一个参数env不需要了  3. obj是没用到的参数，可以不写名字。即(JNIEnv * env, jobject)  
+		     // c++只是在c的jni声明中又做了一层简单封装，简化了调用
+		}
+
+c语言读写文件：
+	1. 写
+	 main(){
+	    // 获取到文件的指针,句柄
+	    FILE* fp = fopen("1.txt","wt");  //r只读，w可写，a附加,t文本(可不写),b二进制
+	    
+	    char* str ="haha wirte file";
+	    
+	    // fwrite方法接受4个参数  
+	    // 第一个参数 写什么内容 
+	    // 第二个参数 是一次 数据写多长  
+	    // 第三个参数 是写多少次 
+	    // 第四个参数 写到哪个文件里面  
+	    int len = fwrite(str,sizeof(char),15,fp);
+	    
+	    printf("len =%d\n",len);
+	    
+	    //释放文件句柄 
+	    fclose(fp); 
+	    
+	    system("pause");   
+	}
+	2. 读
+	 main(){
+           FILE* fp = fopen("1.txt","rt");    
+        
+           char arr[20]={};
+           
+           //第一个参数 是读出来内容放在哪里
+            // 第二个 参数 一次读的数据的长度  
+            // 第三个参数 读多少次 
+            // 第四个参数 从哪个文件里面读 
+            int read = fread(arr,sizeof(char),15,fp);
+        
+            printf("arr = %s\n",arr);
+        
+            printf("读了%d个char类型\n",read); 
+        
+            fclose(fp);
+            system("pause");   
+	}
+
+绕过jni调用c:
+	在普通android 开发里面用的不多.(在自己定制的平板，机顶盒；安全软件，病毒用得多)
+	纯c语言开发程序,让手机直接可以运行
+	1.下载编译器和链接器软件.Sourcery G++ Lite Edition for ARM. （不能使用google的ndk了，要用g++ for arm，是windows下交叉编译工具）
+		arm-none-linux-gnueabi-gcc.exe是编译命令
+		bin/arm-none-linux-gnueabi-ld.exe是链接命令
+	2.编写c源文件
+		#include <stdio.h>
+		int main()
+		{
+			printf("Hello, Android!\n");
+			return 0;
+		}
+	3.编译hello.c源文件
+		进入cmd
+		执行 arm-none-linux-gnueabi-gcc HelloWorld.c -static -o hellostatic
+	4.将hellostatic文件传输手机
+		adb push hellostatic /data/c/
+	5.改变文件的授权
+		adb shell chmod 777 /data/c/hellostatic
+	6.运行程序
+		adb shell
+		cd /data/c
+		./hellostatic
+	7.查看执行结果
+	java调用：
+		Process  process = Runtime.getRuntime().exec("/data/c/hellostatic");
+    	//Process  process = Runtime.getRuntime().exec("date");
+    	InputStream is = process.getInputStream();
+    	DataInputStream dis = new DataInputStream(is);
+    	String result ;
+    	StringBuilder sb = new StringBuilder();
+    	 while((result = dis.readLine())!=null){
+    		 sb.append(result);
+    		 sb.append("\n");
+    	 }
+    	System.out.println(sb.toString());
+
+
+
+

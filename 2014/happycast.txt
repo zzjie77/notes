@@ -1,0 +1,151 @@
+ubuntu:
+bahs:
+  ctrl+shirt+t 打开一个终端
+  ctrl+d 关闭当前终端
+  bash的tab提醒是靠/etc/bash_completion, 二级(git branch的branch)的提醒是考/etc/completion.d来完成
+  bash可以支持vim和emacs的快捷键，默认是emacs的快捷键
+    ctrl+a 到行首
+    ctrl+d 删除一个字符
+    ctrl+e 但行尾
+    ctrl+w 先前删除知道遇到空格
+    ctrl+u 从当前为止清除到行首
+    ctrl+r 查找之前输入过的命令
+  set -o vi 将bash的切换为vim模式， 不推荐
+  
+  dpkg-deb --build  debian/ #将debian目录的文件打成deb包，debian目录具有固定结构和一些固定的文件
+  打包后可以通过dpkg -i 安装，如果要想通过apt-get安装，就要加进ubuntu的仓库，但是加进ubuntu仓库麻烦，可以通过ubuntu的ppa账号来管理自己的仓库
+  如果自己又服务器，可以创建一个自己的仓库(要与ubuntu具有相同的目录结构)，然后在/etc/apt/source.list添加自己的仓库地址
+  
+软件安装：
+  比如我们的代码里调用的一个 C 的库函数，那我们知道它来自一个叫做 xxx 的 C 库，我们有两步要做
+  sudo apt-get install libxxx-dev   #make安装时缺少xx.h，通常可以通过安装libxxx-dev来解决
+  去安装编译这个程序的时候所需要的头文件。还需要
+  sudo apt-get install libxxx
+  去安装实际的包含此接口具体实现的 binary 的库。
+  
+  lld hello #查看hello这个二进制文件运行需要的依赖
+  
+  apt-get 和 homebrew 还有 rubygems 很不一样
+  apt-get 直接从仓库里下载编译好的二进制来安装。
+  homebrew 和 rubygems 一般下载源码，在本地编译，这就要求本地的编译环境要完好。
+  
+shell:
+  $!/usr/bin/python  #告诉bash使用什么命令来执行脚本，但如果移植到别的机器，路径不是这个就不行，所以推荐下面写法
+  $!/usr/bin/env python # 同样适用于bash, ruby
+  $# 参数个数
+  $0 脚本名
+  $1 第一个参数
+  $? 上一条命令的返回值， ls后可查看返回值， 与其他语言不一样，0代表成功
+  
+  if ls  # if [ 1=1 ]
+  then  echo 'hello'
+  fi
+  
+  for i in 1 2 a b  #for i in `ls`
+  do
+    echo $i
+  done
+    
+  echo hello >file1 #重定向
+  echo hello 2>file1 #错误信息重定向
+  >file1 #file1存在则清空，不存在则创建
+  ls >>output.txt 2>>&1 #同时重定向标准输出与错误输出
+  ls &>>output.txt #等价上一条
+  
+  echo "world" > test
+  read A <test # 输入重定向
+  echo $A
+  
+grep: (global regex print)
+  在vim中可以使用g/xx/p来打印所有正则的匹配项
+  grep -i log log.txt #默认是大小写敏感的，通过-i去除
+  grep -w log log.txt #log作为单独的单词出现
+  grep '\<log' log.txt #log前有单词分界(空格，tab,换行..)， 'log\>'后分界
+  grep -v log log.txt #不匹配log的记录
+  grep awk `find .` 在当前目录查找awk字符串
+  find . -exec grep awk {} + 与上一句效果相同
+  grep awk `find . -mmin -3`  #只查找3层
+  ps aux|grep cron|grep -v grep|awk '{print $2}'  输出进程号
+  perl -pi -e 's/log/hello/g' log.txt #替换log为hello
+  sed -i 's/log/hello/g' log.txt #替换hello为log, -i直接在log.txt修改
+  sed 's/log/hello/g' log.txt > log2.txt
+  tail -f catalina.out|grep --context=3 SELECT #通常用于调试，输出SELECT出现的上下文的3行
+  
+tmux (terminal multiplexer):
+  tmux #打开一个tmux session
+  tmux list-sessions #查看所有session
+  tmux new-session -s rails #打开一个session并命名为rails
+  ctrl+b, d #脱离(detach)当前session
+  tmux attach-session -t blog #重新attach一个session,   tmux a -t blog也可
+  tmux kill-session -t blog #删除一个session
+  tmux kill-server #删除所有session
+  ctrl+b, c #创建一个window, 一个session可以有多个window
+  ctrl+b, 0 #切换到第0个window
+  ctrl+b，% #水平切分成多个窗格
+  ctrl+b, 左箭头 #焦点向左边的窗格移动
+  ctrl+b, ? #查看帮助
+  ctrl+d #关闭当前窗格
+  vim ~/.tmux.conf #修改tmux的快捷键前缀ctrl+b为ctrl+a
+    unbind C-b
+    set -g prefix C-a
+    setw mode-keys vi #设置快捷键模式为vi, 也支持emacs
+  使用tmux不能使用鼠标向上滚动来看之前的内容，要看就要进入拷贝模式
+  ctrl+b, [ #进入拷贝模式， 此时可以使用vi的快捷键来上下移动， 前提是先修改快捷键为vi模式， 然后按空格开始拷贝，按回车结束拷贝
+  ctrl+b, ] #粘贴， 这种拷贝的方式虽然有点麻烦，但是好处是无论在ssh, 还是vim中拷贝的内容都可以使用，因为会进入tmux的粘贴板
+  在服务器管理的时候，使用tmux的好处是，如果断网了，重新ssh连接后再使用tmux a重新attach可以恢复原来的状态
+  结对编程的时候可以使用tmux来共享vim屏幕，再加上语音聊天。 这样比共享屏幕要求的网速要低得多
+  
+html5 video:
+    <!-- poster是播放前的图片，controls是播放器的工具栏 -->
+    <video poster="shark.png" controls>
+      <!-- 一般会先放mp4格式的，如果浏览器不支持，则会播放webm的。最后放ogg的，因为webm的质量比ogg稍好
+      因为ipad只会查找第一个source,而ipad只支持mp4，所以把mp4放第一个
+      --> 
+      <source src="ocean.mp4" type="video/mp4" />
+      <source src="ocean.webm" type="video/webm" />
+      你的浏览器不支持html5播放器
+    </video>
+    <!-- 播放器在个浏览器的大小，样式可能不一样，所以通常会使用js的视频库。这些库还可以在不支持html5的时候使用flash -->
+  
+rsync: remote syncronize
+  mkdir test
+  echo "test" > test/hello
+  #将test目录同步到hostname的相同目录中，注意，不能写成test/，否则只会把test里的内容发送到hostname，而没test有文件夹
+  rsync -r test username@hostname:~
+  rsync -r --delete test/ hostname:~/test/ #加上--delete才能同步删除
+  #v是显示信息，dry-run表示并不执行，只是显示信息。 这样可以预防本地误删除导致服务器马上丢失数据
+  rsync -rv --dry-run --delete test hostname: 
+  #误删除后可以同此命令从服务器还原
+  rsync -r  hostname:~/test/ ~/test/
+  
+apache:
+  sudo apt-get install apache2
+  apachectl -v #查看版本， 可以到apache官网对应版本文档页面的指令快速索引表查看相关的配置文件参数
+  cd /etc/apache2/
+  vim apache2.conf #总配置文件，此文件包含的其他配置文件会生效，不包含的不会生效
+  可以看到apache2.conf中有，IncludeOptional conf-enabled/*.conf，所以只会加载xx-enabled的配置文件，而不会生效xx-available
+  sites-available只有一个文件000-default.conf链接到sites-available/000-default.conf，里面DocumentRoot /var/www指定了apache的项目根目录
+  apachectl -M #查看apache加载了哪些模块，这些模块的配置文件在/etc/apache2/mods-enabled,同样是链接到available
+  !! 执行上一条命令
+  apachectl graceful 重启apache
+  
+  如果要在apache解析ruby, python这些语言要安装对应的解析器，通过下面命令来安装模块
+  sudo apt-get install libapache2-mod-  #按tab查看
+  不过已经淘汰了这种直接在apache解析的方式，另一种方式是使用cgi(common gateway interface)来与各种语言通信
+  cgi也已经淘汰了，rails 2.3之前是使用cgi的，因为cgi每次请求都相当于重启整个应用，太慢了
+  现在每种语言和框架都有自己的解决方案，在ruby中使用的就是rack
+  
+ssh:
+  ssh-keygen -t rsa -P '' #生成密钥
+  cat .ssh/id_rsa.pub>.ssh/authorized_keys
+  可以手动把id.rsa.pub的内容拷贝到服务器的authorized_keys中就不需要输入密码了，也可以通过ssh-copy-id来完成
+  ssh-copy-id peter@haoqicat.com
+  ssh peter@haoqicat.com 'touch abc' #ssh到服务器，并执行touch abc
+  ssh -t peter@haoqicat.com 'sudo touch abc' #如果执行需要sudo的命令，要加-t
+  
+  
+  
+  
+  
+  
+  

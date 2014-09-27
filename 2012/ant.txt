@@ -1,0 +1,275 @@
+ant最佳实践：
+	secondbuild
+	--src
+	----xx.java
+	--build
+	----classes
+	------xx.class	
+	--dist
+	----project.jar
+
+ant编译一般java项目的流程：
+	1、创建文件夹
+	   build-->所有的文件信息都保存在这个文件夹中
+	   src-->所有的源码信息保存在这个文件夹中
+	   classes-->编译好的所有文件保存在这个文件夹中
+	   dist-->编译好的jar文件保存在这个文件夹中
+	2、将src文件夹的数据拷贝到bulid/src
+	3、编译源代码
+	4、将源代码打包为jar
+	5、直接运行程序
+	<project default="execute">
+		<!-- 定义文件集合 -->
+		<fileset id="src.path" dir="src">
+			<include name="**/*.*"/>
+			<exclude name="**/Test*"/>
+		</fileset>
+		
+		<target name="init">
+			<delete dir="build"></delete>
+			<mkdir dir="build"/>
+			<mkdir dir="build/src"/>
+			<mkdir dir="build/classes"/>
+			<mkdir dir="build/dist"/>
+		</target>
+		
+		<target name="copySrc" depends="init">
+			<!-- <copydir dest="build/src" src="src"></copydir>-->
+			<copy todir="build/src">
+				<fileset refid="src.path"></fileset>
+			</copy>
+		</target>
+		
+		<target name="compile" depends="init">
+			<javac srcdir="src" destdir="build/classes"></javac>
+		</target>
+		
+		<target name="jar" depends="compile">
+			<jar destfile="build/dist/HelloWorld.jar" basedir="build/classes">
+				<manifest>
+					<attribute name="Main-Class" value="com.zzjie.ant.HelloWorld"/>
+				</manifest>
+			</jar>
+		</target>
+		
+		<target name="execute" depends="jar,copySrc">
+			<echo>基于类路径的classname执行</echo>
+			<java classname="com.zzjie.ant.HelloWorld" classpath="build/classes">
+				<arg value="张三"/>
+				<arg value="李四"/>
+				<arg value="王五"/>
+			</java>
+			<echo>基于jar文件的执行</echo>
+			<java jar="build/dist/HelloWorld.jar" fork="true">
+				<arg value="张三"/>
+				<arg value="李四"/>
+				<arg value="王五"/>
+			</java>
+		</target>
+	</project>
+	注： <java>中fork属性代表使用jdk的环境执行，不设置就会使用ant的环境执行。以jar文件的方式执行必须设置fork="true"
+
+由于上面例子的路径、类名是写死的，要修改的时候全部都要修改。我们可以定义属性，然后引用属性。如：
+	<property name="build.dir" location="build"></property>
+	<property name="build.src" location="build/src"></property>
+	<property name="build.classes" location="build/classes"></property>
+	<property name="build.lib.dir" location="build/dist"></property>
+	<property name="class.name" value="com.zzjie.ant.HelloWorld"></property>
+	<property name="jar.name" value="HelloWorld.jar"></property>
+
+	<target name="init">
+		<delete dir="${build.dir}"></delete>  <!-- ${xx}  引用属性-->
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.src}"/>
+		<mkdir dir="${build.classes}"/>
+		<mkdir dir="${build.lib.dir}"/>
+	</target>
+	注: 如果是路径，使用location会自动根据操作系统来转换路径。不是路径使用value
+	    如果属性太多可以使用一个属性文件来定义属性，但不推荐将路径写进属性文件中。如定义build.properties：
+		class.name = com.zzjie.ant.HelloWorld
+		jar.name = HelloWorld.jar
+	    在build.xml声明引用的属性文件：
+		<property file="build.properties"></property>
+
+	访问ant内置的属性和系统的环境变量:
+		<!-- 把系统的环境变量导出到env这个变量中 -->
+		<property environment="env"></property>
+		
+		<target name="test">
+			<echo>${ant.home}</echo>  <!-- ant内置的属性 -->
+			<echo>${ant.java.version}</echo>
+			<echo>${env.CATILINA_HOME}</echo>
+		</target>
+
+ant与junit整合（重要）：ant进行测试的编译
+	1、创建属性
+	<property name="src.dir" location="src"></property>
+	<property name="test.src.dir" location="test"></property>
+	<property name="build.dir" location="build"></property>
+	<property name="build.classes" location="${build.dir}/classes"></property>
+	<property name="build.test.dir" location="${build.dir}/test"></property>
+	<property name="build.test.classes" location="${build.test.dir}/classes"></property>
+	<property name="build.test.report" location="${build.test.dir}/report"></property>
+	<property name="lib.dir" location="lib"></property>
+
+	<property name="run.test.class" value="**/Test*.class"></property>
+
+	2、编译源文件（需要依赖于相应的classpath）
+	<path id="compile-path">  <!-- 编译源文件的classpath-->
+		<fileset dir="${lib.dir}" includes="*.jar"></fileset>
+	</path>
+	
+	<path id="test-compile-path">  <!-- 编译测试文件的classpath，需要加上编译好的源文件-->
+		<path refid="compile-path"></path>
+		<pathelement location="${build.classes}"/>
+	</path>
+		
+	<path id="test-run-path">     <!-- 运行测试文件需要的classpath, 需要再加上编译好的测试文件-->
+		<path refid="test-compile-path"></path>
+		<pathelement location="${build.test.classes}"/>
+	</path>
+
+	<target name="clean">
+		<echo>清除项目类容</echo>
+		<delete dir="${build.dir}"></delete>
+	</target>
+	
+	<target name="init" depends="clean">
+		<echo>初始化，创建文件夹</echo>
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.classes}"/>
+		<mkdir dir="${build.test.dir}"/>
+		<mkdir dir="${build.test.classes}"/>
+		<mkdir dir="${build.test.report}"/>
+	</target>
+
+	<target name="compile" depends="init"> 
+		<echo>编译源文件</echo>
+		<javac failonerror="true" includeantruntime="true" srcdir="${src.dir}" destdir="${build.classes}" classpathref="compile-path"></javac>
+	</target>
+	注：includeantruntime="true"是为了消除警告，failonerror="true"说明出现错误后ant不执行下去
+
+	3、编译test的文件
+	<target name="compile-test" depends="compile">
+		<echo>编译测试文件</echo>
+		<javac failonerror="true" includeantruntime="true" srcdir="${test.src.dir}" destdir="${build.test.classes}" classpathref="test-compile-path"></javac>
+	</target>
+
+	4、运行单元测试
+	5、生成单元测试报告
+	<target name="run-test" depends="compile-test">
+		<echo>运行测试</echo>
+		<junit haltonfailure="true" printsummary="true"> <!-- printsummary -->
+			<classpath refid="test-run-path" ></classpath>
+			<formatter type="brief" usefile="false"/>
+			<!--<test name="${run.test.class}" ></test>-->  <!-- 单个测试类 -->
+			<formatter type="xml"/>
+			<batchtest todir="${build.test.report}">
+				<fileset dir="${build.test.classes}" includes="${run.test.class}"></fileset> <!-- 测试类 -->
+			</batchtest>
+		</junit>
+		<junitreport todir="${build.test.report}">
+			<fileset dir="${build.test.report}" includes="TEST-*.xml"></fileset>
+			<report format="frames" todir="${build.test.report}/html"/>
+		</junitreport>
+	</target>
+	注：
+	运行单元测试，出错后没提示。所以加上printsummary="true"打印摘要信息，<formatter type="brief" usefile="false"/>打印格式简短，不使用文件，默认使用文件
+	<test>这样只能写一个测试类，要测试多个就要写多个test,麻烦。所以使用batchtest。它们的todir是指生成测试报告的存放目录
+	<formatter type="xml"/>生成的是我们看不懂的报告，可以使用junitreport转换为我们能看懂的html
+	
+使用ant生成javadoc、打zip包
+	<property name="src.dir" location="src"></property>
+	<property name="test.src.dir" location="test"></property>
+	<property name="build.dir" location="build"></property>
+	<property name="build.doc" location="${build.dir}/doc/api"></property>
+	<property name="zip.dir" location="${build.dir}/zip"></property>
+	<property name="version" value="SNAPSHOP_0.1"></property>
+	<property name="zip.name" value="user_${version}.zip"></property>
+	<property name="project.name" value="user_${version}"></property>
+	
+	<target name="clean">
+		<echo>清除项目类容</echo>
+		<delete dir="${build.dir}"></delete>
+	</target>
+	
+	<target name="init" depends="clean">
+		<echo>初始化，创建文件夹</echo>
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.doc}"/>
+	</target>
+	
+	<target name="doc" depends="init">
+		<javadoc sourcepath="${src.dir}" windowtitle="xx" private="true" 
+			 destdir="${build.doc}"
+				 charset="UTF-8" encoding="UTF-8" docencoding="UTF-8"
+		>
+			<classpath path="${build.classes}"></classpath>
+		</javadoc>
+	</target>
+		
+	<target name="zip" depends="doc">
+		<zip destfile="${zip.dir}/${zip.name}" duplicate="preserve">
+			<zipfileset dir="${src.dir}" includes="**/*.java" prefix="${project.name}/src"></zipfileset>
+			<zipfileset dir="${build.doc}" includes="**/*.html" prefix="${project.name}/doc/api"></zipfileset>
+		</zip>
+	</target>
+	注：javadoc中private="true"指定私有成员也生成文档
+	duplicate="preserve"，出现重复的时候使用preserve方式。推荐使用的方式
+	zip中的prefix 设置在zip中的文件夹路径。如果使用<fileset>就没有prefix这个属性。
+	
+ant发布web项目：
+	<property name="src.dir" location="src"></property>
+	<property name="build.dir" location="build"></property>
+	<property name="build.classes" location="${build.dir}/classes"></property>
+	<property name="build.war" location="${build.dir}/war"></property>
+	<property name="web.name" value="hello"></property>
+	<property name="web.root" location="WebRoot"></property>
+	<property name="web.WEB-INF" location="${web.root}/WEB-INF"></property>
+	<property name="web.lib" location="${web.WEB-INF}/lib"></property>
+	<property name="web.classes" location="${web.WEB-INF}/classes"></property>
+	<property environment="env"></property>
+	
+	<path id="compile">
+		<fileset dir="${web.lib}" includes="*.jar"></fileset>
+		<fileset dir="${env.CATILINA_HOME}/lib" includes="*.jar"></fileset>
+	</path>
+	
+	<target name="clean">
+		<delete dir="${build.dir}"></delete>
+	</target>
+	
+	<target name="init" depends="clean">
+		<mkdir dir="${build.dir}"/>
+		<mkdir dir="${build.classes}"/>
+		<mkdir dir="${build.war}"/>
+	</target>
+	
+	<target name="compile" depends="init">
+		<javac includeantruntime="true" failonerror="true" srcdir="${src.dir}" classpathref="compile" destdir="${build.classes}"></javac>
+	</target>
+	
+	<presetdef name="sql-admin">
+		<sql userid="root" password="mysql" url="jdbc:mysql:///ant" driver="com.mysql.jdbc.Driver">
+			<classpath refid="compile"></classpath>
+		</sql>
+	</presetdef>
+	
+	<target name="init-mysql">
+		<sql-admin>
+			<transaction>   <!-- 可以通过src属性来指定要执行sql语句文件 -->
+				drop database if exists ant_test;
+				create database ant_test;
+				grant all on ant_test.* to "ant_test"@"localhost" identified by '123';
+			</transaction>
+		</sql-admin>
+	</target>
+	
+	<target name="war" depends="compile">
+		<war destfile="${build.war}/${web.name}.war" basedir="${web.root}"></war>
+	</target>
+	
+	<target name="deploy" depends="war,init-mysql">
+		<copy todir="${env.CATILINA_HOME}/webapps" file="${build.war}/${web.name}.war"></copy>
+	</target>
+	注： presetdef相当于定义一个函数，可以在后面通过指定的name复用

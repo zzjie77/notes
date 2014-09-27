@@ -1,0 +1,53 @@
+Subversion到目前的安装已经非常简单了。到Subversion网站下载Windows下的安装文件，简单的步骤就可以完成安装，
+而且安装程序已经自动注册Path，直接在命令行模式就可以使用了。
+用svnserve启动服务
+     svnserve -d -r D:\re\
+	-r 指定存取项目的仓库位置，后面跟路径
+	-d 指定后台运行，但是在window平台无法后台运行。所以启动后不能关闭cmd窗口
+
+不能关闭cmd窗口使用不方便，所以将svnserve作为windows服务	
+需要使用命令行工具sc.exe定义新的服务（create svnserve）
+C:\>sc create svnserve
+　　　	binpath= "c:\svnserve\svnserve.exe\" --service --root "c:\re" 
+	start= auto 
+　　——注意为了回避目录名中的空格等字符，将整个binpath值放在双引号中；另外，sc 的命令行很特殊。在 key= value 对中，key 与 = 之间不能有空格
+	，但是在 value 之前，必须有空格。
+
+定义了服务之后，就可以使用GUI工具（如服务管理面板）进行停止、启动和查询，也可以通过命令行的方式进行：
+　　C:\>net stop svn
+　　C:\>net start svn
+　　C:\>sc delete svn（需要确定先停止了服务）
+
+首先初始化Repository，输入命令:
+svnadmin create d:\re\student
+
+经过以上服务器端就搭建好了，跟着管理人员会把初始版本import到Repository中，开发人员就可以checkout出自己的机子上了。
+import和checkout操作可以使用命令操作，也可以使用图形客户端TortoiseSVN，更方便。
+
+使用客户端import时输入的url: svn://localhost/student
+为了方便演示，把d:\re\student\conf\svnserve.conf文件的设置anon-access = write，这样可以匿名对仓库进行写操作
+
+权限控制：
+	svnserve.conf:
+		# anon-access = none
+		auth-access = write
+		password-db = passwd
+		authz-db = authz
+	passwd（用户密码文件）:
+		[users]
+		harry = harryssecret
+		sally = sallyssecret
+	authz(授权文件):
+		[groups]
+		harry_and_sally = harry,sally
+		harry_sally_and_joe = harry,sally,joe
+		[/foo/bar]
+		harry = rw
+		joe = r
+		#对于/foo/bar2，harry_and_sally组有读写权限，其余人有读权限
+		[/foo/bar2]
+		@harry_and_sally = rw
+		* = r
+
+myeclipse9下的svn插件安装:
+	下载zip包解压到${myeclipsehome}/myplugin/svn，在${myeclipsehome}/dropin/下添加svn.link文件，内容：path=svn解压路径，注意\替换成\\或/

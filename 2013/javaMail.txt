@@ -1,0 +1,474 @@
+新浪邮箱服务器发送邮件到搜狐邮箱服务器的过程使用smtp协议
+用户从新浪服务器获取邮件的过程使用pop3或IMAP协议, 现在IMAP协议越来越多地取代pop3
+我们使用javaMail一般都是用来发
+使用javaMail,首先要下载javaMail的jar包
+
+public class TestMail01 {
+	public static void main(String[] args) {
+		Transport tran = null;
+		try {
+			Properties props = new Properties();
+			/**
+			 * 设置邮件发送的协议，一般都是SMTP协议
+			 */
+			props.setProperty("mail.transport.protocol", "smtp");
+			/**
+			 * 设置发送邮件的服务器，不同的邮箱服务器不一致，可以在邮箱的帮助中查询
+			 */
+			props.setProperty("mail.host", "smtp.sina.com");
+			/**
+			 * 设置发送服务器验证，一些邮箱需要增加这个验证才能发送邮件
+			 */
+			props.setProperty("mail.smtp.auth", "true");
+			/**
+			 * 创建session
+			 */
+			Session session = Session.getInstance(props);
+			//打开邮件发送的调试功能，可以看到邮件的发送过程
+			session.setDebug(true);
+			/*
+			 * 创建Message对象，通过这个对象来设置邮件的发送信息
+			 */
+			Message msg = new MimeMessage(session);
+			/*
+			 * 设置邮件的标题
+			 */
+			msg.setSubject("大家来看看，我通过java发邮件了!");
+			/*
+			 * 设置邮件的内容，使用setText是设置纯文本的内容
+			 */
+			msg.setText("唔哈哈哈哈哈哈！通过java发垃圾邮件了");
+			/**
+			 * 设置邮件从什么地方发送的
+			 */
+			msg.setFrom(new InternetAddress("kh_itat@sina.com"));
+			/**
+			 * 设置邮件的发送人，此时表示的发送人
+			 */
+			msg.setRecipients(RecipientType.TO, InternetAddress.parse("ynkonghao@gmail.com,64831031@qq.com"));
+			/**
+			 * 设置邮件的抄送人
+			 */
+			msg.setRecipients(RecipientType.CC, InternetAddress.parse("kh_itat@sohu.com,ynkonghao@gmail.com"));
+			
+			/**
+			 * 创建Transport来完成邮件的发送
+			 */
+			tran = session.getTransport();
+			/**
+			 * 连接用户名和密码
+			 */
+			tran.connect("kh_itat", "kh1234");
+			/**
+			 * 发送邮件,此时如果msg中设置了收件人，但是在sendMessage的第二个参数中没有设置的话
+			 * 也不会发送，所以使用tran.sendMessage来发送邮件不是一种推荐的方式
+			 * 应该使用Transport.send(msg);来发送邮件
+			 */
+			tran.sendMessage(msg, new InternetAddress[]{new InternetAddress("ynkonghao@gmail.com")});
+		} catch (AddressException e) {
+			e.printStackTrace();
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(tran!=null) tran.close();
+			} catch (MessagingException e) {
+				e.printStackTrace();
+			}
+		}
+		
+	}
+}
+
+public class TestMail02 {
+	public static void main(String[] args) {
+		try {
+			Properties props = new Properties();
+			props.setProperty("mail.transport.protocol", "smtp");
+			/**
+			 * 设置发送邮件的服务器，不同的邮箱服务器不一致，可以在邮箱的帮助中查询
+			 */
+			props.setProperty("mail.host", "smtp.sina.com");
+			/**
+			 * 设置发送服务器验证，一些邮箱需要增加这个验证才能发送邮件
+			 */
+			props.setProperty("mail.smtp.auth", "true");
+			/**
+			 * 当需要使用Transport.send发送时，需要将用户名和密码设置到Session中
+			 */
+			Session session = Session.getDefaultInstance(props,new Authenticator() {
+				/**
+				 * 通过Authenticator中 的getPasswordAuthentication的方法来设置邮箱的用户名和密码
+				 */
+				@Override
+				protected PasswordAuthentication getPasswordAuthentication() {
+					return new PasswordAuthentication("kh_itat", "kh1234");
+				}
+			});
+			
+			session.setDebug(true);
+			
+			Message msg = new MimeMessage(session);
+			msg.setFrom(new InternetAddress("kh_itat@sina.com"));
+			msg.setRecipient(RecipientType.TO,new InternetAddress("ynkonghao@gmail.com"));
+			msg.setSubject("一封邮件");
+			/**
+			 * 通过以下方式可以创建一个html的文档
+			 */
+			msg.setContent("<h1 style='color:red'>这是一封邮件</h1>","text/html;charset=utf-8");
+			/**
+			 * 使用Transport的static方法send发送邮件需要在Session创建时来确定访问的密码
+			 */
+			Transport.send(msg);
+			System.out.println("------------------------------------------");
+			Properties props1 = new Properties();
+			props1.setProperty("mail.transport.protocol", "smtp");
+			/**
+			 * 设置发送邮件的服务器，不同的邮箱服务器不一致，可以在邮箱的帮助中查询
+			 */
+			props1.setProperty("mail.host", "smtp1.sohu.com");
+			/**
+			 * 设置发送服务器验证，一些邮箱需要增加这个验证才能发送邮件
+			 */
+			props1.setProperty("mail.smtp.auth", "true");
+			/**
+			 * 当使用getDefaultInstance的时候，会查找Session是否在内存中已经存在，如果存在就不会再去
+			 * 读取新的Properties中的配置，而是直接使用内存中已经存在的配置信息，所以此时可以不设置props
+			 * 都可以访问.
+			 * 所以如果在一个项目中可能会涉及到使用多个邮箱发送邮件，就不要使用getDefaultInstance来处理
+			 * 在一些特殊的情况：如果邮箱验证此时只会通过一个邮箱发出邮件，就可以使用getDefaultInstance来处理
+			 */
+			Session s2 = Session.getInstance(props1, new Authenticator() {
+				@Override
+				protected PasswordAuthentication getPasswordAuthentication() {
+					return new PasswordAuthentication("kh_itat","kh1234");
+				}
+			});
+			
+			Message msg2 = new MimeMessage(s2);
+			msg2.setFrom(new InternetAddress("kh_itat@sohu.com"));
+			msg2.setRecipient(RecipientType.TO,new InternetAddress("kh_itat@sina.com"));
+			msg2.setSubject("一封发给自己的邮件");
+			/**
+			 * 通过以下方式可以创建一个html的文档
+			 */
+			msg2.setContent("<h1 style='color:red'>这是一封发给自己的邮件</h1>","text/html;charset=utf-8");
+			/**
+			 * 使用Transport的static方法send发送邮件需要在Session创建时来确定访问的密码
+			 */
+			Transport.send(msg2);
+		} catch (AddressException e) {
+			e.printStackTrace();
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		}
+		
+	}
+}
+
+public class TestMail03 {
+	public static void main(String[] args) {
+		try {
+			Properties props = new Properties();
+			props.setProperty("mail.transport.protocol", "smtp");
+			/**
+			 * 设置发送邮件的服务器，不同的邮箱服务器不一致，可以在邮箱的帮助中查询
+			 */
+			props.setProperty("mail.host", "smtp.sina.com");
+			/**
+			 * 设置发送服务器验证，一些邮箱需要增加这个验证才能发送邮件
+			 */
+			props.setProperty("mail.smtp.auth", "true");
+			/**
+			 * 当需要使用Transport.send发送时，需要将用户名和密码设置到Session中
+			 */
+			Session session = Session.getDefaultInstance(props,new Authenticator() {
+				/**
+				 * 通过Authenticator中 的getPasswordAuthentication的方法来设置邮箱的用户名和密码
+				 */
+				@Override
+				protected PasswordAuthentication getPasswordAuthentication() {
+					return new PasswordAuthentication("kh_itat", "kh1234");
+				}
+			});
+			
+			session.setDebug(true);
+			
+			Message msg = new MimeMessage(session);
+			/**
+			 * 使用MimeUtility.encodeText可以将中文编码
+			 */
+			msg.setFrom(new InternetAddress(MimeUtility.encodeText("java培训")+"<kh_itat@sina.com>"));
+			msg.setRecipient(RecipientType.TO,new InternetAddress(MimeUtility.encodeText("培训学员")+"<ynkonghao@gmail.com>"));
+			msg.setSubject("一封邮件");
+			
+			/**
+			 * 创建整个邮件的Multipart,因为邮件的内容已经不仅仅只是纯文本或者纯html文本，而需要添加
+			 * 相应的附件，此时就得通过Multipart来创建
+			 */
+			Multipart emailPart = new MimeMultipart();
+			/**
+			 * Multipart不能直接加入内容，需要通过BodyPart来加入内容，假设有两个附件就需要三个BodyPart
+			 * 两个用来存储附件，一个用来存储邮件的正文
+			 */
+			MimeBodyPart att1 = new MimeBodyPart();
+			/**
+			 * 为第一个附件设置文件，DataHandler是在JAF包中，如果使用的是jdk1.4的版本需要手动下载这个包
+			 */
+			att1.setDataHandler(new DataHandler(new FileDataSource("d:/user.log")));
+			att1.setFileName("user.log");
+			/**
+			 * 创建了第二个附件
+			 */
+			MimeBodyPart att2 = new MimeBodyPart();
+			att2.setDataHandler(new DataHandler(new FileDataSource("d:/order.jsp")));
+			//要解决中文的问题需要通过一个MimeUtility这个类来编码中文
+			att2.setFileName(MimeUtility.encodeText("测试.jsp"));
+			
+			MimeBodyPart content = new MimeBodyPart();
+			/**
+			 * 由于文件的正文还有图片和内容，所以也需要通过Multipart来创建
+			 */
+			MimeMultipart contentMultipart = new MimeMultipart();
+			/**
+			 * 然后再创建相应的BodyPart来设置内容
+			 */
+			MimeBodyPart imgBody = new MimeBodyPart();
+			/**
+			 * 创建了正文中的图片内容
+			 */
+			imgBody.setDataHandler(new DataHandler(new FileDataSource("d:/02.jpg")));
+			/**
+			 * 为这个图片设置一个id，在正文中可以通过cid:xxx来访问
+			 */
+			imgBody.setContentID("smile");
+			
+			MimeBodyPart htmlBody = new MimeBodyPart();
+			htmlBody.setContent("<h1>这个是一个带有附件的图片</h1><img src='cid:smile'/>", "text/html;charset=utf-8");
+			
+			
+			contentMultipart.addBodyPart(imgBody);
+			contentMultipart.addBodyPart(htmlBody);
+			//完成了邮件正文的设置
+			content.setContent(contentMultipart);
+			
+			/**
+			 * 设置邮件的信息
+			 */
+			//添加第一个附件
+			emailPart.addBodyPart(att1);
+			//添加第二个附件
+			emailPart.addBodyPart(att2);
+			//添加邮件正文
+			emailPart.addBodyPart(content);
+			//设置邮件的信息
+			msg.setContent(emailPart);
+			
+			Transport.send(msg);
+		} catch (AddressException e) {
+			e.printStackTrace();
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		
+	}
+}
+
+通过spring发邮件:
+	1. applicationContext.xml
+		<!-- 整合Spring第一步创建JavaMailSenderImpl对象 -->
+		<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		  <property name="host" value="smtp.sina.com">
+		  <property name="protocol" value="smtp">
+		  <property name="username" value="zzjie77">
+		  <property name="password" value="***">
+		  <property name="javaMailProperties">
+		  	<props>
+		  		<prop key="mail.smtp.auth">true</prop>
+		  	</props>
+		  </property>
+		</bean>
+		<!-- 正常的情况如果要发送邮件，需要异步发送，否则会把大量的时间浪费发送邮件上面
+		此时可能会造成用户重复刷新，使用Spring的ThreadPoolTaskExecutor可以方便实现多线程的程序 -->
+		<bean id="taskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+		  <property name="corePoolSize" value="5" />
+		  <property name="maxPoolSize" value="10" />
+		  <property name="queueCapacity" value="25" />
+		</bean>
+
+	2. 
+	@Test
+	public void test01() {
+		try {
+			//创建mimeMessage
+			MimeMessage msg = mailSender.createMimeMessage();
+			//通过MimeMessageHelper来完成对邮件信息的创建
+			MimeMessageHelper helper = new MimeMessageHelper(msg,true, "utf-8");
+			helper.setFrom("kh_itat@sina.com");
+			helper.setTo("64831031@qq.com");
+			helper.setSubject("通过Spring发的哦!");
+			//设置邮件的正文
+			helper.setText("<div style='color:red;font-size:15px;'>通过Spring来发送邮件</div>" +
+					"<img src='cid:sss'/>kajsdkjsadf<img src='cid:ddd'/>ksjdhfksjdhf<img src='cid:aaa'/>", true);
+			//添加附件
+			helper.addAttachment(MimeUtility.encodeText("日志"), new FileSystemResource("d:/user.log"));
+			//添加邮件内容中信息
+			FileSystemResource fsr = new FileSystemResource("d:/02.jpg");
+			helper.addInline("sss", fsr);
+			helper.addInline("ddd", new URLDataSource(new URL("http://img3.douban.com/lpic/s24494223.jpg")));
+			helper.addInline("aaa", new URLDataSource(new URL("http://img3.douban.com/lpic/s11159090.jpg")));
+			mailSender.send(msg);
+		} catch (MailException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+MessageService:
+	public void add(Message msg, Integer[] userIds,AttachDto ad,int isEmail) throws IOException {
+		//2、设置该信件的发件人为当前的登录用户
+		msg.setUser(SystemContext.getLoginUser());
+		msg.setCreateDate(new Date());
+		messageDao.add(msg);
+		//3、添加一组收件人
+		UserMessage um = null;
+		//根据用户id获取一组用户信息
+		List<User> users = userDao.listByIds(userIds);
+		//为这组用户添加相应的信息
+		for(User u:users) {
+			um = new UserMessage();
+			um.setIsRead(0);
+			um.setMessage(msg);
+			um.setUser(u);
+			messageDao.addObj(um);
+		}
+		String[] newNames = DocumentUtil.addAttach(ad, attachmentDao, msg, null);
+		if(isEmail>0) {
+			UserEmail ue = userDao.loadUserEmail(SystemContext.getLoginUser().getId());
+			//将发送邮件放置到一个线程中，这样就是实现了异步处理
+			taskExecutor.execute(new SendMailThread(ue,msg, userIds, ad,newNames,SystemContext.getRealPath()));
+		}
+	}
+
+	/** 发送邮件的线程 */
+	private class SendMailThread implements Runnable {
+		private Message msg;
+		private Integer[] userIds;
+		private AttachDto ad;
+		private String[] newNames;
+		private String realPath;
+		private UserEmail ue;
+		
+		public SendMailThread(UserEmail ue,Message msg, Integer[] userIds, AttachDto ad,String[] newNames,String realPath) {
+			super();
+			this.msg = msg;
+			this.userIds = userIds;
+			this.ad = ad;
+			this.newNames = newNames;
+			this.realPath = realPath;
+			this.ue = ue;
+		}
+
+		public void run() {
+			sendMail(ue,msg,userIds,ad,newNames,realPath);
+		}
+	}
+	
+	/**
+	 * 利用正则表达式获取content中的所有图片url
+	 */
+	private List<String> listContentImgUrl(String content) {
+		Pattern p = Pattern.compile("<img.*?\\s+src=['\"](.*?)['\"].*?>"); //.*默认会是贪婪模式,只会找一个匹配的. .*?会匹配所有的<img ..
+		Matcher m = p.matcher(content);
+		List<String> srcs = new ArrayList<String>();
+		while(m.find()) {
+			srcs.add(m.group(1)); //获取(.*?)的分组
+		}
+		return srcs;
+	}
+
+	private void sendMail(UserEmail ue,Message msg, Integer[] userIds, AttachDto ad,String[]newNames,String realPath) {
+		try {
+			System.out.println("----------------开始发送邮件--------------");
+			//创建一个org.springframework.mail.javamail.JavaMailSenderImpl
+			//完成了JavaMailSender的设置，就可以为不同的用户来设置不同的值
+			//如果发送者只是一个固定的,可以将host,protocol..写到spring配置文件的mailSender属性中
+			JavaMailSenderImpl jms = (JavaMailSenderImpl)mailSender;
+			jms.setHost(ue.getHost());
+			jms.setProtocol(ue.getProtocol());
+			jms.setUsername(ue.getUsername());
+			jms.setPassword(ue.getPassword());
+			
+			MimeMessage email = jms.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(email, true,"utf-8");
+			helper.setFrom(ue.getUser().getEmail());
+			helper.setSubject(msg.getTitle());
+			//获取要发送邮件的对象
+			List<String> mailTos = userDao.listAllSendEmail(userIds);
+			for(String m:mailTos) {
+				helper.addTo(m);
+			}
+			//处理上传附件
+			String uploadPath = ad.getUploadPath();
+			if(ad.isHasAttach()) {
+				String[] fns = ad.getAttsFilename();
+				for(int i=0;i<fns.length;i++) {
+					String fn = fns[i]; //附件的原名称
+					helper.addAttachment(MimeUtility.encodeText(fn),new FileSystemResource(uploadPath+"/"+newNames[i]));
+					//MimeUtility.encodeText 处理中文乱码
+				}
+			}
+			//格式化内容
+			String content = msg.getContent();
+			//最建议的方式是先把内容设置好，之后再来一次性添加附件
+			//先定义一个map来保存cid和图片地址的关系
+			Map<String,String> imgMaps = new HashMap<String,String>();
+			//必须先设置好内容的值，之后再来设置相应的嵌入附件，否则最后一个附件不会替换，所以就不会显示
+			List<String> imgs = listContentImgUrl(content);
+			int i = 0;
+			//完成内容的替换
+			for(String is:imgs) {
+				imgMaps.put("x"+i, is);
+				content = content.replace(is, "cid:"+("x"+i));
+				i++;
+			}
+			helper.setText(content, true);
+			//添加嵌入式图片
+			Set<String> keys = imgMaps.keySet();
+			//此时key是id，value是图片的地址
+			//如果是本地的文件，就是不是以http开头，应该通过FileSystemResource来传递，所以首先得获取Webcontent中的绝对路径
+			for(String key:keys) {
+				String url = imgMaps.get(key);
+				if(url.startsWith("http://")) {
+					helper.addInline(key,new URLDataSource(new URL(url)));
+				} else {
+					//如果是本地文件就通过FileSystemResource来完成传递
+					String path = realPath+"/"+url;
+					helper.addInline(key, new FileSystemResource(path));
+				}
+			}
+			jms.send(email);
+			System.out.println("--------------邮件发送成功！！------------");
+		} catch (MailException e) {
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		} catch (MessagingException e) {
+			e.printStackTrace();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+
+
+

@@ -1,0 +1,702 @@
+下载好后配环境变量path=${mvnHome}/bin
+maven的构建文件命名都是pom.xml (project object model)
+maven所需要的包会先到本地的仓库查找有没有，有就直接使用本地仓库的，如果没有就到maven的中心仓库下载，下载到本地仓库，
+默认在我的文档下/.m2目录下。要修改本地仓库的位置，修改${mvnHome}conf/settings.xml，这是全局的文件。我们可以复制一份在本地仓库同级目录中
+并且修改<localRepository>D:/maven/repos</localRepository>为本地仓库的路径
+
+hello world:
+	1. 编写01\src\main\java\com\zzjie\maven\Hello.java (注意要在src/main/java下)
+		package com.zzjie.maven;
+		public class Hello{ 
+			public static void main(String[] args) {
+				System.out.println("world");
+			}
+			public String sayHello(String name) {
+				return "hello: " + name;
+			}
+		}
+	2. 编写01\pom.xml
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<project xmlns="http://maven.apache.org/POM/4.0.0"
+		  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+			<modelVersion>4.0.0</modelVersion>  <!-- 固定写法 -->
+			<!-- 项目坐标：gav gourpId,artifaceId,version -->
+			<groupId>com.zzjie.maven</groupId>  <!-- 公司域名倒转加项目名 -->
+			<artifactId>hello-first</artifactId>  
+			<!-- 用来表示项目模块的名称。建议用（项目名称-具体模块），org.springframework.aop-3.1.1.RELEASE.jar。 aop就是具体的artifactId -->
+			<version>SNAPSHOT-0.1</version>  <!-- 项目版本 -->
+		</project>
+	3. 在命令行下，进入01目录，执行mvn compile。编译成功后会在01/target/classes下生产class文件
+	4. 编写测试类
+		package com.zzjie.maven;  
+		import org.junit.*;
+		import static junit.framework.Assert.*;
+		public class TestHello {
+			@Test
+			public void testHello(){
+				Hello h = new Hello();
+				assertEquals("hello: zhangsan",  h.sayHello("zhangsan"));
+			}
+		}
+	5. 在pom.xml加上junit的依赖. 由于测试类使用了junit，需要声明所使用的依赖包，maven才知道要下载什么
+		<dependencies>
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>4.10</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+	6. 在命令行执行mvn test，就会执行编译并执行测试类，并且在target/surefire-reports下生产测试报告
+	注： mvn clean清理target中的类容，mvn compile编译，mvn test测试，mvn package打包，mvn install打包并将打好的包拷贝一份到本地仓库，mvn deploy发布到私有服务器
+
+	7. 编写02\src\main\java\com\zzjie\maven\World.java 
+		package com.zzjie.maven;
+		public class World { 
+			public static void main(String[] args) {
+				Hello h = new Hello();
+				System.out.println(h.sayHello("zzjie") + "!!!!!!");
+			}
+		}
+		这里使用到了01下的Hello,
+	8. 在02/pom.xml中加入Hello的依赖（Hello是项目01中编写的类，要在02中使用必须先在01执行mvn install将01安装到本地仓库 ）
+		<dependency>
+			<groupId>com.zzjie.maven</groupId>
+			<artifactId>hello-first</artifactId>
+			<version>SNAPSHOT-0.1</version>
+			<scope>compile</scope>
+		</dependency>
+	9. 在02下执行mvn package，没有报错就说明成功使用了01的jar. 
+	   这种不同项目之间的jar包管理的好处是：当01修改某个类的方法，只需安装到仓库中，02就能使用到最新的。 而不需把01的jar包拷贝到02中。
+	   各个项目互拷jar包会导致jar包重复出现，而且每当一个项目修改了，其他引用的地方都要重新拷贝jar包
+
+	注：源代码放在src/main/java中
+	    源代码的资源文件放置在src/main/resources中
+	    测试代码放在src/test/java中
+	    测试代码的资源文件放在src/test/resources中
+	    这些都是约定好的,不能改变. 约定优于配置
+
+查看maven中央仓库的位置: mavenHome/lib/maven-model-builder.jar/org/apache/maven/model/pom.xml中可查看Central Repository的URL
+	   
+maven的生成方式：
+	1.上面的文件夹、pom.xml..都是我们手动创建的。由于maven的目录结构是固定的
+	可以使用mvn archetype:generate可以自动自动完成骨架的生成,进入交互过程输入gav
+	也可以:mvn archetype:generate -DgroupId=com.zzjie.user -DartifactId=user-core -Dversion=0.0.1-SNAPSHOT
+	2.默认sts和myeclipse都自带了对maven的支持，如果是eclipse需要安装m2eclipse插件
+	 sts设置:perference-maven-installations修改为我们自己的maven安装目录，user setting中设置我们的本地仓库位置
+
+maven有3大块内容：
+	1.依赖 2.仓库 3.生命周期和插件
+
+依赖：
+	1. 依赖包的查询
+		1. 所有的依赖都是通过坐标来进行存储的（GAV-->groupId、artifactId、version）
+		2。有一些网上的仓库提供了坐标的查询（http://mvnrepository.com）
+		3。通过<dependencies>设置依赖
+		maven是如何搜索依赖的？首先会在本地仓库查询如果本地仓库没有，就去中央仓库查询
+	2. 依赖的传递性
+ 	A-->C  B-->A ==> B-->C（这种依赖是基于compile这个范围进行传递），即C的依赖的包，B也会依赖。 但如果C的依赖范围不是comiple,就不会传递到B 
+	如果dependency中没有写<scope>，scope默认是compile
+	对于依赖的传递而言，主要是针对compile作用域传递
+	注：传递冲突问题
+		1、a-->b1.0  c-->b1.1  d-->a和c，这个时候在d的pom中，哪一个依赖先写就使用先写依赖的版本
+		如果d--><depen..>a</depen..><depen..>c</depen..>-->依赖版本是b1.0,因为a先写
+		2、a-->b1.0 c-->b1.1 d-->a和c-->b1.0  f-->d,c,如果路径的长短不一致就选择最小路径。d到b的路径为2，c到b的路径为1
+		    f-->b1.1
+		3、如果希望精确的控制依赖包，可以使用依赖的排除功能进行控制
+			<dependency>
+				<!-- gav -->
+				<exclusions>  <!-- 排除了这个模块的log4j的依赖，就会自动去找另一个模块的log4j的依赖 -->
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+	3.依赖的范围：
+	test: 编译用，测试的时候用，打包的时候不会包含(注意test范围的包只对src/test/java中的文件有效,如果在src/main/java中引入test范围的包的类, 就会报错)
+	compile(默认): 编译用，测试用，打包的时候包含
+	provided: 编译用，测试用，打包不包含。 如servlet-api.jar,在tomcat中已经存在，如果再打包会冲突
+	runtime: 测试,运行时候依赖，编译不依赖。 例如mysql-connector的jdbc包. 用得不多
+	import
+	system
+	4.聚合和继承
+	聚合：使用一个pom来统一管理多个项目，这样可以一次编译多个项目
+	新建的maven项目-勾选create simple project这样就只包含一个pom.xml, 并在选择打包方式的时候选择pom,而不是war,jar
+	新建一个项目用来聚合(项目就放一个pom)，也可以直接在多个项目的顶层目录下创建pom.xml。但eclipse是基于项目的，这样ide显示不了	
+	pom.xml:
+		<!-- gav -->
+		<packaging>pom</packaging>  <!-- 聚合的打包方式不是jar，而是pom -->
+		<modules>
+			<!-- 聚合写的是模块的位置 -->
+			<module>../user-core</module> <!-- 要聚合的模块 -->
+			<module>../user-dao</module>
+			<module>../user-log</module>
+			<module>../user-service</module>
+		</modules>
+	只要执行聚合(aggregate)pom.xml就会打包上面的所有module
+
+	继承：
+	parent的pom.xml:
+		 <packaging>pom</packaging>
+
+		 <properties>  <!-- 定义属性，这些属性也会被继承 -->
+		    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		    <junit.version>4.10</junit.version>
+		 </properties>
+
+		 <!-- 通常加入聚合的modules配置-->
+
+		 <dependencyManagement> 
+			<dependencies>
+				<dependency>
+					<groupId>junit</groupId>
+					<artifactId>junit</artifactId>
+					<version>${junit.version}</version>  <!-- ${}使用上面定义的属性 -->
+					<scope>test</scope>
+				</dependency>
+				..
+			</dependencies>
+		 </dependencyManagement>
+		 注：如果不写dependencyManagement直接写dependencies，那么子pom会继承父的所有dependency，这明显不能满足我们的要求
+		 如果写在dependencyManagement,那么子pom默认是不继承的, 要提供ga的名称才能继承, 不需要version和scope
+	
+	子pom.xml:
+		<parent>  <!-- 加上parent就可继承 -->
+			<groupId>com.zzjie.user</groupId>
+			<artifactId>user-parent</artifactId>
+			<version>0.0.1-SNAPSHOT</version> 
+			<!-- 继承写的是pom.xml的位置, 而聚合写的是模块的位置 -->
+			<relativePath>../user-parent/pom.xml</relativePath>
+		</parent>
+		
+		<dependencies>
+			<dependency>
+				<!-- 重写ga就可完成继承, 不需要写version和scope. 如果parent中的依赖不写在dependencyManagement, 那么默认会继承 -->
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId> 
+			</dependency>
+			..
+		</dependencies>
+		注：如果父pom定义的直接定义依赖，没有使用dependencyManagement，那么子pom会继承父pom所定义的所有依赖，因为父pom会定义很多依赖，这显然不满足我们的要求
+		如果父pom定义的依赖在dependencyManagement中，那么子pom默认是不会继承依赖的，要继承依赖只需给出groupId、artifactId即可
+		由于聚合和继承类似,通常我们在把这两个文件合二为一, 在parent的pom.xml中加入modules的配置即可
+	
+	5.版本管理：（svn属于版本控制，版本管理是决定版本怎么命名）
+	版本通常是3位数字，总版本号.分支版本号.小版本号-里程碑版本   
+	总版本号的变动一般表示框架的变动
+	分支版本号一般表示增加了一些功能
+	小版本号一般表示在分支版本的基础上修改了bug
+	里程碑版本：SNAPSHOT快照版本是开发的版本，Aphla内测版，Beta公测版，Release发布版本，GA稳定版。 除了这些一般的里程碑版本，公司可以自己定义自己的里程碑版本
+	user0.0.1-SNAPSHOT-->user0.0.1-Release--->user1.0.0SHAPSHOT  -->user1.0.0-Rlease 
+                   (分支) -->user0.1.0-SNAPSHOT-->user0.1.0-Release      (合并到上面)
+可以通过${project.groupId}来访问项目的gourpId，类似还有${project.version}..
+mysqld install可以将mysql安装到windows的服务管理中，这是mysql提供的，如果没有提供要使用windows提供的sc命令(service create )		
+
+仓库：
+	1.本地仓库
+	2.远程仓库
+	3.私有仓库 (私有仓库需要安装才能使用，一般用于局域网内部。找依赖先到本地找，如果本地没有就到私有仓库找，没有再到远程仓库找)
+	
+私有仓库的安装（有多种方式，这里讲其中一种）：
+	1、下载nexus并且解压缩
+	2、将bin添加到环境变量
+	3、nexus install将nexus安装到windows的服务中
+	4、修改nexus-2.3.0-04\bin\jsw\conf\wrapper.conf 
+		将wrapper.java.command=java的java修改为java命令的具体路径
+	5、nexus start启动服务， nexus是使用jetty作为内嵌的服务器，启动服务后访问仓库控制台 http://localhost:8081/nexus 
+	   默认的账号密码是admin admin123
+
+nexus仓库保存jar的位置是nexushome/sonatype-work/nexus下
+
+仓库的讲解
+	1、host的仓库。内部项目的发布仓库
+		SNAPSHOT发布SNAPSHOT模块的仓库(version为x.x.x-SNAPSHOT的项目都会deploy到这个仓库中)
+		Release内部模块中release模块的发布仓库
+		3rd party 第三方依赖的仓库，这个数据通常由内部人员自行下载后发布。 如在中央仓库没有的依赖包需要在特定的官网上下载， 下载之后可以发布到这个仓库中
+	2、proxy的仓库。从远程中央仓库中寻找数据的仓库
+		Central    从中央仓库下载的jar包会存放到这个仓库中
+		Apache SNAPSHOT  下载Apache的开发版本的依赖包
+		..
+	3、group仓库。组仓库用来方便开发人员进行设置的仓库。把几个仓库加到一个group仓库中，引用的时候就直接引用一个group仓库即可引用多个. 如我们可以经常将SNAPSHOT,Release，3rd party， Central放到一个组中，然后引用这个组仓库的url
+
+修改或添加仓库：
+	parent pom.xml
+	<repositories>
+		<repository>
+			<id></id>
+			<name></name> 
+			<url></url>  <!-- 如果配置了镜像，这个url就没有意义了 -->
+			<releases><enabled>true</enabled></releases> <!-- 默认也是true的，表示是否能下载release的包 -->
+			<snapshots><enabled>true</enabled></snapshots> <!-- 默认没有打开 -->
+		</repository>
+		..
+	<repositories>
+
+如果不想访问中央仓库，直接访问我们私有仓库。可以在settings.xml中配镜像
+	<mirror>
+		<id>central</id>
+		<mirrorOf>nexus,central</mirrorOf>  <!-- 访问nexus和central仓库都转到镜像指定的url。 *代表所有 -->
+		<name>Human</name>  <!-- 名字随便起 -->
+		<url>xx</url>
+	</mirror>
+
+私有仓库的设置：
+	1、更新私有仓库的索引 (gav信息是通过索引来查找的，自己建的私有仓库是网上的那些索引的，可以手动下载索引覆盖私有仓库的索引)
+	nexus仓库管理页面-选中私有仓库-configuration-Download Remote Indexes设置为true
+	或者直接下载索引，将其拷贝到中央仓库的索引存储中  nexus-2.3.0-04-bundle\sonatype-work\nexus\indexer\central-ctx
+	2、设置镜像（设置setting.xml）
+	3、在settings.xml配置仓库，此时本机中的所有maven项目都会去私有仓库中查询依赖
+	（如果在pom中配置仓库太麻烦，每个项目都有配置。就算使用继承也至少要配置一次repository。所以在setting中配置。）
+		<profile> <!-- profile(配置)，可以配置多个仓库，开发用一个，部署之后用另一个，通过activeProfiles来激活要用的 -->
+			<id>nexusProfile</id>
+			<repositories>
+				<repository>
+				  <id>nexus</id>
+				  <name>Nexus Respository</name>
+				  <url>http://localhost:8081/nexus/content/groups/public/</url>  <!-- 设置了mirror，这个url就没意义 -->
+				  <releases><enabled>true</enabled></releases> <!-- 默认打开 -->
+				  <snapshots><enabled>true</enabled></snapshots> <!-- 默认没有打开 -->
+				</repository>
+			</repositories>
+		</profile>
+	        
+		<activeProfiles>
+			<activeProfile>nexusProfile</activeProfile> <!-- 根据上来设置的id来激活私有仓库 -->
+		</activeProfiles>
+		<!-- 如果私服关闭了，会根据maven-builder.jar找到central的位置进行依赖下载。 如果不希望在中央下载，就配置mirror -->
+		 
+项目的发布(将项目发布到私服，首先要在pom.xml中设置distributionManagement)：
+	1、设定release工厂和snapshots工厂
+		<distributionManagement>	
+			<snapshotRepository>
+				<id>user-snapshots</id>
+				<name>User Project SNAPSHOTS</name>
+				<url>http://192.168.0.199:8081/nexus/content/repositories/MyUserReposSnapshots/</url>
+			</snapshotRepository>
+			
+			<repository>
+				<id>user-releases</id>
+				<name>User Project Release</name>
+				<url>http://192.168.0.199:8081/nexus/content/repositories/MyUserReposRelease/</url>
+			</repository>
+		</distributionManagement>
+	2、设置访问的权限（发布到私服还需要在setttings文件中设置对应server权限）
+		<server>
+			<id>user-snapshots</id>  <!-- 上面配置的仓库id  -->
+			<username>deployment</username> <!-- 可在nexus管理界面左边菜单security-users中查看有权限发布的用户 -->
+			<password>deployment123</password>
+		</server>
+
+		<server>
+			<id>user-releases</id>
+			<username>kh</username>
+			<password>123456</password>
+		</server>
+	还需要在nexus仓库管理页面的releases仓库configuration的把Deployment Policy设置为allow redeploy
+
+实际使用的时候，如果把所有snapshots版本发布到snapshots仓库，所有release版本发布到realease仓库中的话，仓库中会有很多依赖，可能会冲突。
+所以我们通常的做法是把公共的模块放到release,snapshots仓库中，然后为每个项目建立一个release,snapshots仓库。如oa有oa的release,snapshots仓库。
+
+为项目分配单独仓库的步骤(在nexus管理页面完成)： 1添加cms仓库， 2添加cms仓库的权限 3添加角色并赋予cms的权限  4 添加用户并赋予角色
+
+声明周期与插件：
+1. 3套生命周期（Maven有三套相互独立的生命周期，请注意这里说的是“三套”，而且“相互独立”）：
+	1、clean
+	   pre-clean  执行一些需要在clean之前完成的工作
+	   clean  移除所有上一次构建生成的文件
+	   post-clean  执行一些需要在clean之后立刻完成的工作
+	注：mvn clean 中的clean就是上面的clean，在一个生命周期中，运行某个阶段的时候，它之前的所有阶段都会被运行，也就是说，mvn clean 等同于 mvn pre-clean clean ，
+	如果我们运行 mvn post-clean ，那么 pre-clean，clean 都会被运行。这是Maven很重要的一个规则，可以大大简化命令行的输入。
+
+	2、compile
+	  validate
+	  generate-sources
+	  process-sources
+	  generate-resources
+	  process-resources     复制并处理资源文件，至目标目录，准备打包。
+	  compile     编译项目的源代码。
+	  process-classes
+	  generate-test-sources 
+	  process-test-sources 
+	  generate-test-resources
+	  process-test-resources     复制并处理资源文件，至目标测试目录。
+	  test-compile     编译测试源代码。
+	  process-test-classes
+	  test     使用合适的单元测试框架运行测试。这些测试代码不会被打包或部署。
+	  prepare-package
+	  package     接受编译好的代码，打包成可发布的格式，如 JAR 。
+	  pre-integration-test
+	  integration-test
+	  post-integration-test
+	  verify
+	  install     将包安装至本地仓库，以让其它项目依赖。
+	  deploy     将最终的包复制到远程的仓库，以让其它开发人员与项目共享。 
+	3、site
+	  pre-site     执行一些需要在生成站点文档之前完成的工作
+	  site    生成项目的站点文档
+	  post-site     执行一些需要在生成站点文档之后完成的工作，并且为部署做准备
+	  site-deploy     将生成的站点文档部署到特定的服务器上
+
+2. 插件
+	插件是maven的核心，所有执行的操作都是基于插件来完成的
+	为了让一个插件中可以实现众多的类似功能，maven为插件设定了目标，一个插件中有可能有多个目标
+	其实生命周期中的重要的每个阶段都是由插件的一个具体目标来执行的
+	（如compile和test-compile都是由编译插件完成，compile和test-compile是编译插件的2个目标）
+	 可以把apache的plugin的源码svn上checkout下来，每个xxMOJO对象就是一个目标goal. 
+常用插件使用：
+	source: package打包不会打源码，如果我们要打包源码就使用source插件
+		1.先在pom中定义source插件（也可以不定义，定义是为了绑定到某个生命周期的阶段）
+			<project>
+			<build>
+				<pluginMangement>  <!-- 定义在pluginMangement，子pom可通过groupId和artifactId获得继承 -->
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-source-plugin</artifactId>
+							<version>2.2.1</version>
+			..
+		2.使用mvn source:jar-no-fork来打包
+		3.这样使用太麻烦，如果将上面的操作绑定到生命周期中某个阶段，如compile之后,在实行package的时候自动执行上面的操作
+			<build>
+			    <plugins>
+			      <plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.2.1</version>
+				<executions> <!-- 如果不配execution，就要使用mvn来执行 -->
+				  <execution>
+				    <id>attach-sources</id>
+				    <phase>compile</phase> <!-- 指定声明周期的某个阶段，在执行compile之后自动执行jar-no-fork -->
+				    <goals>
+				      <goal>jar-no-fork</goal>  <!-- source的具体的目标 -->
+				    </goals>
+				..
+				上面的写法不能继承， 可以在parent中写<build><pluginManagement><plugins><plugin>来继承，
+				子pom中通过在<build><plugins><plugin>配置ga就可以
+			source的目标有jar，jar-no-fork，区别是jar默认会在package之后执行一次。那就可能会执行两次，所以通常会用jar-no-fork
+
+	help:
+	mvn help:describe -DgroupId=org.somewhere -DartifactId=some-plugin -Dversion=0.0.0 查看某个插件的帮助信息
+	mvn help:describe -Dplugin=org.somewhere:some-plugin:0.0.0 简写形式
+	（上面是通过gav来定位的，也可通过前缀。如compiler插件的前缀是compiler。所以我们才能使用mvn compiler来编译。 大多数插件都有前缀）
+	mvn help:describe -Dplugin=prefix 另一种简写形式
+	
+	sql:
+	<plugin>
+		<groupId>org.codehaus.mojo</groupId>
+		<artifactId>sql-maven-plugin</artifactId>
+		<version>1.5</version>
+
+		<dependencies>
+		  <dependency>  <!-- sql插件需要对数据库驱动的依赖。这是插件需要的依赖，就算该pom已配置了该依赖，也需要在插件中再配置 -->
+		    <groupId>postgresql</groupId>
+		    <artifactId>postgresql</artifactId>
+		    <version>8.1-407.jdbc3</version>
+		  </dependency>
+		</dependencies>
+
+		<configuration> <!--configuration中的东西在帮助文档中找 -->
+		  <driver>${postgresql.driver}r</driver> <!-- 以下4个是必须配置的参数，也可配置其他参数 -->
+		  <url>${postgresql.url}</url>
+		  <username>${postgresql.username}</username>
+		  <password>${postgresql.password}</password>
+		</configuration>
+
+		<executions>
+		  <execution>
+				<id>create-db</id>
+				<phase>compile</phase>
+				<goals>
+					<goal>execute</goal>
+				</goals>
+				<configuration>
+					<sqlCommand>create database IF NOT EXISTS itat_maven_test</sqlCommand>
+				</configuration>
+			</execution>
+			<execution>
+				<id>init-table</id>
+				<phase>test-compile</phase>
+				<goals>
+					<goal>execute</goal>
+				</goals>
+				<configuration>
+					<srcFiles>
+						<srcFile>src/main/resources/init.sql</srcFile>
+					</srcFiles>
+				</configuration>
+			</execution>
+		</excutions>
+
+	配置项目编译的jdk版本（经常用）：
+		<plugin>
+			<groupId>org.apache.maven.plugins</groupId>
+			<artifactId>maven-compiler-plugin</artifactId> <!-- compiler是自带的插件，不需要配置，如果要改配置就要重写 -->
+			<version>3.0</version>
+			<configuration>  <!-- configuration中的配置对应源码AbstractxxMOJO中的@Parameter中的属性 -->
+				<source>1.6</source>
+				<target>1.6</target>
+				<!-- 此处设置了skip等于设置了把所有的测试编译都跳过，如果测试类写得有问题，也不会报错，所以一般不使用 -->
+				<!-- <skip>true</skip> -->
+			</configuration>
+		</plugin>
+
+发布web项目：
+	(建项目的时候不要使用archetype quickstart了，使用archetype webapp（new maven project时）.maven建的web项目的webroot在src/..下.
+	注意新建的web.xml的<web-app>标签没有schema，这会导致el表达式不起作用)
+	 <dependencies>
+		<dependency>
+		  <groupId>servletapi</groupId>
+		  <artifactId>servletapi</artifactId>
+		  <version>2.4</version>
+		  <scope>provided</scope> <!-- provided是指编译，测试时依赖，不打包 -->
+		</dependency>
+		
+		<dependency>
+		  <groupId>javax.servlet.jsp</groupId>
+		  <artifactId>jsp-api</artifactId>
+		  <version>2.2</version>
+		  <scope>provided</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.18</version>
+		</dependency>
+	  </dependencies>
+	  
+	  <build>
+	    <finalName>user-web</finalName>
+	    <plugins>
+		<plugin>
+			<groupId>org.apache.maven.plugins</groupId> <!-- war插件，打war包 -->
+			<artifactId>maven-war-plugin</artifactId>
+			<version>2.2</version>
+			<configuration>
+				<warName>hello</warName>    <!-- war包名称 -->
+			</configuration>
+		</plugin>
+		<!-- 可以打好war包后，手动拷贝到tomcat目录下。 但这样不太好，下面是使用jetty插件将war发布到jetty中。
+		     tomcat也有类似的插件cargo,但cargo比较复杂。这里先使用jetty	-->
+
+		<plugin>
+		  <groupId>org.mortbay.jetty</groupId>    <!-- 没有写版本，会自动下载最适合的版本-->
+		  <artifactId>jetty-maven-plugin</artifactId>
+		  <configuration>
+		    <scanIntervalSeconds>10</scanIntervalSeconds> <!-- 每10秒扫描一下看项目是否有修改，有修改就重新加载 -->
+		    <webApp>
+		      <contextPath>/kk</contextPath>
+		    </webApp>
+		    <connectors>
+		       <connector implementation="org.eclipse.jetty.server.nio.SelectChannelConnector">
+				  <port>8081</port>
+				  <maxIdleTime>60000</maxIdleTime>
+		       </connector>
+		     </connectors>
+		  </configuration>
+		</plugin>
+	    </plugins>
+	  </build>
+	  注: 由于没有绑定到生命周期中，执行mvn jetty:run运行jetty.  然后访问http://localhost:8081/kk/xx.do
+
+
+测试：
+1.测试类：
+	1.测试基础
+	所有的基于测试的类都要放到src/test/java,在src/test/java资源文件夹中的不会被package打包
+	2.测试类的命名
+	并不是所有在src/test/main中的类都会执行的，只有**/*Test，**/Test*，**/*TestCase
+	除了以上三种名称的会执行测试之外，其他都不会执行测试操作。可以进行特定的配置
+	3.测试的配置
+	对于Maven的测试而言，使用的是maven-surefire-plugin
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-surefire-plugin</artifactId>
+		<configuration>
+		<!--默认会执行:**/Test*,**/*Test,**/*TestCase
+			  但是当使用include之后就不会在包含默认的测试类型，只会包含include中的测试类型-->
+			<includes>
+				<include>**/Hello*</include>
+				<include>**/Test*</include>
+			</includes>
+		</configuration>
+	</plugin> 
+	4.在运行时手动指定测试类
+	动态测试
+	mvn test -Dtest=HelloWorld         //-D来指定confuguration
+	mvn test -Dtest=Test*
+	注意，在配置surefire插件时如果指定版本号之后，动态测试会抛出异常
+2.跳过测试
+	1.动态跳过  mvn package -DskipTests就可以跳过测试
+	2.在配置文件中配置
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-surefire-plugin</artifactId>
+		<configuration>
+			..
+			<skip>true</skip>
+	3.跳过测试代码的编译
+	<plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-compiler-plugin</artifactId>
+		<version>2.3.2</version>
+		<configuration>
+			<source>1.6</source>
+			<target>1.6</target>
+			<!--在编译时直接不编译测试类，如果测试类有错此时就不会报错-->
+			<skip>true</skip>
+3.测试报告
+	生成在target/surefire-reports/下
+
+maven有一个插件生成测试覆盖率，  mvn cobertura:cobertura
+测试覆盖率报告，可以看到哪个方法被测试了，哪些方法没被测试。还可以看到方法中哪些语句被测试，哪些语句没被测试
+spring与junit集成：
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@ContextConfiguration("/beans.xml")
+	@TransactionConfiguration(transactionManager="txManager",defaultRollback=true)  //txManager是beans.xml中的名字，defaultRollback=true测试插入的数据会回滚
+	@Transactional //配置了事务才可以测试类中使用延迟加载
+	public class TestStudent {
+		@Inject
+		private IStudentService studentService;
+		@Inject
+		private IRewardPunishService rewardPunishService;
+		
+		private int[] add() {
+			Student stu1 = new Student();
+			stu1.setKsh("123");
+			stu1.setName("张三");
+			stu1.setSex("男");
+			stu1.setStatus(0);
+			stu1.setXh("22111");
+			List<Student> stus = new ArrayList<Student>();
+			stus.add(stu1);
+			Student stu = new Student();
+			stu.setKsh("2222");
+			stu.setName("李四");
+			stu.setSex("女");
+			stu.setStatus(0);
+			stu.setXh("22222222");
+			stus.add(stu);
+			studentService.addStus(stus);
+			RewardPunish rp = new RewardPunish();
+			rp.setCause("打架");
+			rp.setIsReward(1);
+			rp.setSemester("秋季");
+			rp.setYear(2011);
+			rp.setSituation("留校察看");
+			rewardPunishService.add(rp, stu1.getId());
+			int[] ids = new int[]{stu.getId(),stu1.getId()};
+			return ids;
+		}
+		
+		@Test
+		public void testAdd() {
+			SystemContext.setPageSize(100);
+			SystemContext.setPageOffset(0);
+			add();
+			List<Student> ss = studentService.find().getDatas();
+		}
+		
+		@Test
+		public void testLoad() {
+			int[] ids = add();
+			Student stu = studentService.load(ids[0]);
+			Assert.assertEquals(stu.getName(), "李四");
+		}
+		@Test
+		public void testDelete() {
+			int[] ids = add();
+			studentService.delete(ids[0]);
+			List<Student> ss = studentService.find().getDatas();
+		}
+		
+		@Test(expected=StudentException.class)      //期待抛出异常
+		public void testDeleteHasReward() {
+			int[] ids = add();
+			studentService.delete(ids[1]);
+			List<Student> ss = studentService.find().getDatas();
+			Assert.assertEquals(ss.size(), 1);
+		}
+		
+		@Test(expected=StudentException.class)
+		public void testAddRpNotStuent() {
+			RewardPunish rp = new RewardPunish();
+			rewardPunishService.add(rp, 999);
+		}
+	}
+
+基于tomcat发布web:
+	1.standalone
+		<plugin>
+			<groupId>org.codehaus.cargo</groupId>
+			<artifactId>cargo-maven2-plugin</artifactId> 
+			<configuration> 
+				<!--配置Tomcat在本地的路径-->
+				<container> 
+					<containerId>tomcat6x</containerId> 
+					<home>D:\Tomcat6.0</home> 
+				</container> 
+				<configuration> 
+				<!-- statndalone表示独立运行，此时会在特定的目录加载一个相应的web项目，不会加载tomcat中原有的项目--> 
+					<type>standalone</type> <!--希望加载路径的目录-->
+					<home>D:/webservice/tomcat6</home> 
+					<properties> 
+						<cargo.servlet.port>7676</cargo.servlet.port> 
+					</properties>
+				</configuration> 
+			</configuration> 
+		</plugin> 
+	2.existing
+		<plugin> 
+			<groupId>org.codehaus.cargo</groupId> 
+			<artifactId>cargo-maven2-plugin</artifactId> 
+			<!--基于existing的方式，会把项目发布到系统的Tomcat中的webapps中-->
+			<configuration>
+				<container> 
+					<containerId>tomcat6x</containerId> 
+					<home>D:\Tomcat6.0</home> 
+				</container> 
+				<configuration> 
+					<!--home设置为系统的tomcat目录-->
+					<type>existing</type>
+					<home>D:\Tomcat6.0</home> 
+				</configuration>
+			</configuration> 
+		</plugin>
+	3.最佳实践： 考虑清楚是否真的要用tomcat,如果jetty能够满足要求，就用jetty
+	
+other:
+hibernate的sql列表查询
+	String sql = "select name,xh,ksh,sex as 'xb'," +
+			"(CASE status WHEN 0 THEN '在校' ELSE '离校' END) as 'status' from t_student";
+	如果返回的数据封装成hibernate所管理的对象（ @Entity）
+	List stus = this.getSession().createSQLQuery(sql)
+			.addEntity(StudentExcel.class))
+			.list();
+	如果返回的数据封装成对象不是hibernate管理的，而是一个dto:
+	List stus = this.getSession().createSQLQuery(sql)
+			.setResultTransformer(Transformers.aliasToBean(StudentExcelDto.class))
+			.list();
+        注：如果获取的数据特别多，不要使用hql，使用sql，因为hql速度很慢，会将查询出来的东西放到缓存中。
+	二级缓存能不用尽量不用，像数据字典（男，女..)这些不变的就适合使用二级缓存
+
+导出excel表：
+	resp.setContentType("application/vnd.ms-excel");   //设置excel2003的content-type
+	String name = "学生基本信息";   
+	resp.setHeader("Content-Disposition","attachment;filename = "+  
+	new String(name.getBytes("GBK"),"ISO8859-1")+".xls");         //设置导出的文件名，并且要将中文转换为iso8859-1的编码     
+	ExcelUtil.getInstance().exportObj2ExcelByTemplate(datas, "/template/stu.xls", 
+			resp.getOutputStream(), seds, StudentExcelDto.class, true);     //将生成的excel输出到输出流
+
+	
+
+
+		
+
+
+
+
+

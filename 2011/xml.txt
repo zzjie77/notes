@@ -1,0 +1,232 @@
+第一行是声明<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml   ?>处理指令   ，必须顶格写,不能有空格
+DTD是用来验证xml文件的语义和语法的，standalone=yes说明是独立的，不需要DTD
+来验证语义，语法对了就行
+
+xml每个元素都是成对出现的，<student> </student>
+有且只有一个根元素（包含其他所有元素的的元素）
+
+xml描述的是文档内容与语义，而不是说文档应当如何显示
+
+xml的标记的名字是自己定义的，html标记的名字都是已定义好的
+
+xml的属性值可以单引号或双引号括起来	
+
+<?xml-stylesheet type="text/css" href="hello.css"?>指定样式表
+
+<!-- comments -->
+
+<!DOCTYPE 根元素名[<!ENTITY 实体名 "实体内容">] >
+相当于java的变量
+预定义好的实体 &lt;(<)  &gt;(>)  &amp;(&)  &quot;(")  &apos;(')
+
+<! [CDATA[ <hello> ]]>    节，存放的东西不被处理，存放文本
+
+DOCTYPE 后面跟文档的根元素，实体定义在DOCTYPE里面
+
+#PCDATA   parsed charset data  字符串
+
+符合xml语法要求的xml文档是格式正规的xml文档
+符合dtd要求的而且是格式正规的xml文档是有效的xml文档
+
+dtd文档与xml文档的关系就是类与对象的关系
+
+内部DTD
+<!DOCTYPE students[
+<!ELEMENT student (age, name, address)>
+<!ELEMENT age (#PCDATA)>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT address (#PCDATA)>
+]>
+
+外部DTD
+<!DOCTYPE students SYSTEM "TestDTD.dtd">
+
+
+<!ELEMENT name content>
+content类型 : EMPTY  ANY  PCDATA   纯元素类型
+
+可与正则表达式匹配
+<!ELEMENT student (age*, name+, address?)>
+(age|name|address)  |从中选一个
+(age,name,address)  ，按照顺序
+*零次到多次   +一次到多次   ？零次或一次
+
+属性 attitude
+<!ATTLIST 元素名称 属性名称 类型 属性特点 [属性名称 类型 属性特点..]>
+<!ATTLIST student  gender  CDATA #IMPLIED>
+属性类型：
+CDATA字符串
+NMTOKEN(CDATA的子集  不含空格)
+ID属性的取值是唯一的
+IDREF 文档中已定义的ID的具体的值
+(a|b|c) 枚举
+
+属性特点 #REQUIRED 属性必须出现
+	#IMPLIED  可有可无
+	#FIXED  "value"   属性必须为固定的值value
+	"value" 属性默认值	
+
+CDATA与CDATA节的区别
+CDATA表示属性类型是字符串，CDATA节表示里面的东西不会被xml解析器解析
+
+CDATA与#PCDATA节的区别
+CDATA表示属性类型是字符,#PCDATA表示元素类型是字符串
+
+<!ENTITY 实体名 "实体值">    使用： &实体名;
+<!ENTITY 实体名 SYSTEM "http://www.ss.com/xml.xml">   外部实体
+<!ENTITY %实体名 "实体值"> 参数实体，   %实体名;
+
+普通实体在DTD中定义，在XML中使用，&address;
+参数实体在DTD中定义，在DTD中使用, %address;
+外部实体要加上SYSTEM  以URL的内容为实体值
+普通外部实体、参数外部实体 
+
+命名空间    h:元素名
+
+Schema与dtd的功能一样，但功能更强大。而且Schema是一个xml文档，而dtd不是
+dtd的语法和xml不一样
+
+所有Schema文档的根元素必须是Schema
+用法<xs:schema>
+属性 xmlns   targetNamespace
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+命名空间的内容是URL不能改变，里面是要来验证schema的dtd
+
+<xs:schema xmlnx:xs="http://www.w3.org/2001/XMLSchema"
+elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:element name="dog" type="xs:string"/>
+	<xs:element name="cat" type="xs:string"/>
+	<xs:complexType name="myType">
+		<xs:sequence minOccurs="1" maxOccurs="unbounded">
+			<xs:element ref="cat"/>
+			<xs:element ref="dog"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="pets" type="myType" />
+</xs:schema>
+
+对应的xml:
+<pets xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="test1.xsd">
+	<cat>miao~miao</cat>
+	<dog>wang~wang</dog>
+</pets>
+
+
+<xs:attribute name="interest" type="xs:int" />
+<xs:attribute ref="interest"  use="required" />  use还可选optional,prohibited
+
+<xs:simpleType name="mySimpleType">
+		<xs:restriction base="xs:int">
+			<xs:maxInclusive value="100"></xs:maxInclusive>
+			<xs:minInclusive value="0"></xs:minInclusive>
+		</xs:restriction>
+</xs:simpleType>
+
+
+simpleTyle和complexType的区别：
+1.simpleTyle类型的元素没有子元素，也没有属性
+2.当需要定义的元素包含了子元素或属性时，必须使用complexType
+3.当需要基于内置的数据类型定义一个新的数据类型时，用simpleType
+
+simpleContent用于ConplexType元素上，用于限定改ComplexType的内容类型，表示该complexType没有子元素，同时该ComplexType需要有属性，否则就成了simpleType
+
+<xs:choice>   从中选一个
+<xs:sequence> 给一组元素一个特定的顺序
+
+
+xml解析：DOM  SAX
+DOM: Document Object Model (文档对象模型)
+缺陷：解析时先读到内存中，对于大的xml文档，浪费大量内存
+DOM的四个基本接口:Document Node NodeList NamedNodeMap
+Element Attribute Text 等都属于Node
+
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+DocumentBuilder db = dbf.newDocumentBuilder(); //获得文档解析器
+Document document = db.parse(new File("candidate.xml"));//获得根节点
+NodeList list = document.getElementsByTagName("PERSON");//根元素节点
+Element element = (Element)list.item(0);  
+String content = element.getElementsByTagName("NAME").item(0).getFirstChild().getNodeValue();
+
+
+
+SAX：simple APIs for XML
+
+SAXParserFactory factory = SAXParserFactory.newInstance();
+SAXParser parser = factory.newSAXParser();
+parser.parse(new File("student.xml"), new MyHander());
+
+class MyHander extends DefaultHandler {
+  startElement();     endElement();
+}
+
+
+JDOM  (www.jdom.org)
+JDOM相关的包org.jdom包含了xml文档要素的java类
+org.jdom.input    org.jdom.output
+
+Document Element Attribute..  是new出来的
+
+XMLOutputStream
+SAXInutStream  DOMInutStream 
+
+Dom4j (www.Dom4j.org)
+Document Element Attribute ..都由DocumentHelper创建
+
+XMLOutputstream
+SAXReader DOMReader
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

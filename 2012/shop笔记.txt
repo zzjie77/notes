@@ -1,0 +1,502 @@
+为什么不做双向关联？
+	通常一对多映射，在加载一的一端时很可能不需要加载多的一端，或者需要分页加载多的一端。
+	所以我们通常做成单项关联，多 -> 一
+
+mysql客户端（cmd）显示界面的编码方式和数据库的编码方式不一致，可能会看到乱码。但实际上没有乱码。
+使用mysql-font查看就能正常显示。 或在cmd客户端下输入charset gbk更改显示的编码方式也可正常显示
+
+使用工厂模式实现Dao的创建：
+	1. 创建dao.properties配置文件
+		userDao = com.zzjie.shop.dao.UserDao
+		--userDao = com.zzjie.shop.dao.UserOracleDao
+		addressDao = com.zzjie.shop.dao.AddressDao
+	2. 使用单例模式实现DaoFactory
+		public class DaoFactory implements IDaoFactory{
+			private static IDaoFactory instance = new DaoFactory();
+			private static Map<String, Object> map = new HashMap<String, Object>();
+			
+			private DaoFactory(){}
+			
+			public static IDaoFactory getInstance(){
+				return instance;
+			}
+			
+			/**
+			 * 在factory中使用map来实现dao的单例。
+			 * 因为dao类都是方法，没有属性，所以适合用单例
+			 */
+			@Override
+			public Object getDao(String name) {
+				if(map.containsKey(name)) {
+					return map.get(name);
+				}
+				Properties prop = PropertiesUtil.getDaoProperties();
+				String className = (String) prop.get(name);
+				Object dao = null;
+				try {
+					dao = Class.forName(className).newInstance();
+					map.put(name, dao);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				return dao;
+			}
+		}
+	3. userDao = (UserDao)DaoFactory.getInstance.getDao("userDao")即可,这样做变得灵活了，但使用还是不方便，我们自己实现依赖注入
+实现依赖注入：
+	1. 创建一个Annotation 
+		@Retention(RetentionPolicy.RUNTIME)
+		public @interface ShopDi {
+			String value() default "";
+		}
+	2. 创建DaoUtil类实现依赖注入。
+	public class DaoUtil {
+		private static IDaoFactory factory = DaoFactory.getInstance();
+		
+		public static Object getDao(String name) {
+			return factory.getDao(name);
+		}
+		
+		/**
+		 * dao的依赖注入，在BaseXX类的构造方法中调用diDao(this)来注入Dao对象。
+		 * 如果@ShopDi的value有值，就使用value值来获取dao再注入
+		 * 如果@ShopDi的value没有值，就使用set方法后面跟的名称来获得dao再注入
+		 */
+		public static void diDao(Object target){
+			try {
+				Method[] methods = target.getClass().getDeclaredMethods();
+				for(Method method : methods) {
+					if (method.isAnnotationPresent(ShopDi.class)) {
+						String key = method.getAnnotation(ShopDi.class).value();
+						//@ShopDi的value没有值
+						if(key == null || "".equals(key)){
+							String methodName = method.getName();
+							if(methodName.startsWith("set")){
+								//setUserDao -> userDao
+								key = methodName.substring(3).substring(0,1).toLowerCase()+methodName.substring(4);
+							}
+						}
+						//根据key获得对应的Dao对象
+						String className = (String) PropertiesUtil.getDaoProperties().get(key);
+						Object dao = Class.forName(className).newInstance();
+						//通过setter方法注入Dao对象
+						method.invoke(target, dao);
+					} 
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	3. 在userService的setUserDao方法上加上@ShopDi注解，在BaseDao的构造方法上调用DaoUtil.diDao(this).
+
+jstl(java标准标签库):
+	<c:if test="${not empty user}"></c:if>
+	<c:choose>
+		<c:when test="${..}"></c:when>
+		<c:when test=""></c:when>
+		<c:otherwise></c:otherwise>
+	</c:choose>
+	<c:foreach var"" items="" >
+	</c:foreach>
+
+BaseServlet的实现：
+	/**
+	 * BaseServlet模拟struts,通过传递参数method实现动态方法调用（这样不需在每个Servlet写if判断到哪个方法执行）
+	 * 调用方法后返回路径，在service方法中统一 转发/重定向 
+	 * 并实现dao的注入
+	 */
+	public class BaseServlet extends HttpServlet{
+		private static final long serialVersionUID = -186390490369710110L;
+		private static final String redirPath = "redirect:";
+		
+		@Override
+		protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+			try {
+				DaoUtil.diDao(this);
+				String methodName = req.getParameter("method");
+				Method method = this.getClass().getMethod(methodName, HttpServletRequest.class, HttpServletResponse.class);
+				String path = (String) method.invoke(this, req, resp);
+				//约定以"redirect:"开头就是重定向，否则为请求转发
+				if(path.startsWith(redirPath)) {
+					path = path.substring(redirPath.length());
+					resp.sendRedirect(path);
+				} else {
+					req.getRequestDispatcher("/WEB-INF/"+path).forward(req, resp);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+分页框架Pager：
+	1. 引入Pager的jar包
+	2. 编写分页页面pager.jsp，引入pager标签库<%@ taglib uri="http://jsptags.com/tags/navigation/pager" prefix="pg"%>
+		<pg:pager url="${param.url}" items="${param.items}"  maxPageItems="3" export="currentPageNumber=pageNumber">
+		<c:forEach items="${param.params}" var="p">     <!-- 传递的参数 -->
+			<pg:param name="${p}"/>
+		</c:forEach>
+			<pg:index>
+				<pg:last>
+					共${param.items}条记录，共${pageNumber}页
+				</pg:last>
+				当前第${currentPageNumber}页
+				<pg:first>
+					<a href="${pageUrl}">首页</a>
+				</pg:first>
+				<pg:prev>
+					<a href="pageUrl">上一页</a>
+				</pg:prev>
+				<pg:pages>
+					<c:if test="${pageNumber eq currentPageNumber}">
+						<b>${pageNumber}</b>
+					</c:if>
+					<c:if test="${pageNumber ne currentPageNumber}">
+						<a href="${pageUrl}">${pageNumber}</a>
+					</c:if>
+				</pg:pages>
+				<pg:next>
+					<a href="${pageUrl}">下一页</a>
+				</pg:next>
+				<pg:last>
+					<a href="${pageUrl}">尾页</a>
+				</pg:last>
+			</pg:index>
+		</pg:pager>
+		注：
+			items：totalRecord
+			maxPageItems: pageSize 默认10
+			maxIndexPages: 分页条显示的页数 默认10
+			pageNumber：页索引，是默认输出的变量。该变量的值在不同的标签不一样，在<pg:first>是第一页页索引，在<pg:last>是最后一页页索引，在<pg:pager>是当前浏览页页索引
+			<pg:pages>：会循环输出指定范围的超链接
+			export="currentPageNumber=pageNumber"：相当于为变量currentPageNumber赋值当前页的索引
+
+	3. 在列表页面包含pager.jsp页面，需要传递参数包括：分页列表的url,总记录数，
+		<jsp:include page="/common/pager.jsp">
+			<jsp:param name="url" value="user.do"/>
+			<jsp:param name="items" value="${users.totalRecord}"/>
+			<jsp:param name="params" value="method,name"/>
+		</jsp:include>
+
+Pager框架的一个问题：
+	当没有记录的时候，尾页超链接会有问题，附加的参数是pager.offset=-10, 10为pageSize的大小，此时点击会出错
+	可以使用<pg:index>标签包住<pg:first>、<pg:last>这些标签，这样的话，当只有一页的时候不会显示首页、尾页超链接
+
+BeanUtils使用：
+	User u = new User();
+	BeanUtils.copyProperty(u, username, "张三");
+	BeanUtils.copyProperty(u, "age", 1);
+	BeanUtils.copyProperty(u, "ddd", value); //没有的属性不会出错
+	//此时无法拷贝日期，因为BeanUtils根本不知道如何来转换日期1988/2/2
+	//这个时候就需要自己定义相应的转换器来完成转换
+	/*
+	 * 定义转换器的步骤
+	 * 1、创建一个类让其实现Converter接口
+	 * 2、覆盖这个接口中的convert方法，在这个方法中实现转换
+	 * 3、在拷贝属性之前注册转换器
+	 */
+	ConvertUtils.register(new DateConverter(), Date.class);
+	BeanUtils.copyProperty(u, "born","1977-12-22");
+	System.out.println(u.getBorn());
+	User u2 = new User();
+	BeanUtils.copyProperties(u2, u);  //拷贝对象
+
+日期转换器定义：
+public class DateConverter implements Converter {
+	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+	/**
+	 * 该方法中的两个参数，第一个参数表示要转换的类型，如果要拷贝一个字符串到日期中，此时这个类型
+	 * 就是日期类型，第二个参数表示要转换的值
+	 * 该方法的返回值就是转换之后的值
+	 */
+	@Override
+	public Object convert(Class clz, Object value) {
+		//1、判断要转换的类型是否符合要求
+		if(clz!=Date.class) {
+			return null;
+		}
+		try {
+			if(value instanceof String) {
+				return sdf.parse((String)value);
+			}
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+}
+	
+修改Tomcat默认编码:
+	实际项目中一般是用utf-8的，而Tomcat的默认编码则是iso-8859-1
+	编辑conf/下的server.xml，配置Connector项，加上属性URIEncoding="UTF-8"即可	
+
+验证客户端提交的数据：
+	1. 创建一个Annotation 
+		@Retention(RetentionPolicy.RUNTIME)
+		public @interface ValidateForm {
+			/** 验证类型：非空，长度，email，数字 */
+			public ValidateType type();      //较好的做法应该是每种类型都创建一个Annotation
+			public String errorMsg();
+			public String value() default "";
+		}	
+		注：ValidateType是枚举类型：
+			public enum ValidateType {
+				NotNull, Length, Email, Number;
+			}
+
+	2. 在验证的字段上加上@ValidateForm
+		@ValidateForm(type=ValidateType.NotNull, errorMsg="username不能为空")
+		private String username;
+		@ValidateForm(type=ValidateType.Length, errorMsg="password长度至少为6", value="6")
+		private String password;
+		@ValidateForm(type=ValidateType.Number, errorMsg="必须是数字")
+		private String nickname;
+	3. 在RequestUtil编写验证方法：
+		public static boolean validate(Class clz, HttpServletRequest req) {
+			Field[] fields = clz.getDeclaredFields();
+			Map<String, String> errors = new HashMap<String, String>();
+			req.setAttribute("errors", errors); //在页面使用${errors.xx}回显错误信息
+			boolean isValidate = true;
+			try {
+				for(Field f : fields) {
+					if(f.isAnnotationPresent(ValidateForm.class)) {
+						ValidateForm vf = f.getAnnotation(ValidateForm.class);
+						ValidateType vt = vf.type();
+						boolean b = false;
+						if(vt==ValidateType.NotNull) {
+							b = validateNotNull(f.getName(), req);
+							
+						}
+						else if(vt==ValidateType.Length) {
+							b = validateLength(f.getName(), req, vf.value());
+						}
+						else if(vt==ValidateType.Number) {
+							b = validateNumber(f.getName(), req);
+						}
+						if(!b) {
+							isValidate = false;
+							errors.put(f.getName(), vf.errorMsg());
+						}
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			} 
+			return isValidate;
+		}
+	4. 在serlvet使用验证：
+		public String add(HttpServletRequest req, HttpServletResponse resp) {
+			//验证，如果验证失败，就回到添加页面继续添加
+			if(!RequestUtil.validate(User.class, req)) {
+				return "user/addInput.jsp";
+			}
+			User user = (User) RequestUtil.setParam(User.class, req);
+			userDao.add(user);
+			return REDIR_PATH+"user.do?method=list";
+		}
+	
+sitemesh的问题：在我的机子测试，使用jsp：include后就有问题。不能正常显示。
+改用jsp layout（开源中国的），修改了一下
+
+权限控制：
+	1. 创建一个注解Auth
+		@Retention(RetentionPolicy.RUNTIME)
+		public @interface Auth {
+			String value() default "";
+		}
+	2. 在servlet的方法上加上注解（如果不加就代表管理员才可以访问该方法，@Auth("any")代表人都可以访问，@Auth代表登录后才可以访问）
+	3. 在BaseServlet的service方法进行权限检测
+		protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+			try {
+				DaoUtil.diDao(this);
+				String methodName = req.getParameter("method");
+				Method method = this.getClass().getMethod(methodName, HttpServletRequest.class, HttpServletResponse.class);
+				//在这里加入权限控制
+				int flag = checkAuth(method, req);
+				if(flag==1){
+					resp.sendRedirect("user.do?method=loginInput");
+					return;
+				} else if(flag==2) {
+					req.setAttribute("errorMsg", "你没有权限访问此功能");
+					req.getRequestDispatcher(ERROR_PATH).forward(req, resp);
+					return;
+				}
+				
+				String path = (String) method.invoke(this, req, resp);
+				//约定以"redirect:"开头就是重定向，否则为请求转发
+				if(path.startsWith(REDIR_PATH)) {
+					path = path.substring(REDIR_PATH.length());
+					resp.sendRedirect(path);
+				} else {
+					req.getRequestDispatcher(path).forward(req, resp);
+				}
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		/** 返回0表示放行，1表示转到登录页面（没有登录），2表示转到错误页面（没有权限）*/
+		private int checkAuth(Method method, HttpServletRequest req) {
+			User u = (User) req.getSession().getAttribute("loginUser");
+			if(u!=null&&u.getType()==1){ //管理员放行
+				return 0;
+			}
+			//如果方法没加@Auth，就只有管理员能访问
+			if(!method.isAnnotationPresent(Auth.class)) {
+				if(u==null) { //未登录
+					return 1;
+				} 
+				if(u.getType()==1) { //管理员放行
+					return 0;
+				} 
+				return 2;  //没有权限返回错误页面
+			}
+			//如果方法加了@Auth，如果annotation的值是"any"就代表任何人都可以访问，如果值是""就代表登录后可访问
+			Auth auth = method.getAnnotation(Auth.class);
+			String authVal = auth.value();
+			//-->不需登录
+			if("any".equals(authVal)) { 
+				return 0;
+			} 
+			//-->需要登录
+			if(u==null) { //未登录
+				return 1;
+			} 
+			return 0;
+		}	
+
+使用jstl表达式经常会出现的一个错误；
+	Caused by: javax.el.PropertyNotFoundException: Property 'name' not found on type java.lang.String
+	原因：<c:forEach items="categories" var="c"> 没有写${}
+	应该写成<c:forEach items="${categories}" var="c">
+
+表单的get与post问题
+	<form action="category.do?method=add">
+	如果以get方式提交。?号后面的参数会被覆盖。要把请求参数写在url上就应该使用post方式
+	或者使用get方式，将请求参数写在hidden上
+	ps: 如果form加了enctype="multipart/form-data"也不能在url后面附加参数，因为mul..会使用二进制来传输数据.
+
+
+使用fileupload完成文件上传（使用stringAPI、把request封装成MultipartRequestWrapper）：
+	public class MultipartRequestWrapper extends HttpServletRequestWrapper {
+		Map<String,String[]> params = new HashMap<String,String[]>();
+
+		public MultipartRequestWrapper(HttpServletRequest request) {
+			super(request);
+			setParams(request);
+		}
+		
+		private void setParams(HttpServletRequest request) {
+			try {
+				String path = request.getSession().getServletContext().getRealPath("upload/");
+				//1、判断是否是multipart类型
+				boolean isMul = ServletFileUpload.isMultipartContent(request);
+				if(isMul) {
+					ServletFileUpload upload = new ServletFileUpload();
+					FileItemIterator iter = upload.getItemIterator(request);
+					InputStream is = null;
+					while(iter.hasNext()) {
+						FileItemStream fis = iter.next();
+						is = fis.openStream();
+						if(fis.isFormField()) {
+							setFormParam(fis.getFieldName(),is);
+						} else {
+							//要输入流中有数据才进行上传操作
+							if(is.available()>0) {
+								//对于IE而言，上传的文件或获取完整的绝对路径，此时就需要仅仅获取绝对路径中的文件名
+								String fname = FilenameUtils.getName(fis.getName());
+								//完成文件上传，并且自动关闭流
+								Streams.copy(is,new FileOutputStream(path+"/"+fname),true);
+								//fis.getFieldName表示获取表单域的名称，getName表示获取文件的名称
+								params.put(fis.getFieldName(), new String[]{fname});
+							}
+						}
+					}
+				} else {
+					//如果不是multipart直接通过请求获取值
+					params = request.getParameterMap();
+				}
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (FileUploadException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		private void setFormParam(String fieldName, InputStream is) throws IOException {
+			//处理checkbox一个name对应多个值的那种情况
+			if(params.containsKey(fieldName)) {
+				//说明表单域中已经存在了值，这个时候就需要往params的String的数组中添加
+				String[] values = params.get(fieldName);
+				//让数组长度加1
+				values = Arrays.copyOf(values, values.length+1);
+				//添加到数组中
+				values[values.length-1] = Streams.asString(is, "UTF-8"); //不指定编码会有乱码问题
+				params.put(fieldName, values);
+			} else {
+				params.put(fieldName, new String[]{Streams.asString(is)});
+			}
+		}
+
+		@Override
+		public Map<String,String[]> getParameterMap() {
+			return params;
+		}
+		
+		@Override
+		public String getParameter(String name) {
+			String[] values = params.get(name);
+			if(values!=null) {
+				return values[0];
+			}
+			return null;
+		}
+		
+		@Override
+		public String[] getParameterValues(String name) {
+			String[] values = params.get(name);
+			if(values!=null) {
+				return values;
+			}
+			return null;
+		}
+
+	}
+
+	在servlet中使用：
+		dopost(..) {
+			if(ServletFileUpload.isMultipartContent(request)) {
+				request = new MultiPartRequestWrapper(request);
+			}
+			System.out.println(request.getParameter("username"));
+			。。。
+		}
+
+	为什么要将request封装成MultiPartRequestWrapper？
+		因为上传表单使用的enctype是multipart/form-data，所以我们不能再使用request.getParameter("username")来获取请求参数。
+		我们在MultiPartRequestWrapper里重写getParameter..方法，这样我们就又可以使用request.getParameter("username")来获取请求参数。
+		MultiPartRequestWrapper是继承HttpServletRequestWrapper，而MultiPartRequestWrapper又持有HttpServletRequestWrapper的引用，
+		这是典型的装饰模式，就好像FileInputSream与InputStream的关系
+		HttpServletRequestWrapper是实现HttpServletRequest接口的	
+
+fckeditor 3.6 简单demo:
+	<script type="text/javascript" src="ckeditor.js"></script>  <!-- 导入js -->
+	<form action="sample_posteddata.php" method="post">
+			<textarea name="editor1" class="ckeditor"></textarea>      <!-- 必须有name或id，否则没法显示-->
+	</form>
+	<script type="text/javascript">       
+		CKEDITOR.replace( 'editor1' );  <!-- 使用javascropt创建，或者在textarea上加上class="ckeditor" -->
+	</script>
+
+	<!-- 最简单的例子中，需要的所有文件：（ckeditor.js依赖下面的3个，要放在同一个目录下， ckeditor.js才能找到）
+		 ckeditor.js
+		 config.js
+		 skins\kama		kama是默认的皮肤，其余的可以删去
+		 lang\..        lang下只需要留en.js、zh.js、zh-ch.js
+	-->
+

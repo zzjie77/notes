@@ -1,0 +1,154 @@
+下载解压
+	wget http://redis.googlecode.com/files/redis-1.2.6.tar.gz
+	tar zxf redis-1.2.6.tar.gz
+安装	
+	cd redis-1.2.6
+　　make
+	mkdir -p /usr/local/redis/bin
+　　mkdir -p /usr/local/redis/etc
+　　cp redis-benchmark redis-cli redis-server redis-stat /usr/local/redis/bin
+　　cp redis.conf/usr/local/redis/etc
+启动
+	cd /usr/local/redis
+	bin/redis-server etc/redis.conf	
+查看是否启动
+	ps -ef | grep redis
+	telnet localhost 6379	
+后台启动
+	修改配置文件daemonize为yes后台启动
+	mysql后台启动 mysqld_safe -user=msyql
+	mongodb后台启动  加参数--fork
+客户端连接
+	redis-cli
+	quit
+关闭redis
+	pkill redis-server 或 redis-cli shutdown
+redis目前提供四种数据类型：
+	string,list,set及zset(sorted set)
+常用命令
+string类型：
+	set hello world  # 设置key为hello，value为world
+	get hello # 获取hello的值， 如果不存在就返回nil
+	set hello abc  # 会覆盖之前设置的值
+	setnx hello aaa # set not exist.如果hello不存在则设置，返回1代表成功。 已存在则返回0表示失败
+	setex hello 30 bbb # 有效期30秒，不设有效期则永久有效
+
+	set email lijie@gmail.com
+	setrange email 6 163.com # 返回替换后的字符串长度， 从第6位开始替换为163.com, 替换后为"lijie@163.comom"
+	mset key1 val1 key2 val2 # 一次设置多个，返回ok设置成功，返回0表示没有任何被设置
+	msetnx key1 val1 key2 val2 # 如果有一个没设置成功，所有都不会设置成功，即返回0
+
+	set key1 20
+	getset key1 30 # 设置一个新的值，并返回一个旧的值
+	getrange email 0 4 # 返回email的0到4位
+	mget key1 key2 key3 # 返回多个
+
+	incr key1 # 将value+1,  可用desr来减减
+	incrby key1 5 # +5 也可给负数来实现减. 也可用desrby key 5来减
+
+	append key1 aa # key1的value追加aa
+	strlen key1 # 查看长度
+hashes类型： 通常用于保存对象
+	hset user:001 name zzjie # user:001是key id为001的user， name是hash中的字段,值为zzjie
+	hget user:001 name
+	hsetnx user:001 name zhang # 
+	hmset user:001 field hello file2 world # 多个
+	类似还有hmget hincr hincrby...
+	hexits user:001 name # user:001是否有name这个字段， 1有，0没
+	hlen user:001 # 返回user:001所有的字段数
+	hdel user:001 name # 删除字段
+	hkeys user:001 # 返回所有的keys
+	hvals user:001 # 返回此哈希的所有value
+	hgetall user:001 # 同时返回搜有的key和value
+list类型：
+	lpush mylist "world" #从头部(栈顶，下标为0)压入一个元素.   rpush从尾部压入元素
+	lpush mylist "hello"
+	lrange mylist 0 -1   # 取list所有元素  0表示头第一个元素，-1表示尾部第一个元素。
+	linsert mylist before hello "aa" # 原来world hello, 在hello前面插入aa. 变成world aa hello
+	lset mylist 1 four # 将list下标为1的元素设置我four. 变成 world four hello
+	lrem mylist 1 hello #从mylist中删除1个与hello相同的元素
+	ltrim mylist 1 -1 #1 -1是保留的范围，即保留下标1到-1的元素，删除第一个元素
+	lpop mylist #从头部弹出一个元素，并返回。 rpush从尾部弹出
+	rpoplpush list1 list2 #从list1弹出，弹出的元素从头部压入list2
+	lindex list1 1 #取索引值的元素
+	llen list1 #获取list长度
+set类型：元素不能重复
+	sadd set1 "one"	# 添加一个元素
+	sadd set1 "one"	# 再添加one就会失败，返回0
+	smembers set1 #查看所有元素
+	spop set1 #随机弹出一个元素
+	sdiff set1 set2 #取差集，set1存在，set2不存在的集合
+	sdiff set3 set1 set2 #取差集，并存在set3
+	sinter set1 set2 #交集，也有sinterstore
+	sunion set1 set2 #并集
+	smove set1 set2 aa # 将aa从set1剪切到set2中
+	scard set1 #查看set1的元素个数
+	sismember set1 one #one是否是set1的元素
+	srandmember set1 #随机返回一个元素，但不删除元素，与spop不一样
+zset: 有序集合  score val
+	zadd zset 1 "one" #添加元素one，顺序为1
+	zrange myzset 0 -1 withscores #从0到最后一个元素，withscores表示同时输出顺序。  zrerange从大到小排序
+	zrem zset one #删除one
+	zincrby zset 2 one #如果存在one则讲score+2,如果不存在就添加一个one score为2
+	zrank zset1 one # 查找one的索引，zrange默认会以score从小到大排序，score最小的元素索引为0，如此类推
+	zrangebyscore zset1 2 3 withscores # 筛选出分数2到3的，然后进行zrange排序
+	zcount zset 2 4 #查看zset中score2到4的元素数量
+	zcard zset #zset中的所有元素个素
+	zremrangebyrank zset 1 1 #删除索引1到1的元素
+	zremrangebyscore zset 1 2 #删除顺序1到2的元素
+
+键值相关命令
+	keys * #所有键  keys my* my开头的所有键
+	exists key #判断某个键是否存在
+	del key #删除一个key
+	expire addr 10 #addr这个key的有效期为10秒
+	ttl addr # 查看addr的有效期， -1表示已经过期
+	persist age #取消定时，变成永久保存
+	move age 1 #将age移到1数据库，有0-15数据库
+	randkey #随机返回一个key
+	rename age age_new # 重命名
+	type age #返回key的数据类型
+
+服务器相关命令
+	select 1 # 选择1数据库，然后就可以查到刚刚move过来的age
+	ping #测试连接是否存活
+	dbsize #当前数据库的key的数量
+	info #redis服务器的相关信息
+	echo hello #打印
+	config get #实时转存收到的请求
+	flushdb #清空当前数据库中的所有key
+	flushall #清空所有数据库的所有key
+
+安全
+	修改配置文件 requirepass zzjie
+	redis-cli -a zzjie	授权
+	redis-cli 也能直接登进去， 但是没权限执行命令，要选执行auth zzjie后行
+
+主从复制     (从会发一条sync命令到master,master把数据写到文件然后发给slave,slave收到后写入内存)
+	配置slave服务器的步骤，只需修改slave服务器的配置文件，加入如下配置
+	slaveof 192.168.1.1 6379 #指定master的ip和port
+	masterauth lamp #这是主机的密码
+
+事务
+	multi    #打开事务上下文
+	incr age  # 会加入队列
+	incr name
+	#watch key #启用乐观锁，监控这个key的变化，如果exec时发现这个key已经过期了，就会回滚这个事务，事务中出错默认是不会回滚的
+	#discard  # 回滚
+	exec  #提交。执行队列中的命令，如果name是string. incr name会失败，但是age照样会添加成功不会回滚，这是redis事务的缺陷
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

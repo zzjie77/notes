@@ -1,0 +1,32 @@
+<!--第一种方式  ，通过构造方法创建bean-->
+<bean id="personService" class="com.zzjie.service.impl.PersonServiceBean" lazy-init="false"></bean>
+	
+<!--第二种方式  , 通过静态工厂刚发创建bean-->
+<!-- <bean id="personService2" class="com.zzjie.service.impl.PersonServiceBeanFactory" factory-method="createPersonServiceBean"></bean> -->
+ 	
+<!--第一种方式  , 工程方法，不需要静态-->
+<bean id="personServiceFactory" class="com.zzjie.service.impl.PersonServiceBeanFactory" scope="prototype"></bean>
+<bean id="personService3" factory-bean="personServiceFactory" factory-method="createPersonServiceBean" scope="prototype" ></bean>
+
+bean的作用域范围
+scope="singleton"  运行容器时初始化
+scope="prototype"  调用getBean时初始化
+request    seession  globle-seesion
+
+singleton可以通过定义lazy-init="true" 延迟实例化bean
+prototype可以通过定义lazy-init="false" 提前实例化bean
+
+依赖注入的三种方式
+1 构造方法注入  <constructor-arg index="0" type="com.zzjie.dao.PersonDao" ref="personDao"></constructor-arg> 基本类型不用写type,
+2 setter方法注入  <property name="personDao" ref="personDao"></property>
+3 使用Field注入 (用于Annotation )   需要在xml加上<context:annotation-config/> 并加上前缀和dtd（可查文档）
+ @Autowired 默认是按类型注入的，要想按名字注入需加上 @Qualifier("name")。            spring容器提供的
+ @Resource  默认是按名称装配的 @Resource(name="hello"),若不写name则使用字段名作为bean名称寻找依赖对象，
+ 若不写name,则按默认查找，找不到再按类型查找；如果写了name就只会按指定的名称查找.            (j2ee提供的，推荐使用)
+
+
+@Transactional配置事物
+RuntimeException  默认是会回滚的   又叫unchecked例外
+Exception  默认是不会回滚的      又叫checked例外
+
+

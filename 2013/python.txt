@@ -1,0 +1,30 @@
+目前版本：2.5, 2.6, 3.0
+安装：
+	1. 大多数的Linnux发行版都已默认安装了python. 可查看rpm -qa | grep python 2.
+	2. windows下直接执行安装包
+基本使用：
+	1. 使用python命令进入解释器模式，这是一个交互模式，输入一句执行一句
+		输入 1+2 回车
+		输入 hello world 回车
+	2. 把python程序在文件中编辑，vim f01.py
+		#!/usr/bin/python 表示使用/usr/bin/python命令来执行文件，如果源码安装的话，python可能不在/usr/bin下，可写成/usr/bin/env python
+		print "hello world"
+	   保存退出后，输入python f01.py来执行程序，也可增加文件的执行权限，然后使用./f01.py执行
+	3. 在解释器模式下引入文件执行
+		>> import f01        //注意计时器模式下不用加.py后缀
+		如果修改了f01.py,再import f01就不会执行了，import只能执行一次。使用reload解决
+		>> reload f01
+
+数据类型：、
+	1. Number: int, long float complex
+	>>>type(2)   //查看类型
+	<type 'int'>
+	>>>type(11111111111111111111111111111111111111111111111111111111111) 
+	<type 'long'>
+	>>> type(2.3)
+	<type 'float'>
+	>>> num=3.14j
+	>>> type(num)
+	<type 'complex'> //python对复数直接有支持。复数分为实部和虚部
+	2. 字符串String,普通用单引号或双引号括起来，长格式字符串用3个单引双引括起来('''aa''')中间可存在单引双引 （没有字符类型）
+	3. Boolean: True, False

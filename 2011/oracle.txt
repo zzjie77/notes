@@ -1,0 +1,305 @@
+安装之后启动 oracleservice数据库名(1个数据库实例对应一个服务) 、监听服务就可以用了     
+
+
+(1)sys用户是超级用户，具有最高权限，具有sysdba角色，有create database的权限.默认密码是manager
+(2)system用户是管理操作员，权限也很大。具有sysoper角色，没有create database的权限，默认密码是chang_on_install
+(3)一般讲，对数据库维护，使用system登录就可以
+
+sysman dbsnmp
+
+(1)conn[ect] 
+ 用法：conn 用户名/密码@网络服务名[as sysdba/sysoper]
+(2)disc[onnect]
+断开当前数据库的连接
+(3)passw[ord]
+修改用户密码，如果需要修改其他用户的密码，需要用sys/system登录
+(4)show user
+显示当前用户名
+(5)exit
+断开与数据库连接，同时退出
+
+文件操作命令
+(1)start和@
+运行sql脚本 eg:start d:\aa.sql 或者   @ d:\aa.sql
+(2)edit 
+编辑sql脚本  eg:edit d:\aa.sql
+(3)spool
+将屏幕显示的结果保存到一个文件
+eg: spool d:\bb.sql    select * from emp   spool off
+
+交互式命令
+(1)&
+可以替代变量，而变量在执行时，需要用户输入
+ select * from emp where job='&job'
+(2)edit
+(3)spool
+
+显示和设置环境变量
+
+set linesize 设置一行显示的字符数
+set pagesize 设置一页显示的行数
+
+
+用户管理
+1.创建用户  create user xiaoming identified by a12
+
+2.修改密码    password
+	alter user xiaoming identified by 新密码	
+
+3.删除用户   drop user 用户名 [cascade]
+如果要删除的用户已创建了表，那么就需要在删除时带一个参数 cascade
+
+4.给用户赋权 grant  connect to xiaoming  实质上connect是一种角色 
+oracle有大概140多种系统权限，关键的对象权限有25种
+可分为系统权限(用户对数据库的相关权限。登录，删除，创建.. )
+对象权限(用户对其他用户的数据对象操作的权限。select insert delete all..) 
+角色又分两种预定义角色，自定义角色
+connect 登录需要的角色  dba管理员的角色 resource可建表角色
+每个用户都有自己的表空间        desc 表名  可查看表结构
+grant all on scott.emp to xiaoming;
+如果授权对象权限，在后面加上with grant option。被授权的用户就可以授权
+如果授权系统权限，在后面加上with admin option。被授权的用户就可以授权
+
+5.revoke收回权限
+revoke update on scott.emp from xiaoming
+
+6.profile是口令限制，资源限制的命令集合
+(1)账户锁定 
+如要限定scott账户登录错误次数，超过3次后锁定账户2天
+sql -> create profile profileName limit failed_login_attempts 3 password_lock_time 2     //创建profile文件
+sql -> alter user scott profile profileName 
+(2)给用户解锁  alter user scott account unlock;
+(3)还可以 要求用户定期更改口令,不改重复的口令...
+删除prifile drop profile profileName [cascade]
+加cascade会把相关的东西都删掉
+
+
+数据类型
+字符型 char 固定长度，虽然浪费空间，但查询速度快 最大2000
+varchar2 变长，节省空间，查询慢  最大4000
+clob(character large object)字符型大对象  最大4G
+数字型 number 范围-10的38次方到10的38次方
+number(5,2) 表示5位有效数，2为小数
+日期类型 date 包含年月日和时分秒
+tamestamp 时间戳，是date的扩展，毫秒级
+图片类型 blob  二进制数据 可以存放图片/声音
+
+date类型默认的日期格式'dd-min-yy'  '09-6月-99'
+改日期的默认格式alter session set nls_date_format='yyyy-mm-dd';
+或者可以 to_date('1992-12-12', 'yyyy-mm-dd');
+
+savepoint aa;  设置保存点  rollback to aa; 恢复保存点
+
+delete 表结构还在，写日志，可以恢复，速度慢
+drop 删除表的结构和数据，不可恢复
+truncate删除数据，表结构还在，不写日志，无法恢复，速度快
+
+clear清屏
+
+desc dept 查看表结构  description
+set timing on 显示执行时间
+
+nvl(comm, 0)  如果comm为空，则返回0，否则返回comm的值
+
+分组函数值能出现在选择列表、having 、order by子句中，不能出现在where子句
+
+ order by 出现在 group by 之后
+
+oracle 给表加别名不能加as, 列可以
+
+
+分页查询：3种方式
+1.根据rowid来分，效率高，不好理解
+2.按分析函数来分,效率低
+(select row_number() over(order by salary desc) as rownum,
+  id ,name ,age,salary from employee
+)  e1 where e1.rownum >=3 and e1.rownum<=6
+-- rownnumber是开窗函数，不能放在where中,只能放在select,order by中
+3.按rownum来分，两者之间
+如要查emp表工资第6到10
+分3步：
+(1) rownum分页
+  (select * from emp)
+(2)显示rownum[oracle 分配的]
+  select a1.*, rownum rn from (select * from emp) a1;
+(3)select a1.*, rownum rn from (select * from emp) a1 where rownum <= 10;
+rownum只能用一次，所以不能在后面加and rownum >=6
+select * from 
+(select a1.*, rownum rn from (select * from emp) a1 where rownum <= 10)
+where rn >=6;            
+(4) 要指定查询列，只需修改最里层得子查询
+ 如何排序，只需修改最里层得子查询
+
+
+创建数据库：
+1. 使用database Configuration Assistant    dbca
+2.命令
+
+java连接oracle  
+1.jdbc-odbc桥连接  不支持远程连接
+在控制面板-管理工具-odbc-添加数据源test
+
+try{
+//1.加载驱动
+ Class.forName("sun.jdbc.odbc.JdbcOdbcDriver");
+//2.得到连接
+Connection conn = DriverManager.getConnection
+("jdbc:odbc:test","scott","tiger"); //test是刚刚添加的数据源
+//下面开始和sql server一模一样
+Statement sm=conn.creatStatement();
+ResultSet rs = sm.executeQuery("select * from emp");
+while(rs.next()) {
+System.out.println(rs.getString(1)); //选择第几列，从1开始的
+}
+//关闭打开的资源
+rs.close();
+sm.close();
+ct.close();
+} catch() {}
+
+2.jdbc连接  可远程连接
+在项目里增加驱动jar包
+//1.加载驱动
+ Class.forName("oracle.jdbc.driver.OracleDriver");
+//2.得到连接
+Connection conn = DriverManager.getConnection
+("jdbc:oracle:thin:@127.0.0.1:1521:myorac1","scott","tiger"); 
+//下面开始和sql server一模一样
+
+
+values只能一次插入一个行，插入多行：
+insert into t (name,age,id) select(name,age,id) from ..将查询结果多行插入
+更新多行：
+update emp set (job,sal,comm) = (select job,sal,comm from emp where
+ename='SMITH') where ename='SCOTT';
+
+
+事务提交  commit;   提交后会释放保存点
+只读事物   
+set transaction read only 
+
+sql函数 
+lower(char),upper(char),length(char),substr(char,m,m)
+replace(char1,search_str,replace_str)
+round(n,[m])n四舍五入到m为小数
+trunc(n,[m])n截取数字到m为小数  如果-1则个位是0
+mod(m,n)
+floor(n)
+ceil(n)
+
+在oracle测试，可以用dual表  
+select '1' || '2' from dual;    ||字符连接
+
+默认日期格式 dd-mon-yy   12-7月-2009
+sysdate 返回系统时间
+add_months(m,n);   时间m加上n个月
+
+select to_char(hiredate,'yyyy-mm-dd hh24:mi:ss) from emp;
+显示具体时间
+select to_char(sal,'L999.99') from emp;  L本地货币符号
+
+sys_context系统函数
+参数：terminal：终端标识符
+lanuage:语言
+db_name: 当前数据库名称
+nls_date_format:当前会话看护所对应的日期格式
+session_user:当前数据库用户名
+current_schema:当前客户的默认方案
+select sys_context('USERENV,'terminal') from dual;
+第一个参数固定，第二个参数个改变
+
+一个用户对应一个方案，以方案来管理数据对象
+
+sys和system区别(1)最重要的区别是存储的数据的重要性不同
+所有oracle的数据字典的基表和视图都存放在sys用户中，由数据库自己
+维护，任何用户都不能手动更改。sys拥有dba,sysdba,sysoper角色或权限
+
+system存放次一级的内部数据，如oracle特性或工具的管理信息。
+system用户拥有dba,sysdba角色
+
+(2)其次区别，权限不同
+sys用户必须以 as sysdba或as sysoper形式登陆。不能以normal方式登陆
+system如果正常登陆就是一个普通的dba用户，但system以sysdba登陆就等于
+以sys用户登录.      sysdba是权限最高的角色
+
+
+在导入导出的时候要到oracle主目录的bin目录下的exp导出  在cmd下
+导出表  方案   数据库
+exp userid=scott/tiger@myoral tables=(emp,dept) file=d:\e1.dmp 
+导出整个表
+exp userid=scott/tiger@myoral tables=(emp,dept) file=d:\e1.dmp rows=n 
+导出表结构
+exp userid=scott/tiger@myoral tables=(emp,dept) file=d:\e1.dmp direct=y
+直接导出，速度更快
+exp userid=scott/tiger@myoral  owner=scott file=d:\e1.dmp
+导出方案
+exp userid=sys/manger@myoral  full=y inctype=complete file=d:\e1.dmp
+导出整个数据库
+
+导入imp userid=scott/tiger@myoral tables=(emp,dept) file=d:\e1.dmp 
+imp userid=scott/tiger@myoral tables=(emp) file=d:\e1.dmp ignore=y导数据
+
+
+select * from dba_roles  查oracle有多少种角色
+
+数据字典（包括基本表、视图）记录有关oracle数据库的所有系统信息
+比如有哪些用户、角色、权限、对象占用空间大小、列信息等等
+
+动态性能视图记录当前例程的活动信息
+
+数据库由表空间构成，表空间由段构成，段由区构成，区由块构成。
+表空间对应多个物理文件
+ create tablesplace data1 datafile 'd:\data1.bdf' size 1m uniform size 128k
+单个数据文件最大500M ，   uniform 区大小
+创建表的时候在后面加上tablespace data1就可指定表空间
+表空间由online ,offline, read only,read write的状态
+alter tablespace 表空间名 offline  在系统维护的时候可以改变状态
+
+
+-----------------mysql----------------------------------
+mysql-administrator 是提供图形化的管理
+
+?  查看常用命令提示
+
+source	mysql.sql  简写：\. mysql.sql  执行sql脚本文件
+
+show database;   查看数据库
+show table;   查看有什么表
+desc dept; 查看表结构
+charset gbk; 设置命令行显示编码
+
+commit; 提交
+
+各种数据库的不同主要是
+1数据类型的不同， 查看数据库手册
+2分页程序的不同
+mysql 的分页：select * from dept order by deptno desc limit 3,2
+倒序排列，从第三条往后取两条。 即倒数第四，第五条
+3自动递增字段  
+创建表的时候列名后加  auto increment
+插入null  或  不写就可自动递增
+4日期处理
+orcle下取当前时间：select sysdate() from dual;
+mysql: select now();
+orcle日期与字符串的转换：tochar  todate
+mysql: select date_format(now(), '%Y-%m-%d %H:%i:%s'); 默认的格式
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

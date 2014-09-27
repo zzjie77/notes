@@ -1,0 +1,248 @@
+使用sts开发，由于sts没有对hibernate的支持。 所以要下载jbosstool（包含很多插件，但很多用不到），安装hibernate相关的插件
+在STS.ini文件中加上-Dfile.encoding=UTF-8
+
+一、导入相应的包
+	1、hibernate安装文件夹中的lib->required中的包
+	2、导入log4j
+	3、导入数据库驱动 
+二、创建hibernate的配置文件
+	在src目录下创建相应的hibernate.cfg.xml文件，可以到hiberante安装目录下的project/etc/hibernate.cfg.xml目录下拷贝模版,
+	cfg文件中的很多属性可以查看hiberante安装目录下的project/etc/hibernate.properties
+三、创建实体类
+四、在实体类的包中创建对应的hbm文件(可以在hibernate安装目录中所有*.hbm.xml来获得模版)
+五、将hbm映射文件添加到cfg文件中
+六、创建SessionFacory,因为SessionFactory是线程安全，所以整个SessionFactory应该基于单例模式来创建
+	Configuration cfg = new Configuration().configure();
+	//cfg.buildSessionFactory();//在hibernate3中都是使用该种方法创建，但是在4中被禁用了
+	ServiceRegistry serviceRegistry = new ServiceRegistryBuilder()
+						.applySettings(cfg.getProperties()).buildServiceRegistry();
+	SessionFactory factory = cfg.buildSessionFactory(serviceRegistry);
+七、创建Session
+	Session session = factory.openSession();
+八、通过session来完成操作
+public class HibernateUtil {
+	public static final SessionFactory FACTORY = buildFactory();
+
+	private static SessionFactory buildFactory() {
+		Configuration cfg = new Configuration().configure();
+		ServiceRegistry serviceRegistry = new ServiceRegistryBuilder().applySettings(cfg.getProperties()).buildServiceRegistry();
+		return cfg.buildSessionFactory(serviceRegistry);
+	}
+	
+	public static Session openSession() {
+		return FACTORY.openSession();
+	}
+	
+	public static void closeSession(Session session) {
+		if(session != null) session.close();
+	}
+}
+-----
+	@Test
+	public void testAdd() {
+		Session session = null;
+		try {
+			session = HibernateUtil.openSession();
+			session.beginTransaction();
+			
+			User u = new User();
+			u.setId(1);
+			u.setUsername("zhangsan");
+			u.setPassword("123");
+			u.setNickname("张三");
+			u.setBorn(sdf.parse("1990-01-01"));
+			session.save(u);
+			
+			session.getTransaction().commit();
+		} catch (Exception e) {
+			session.getTransaction().rollback();
+			e.printStackTrace();
+		} finally {
+			HibernateUtil.closeSession(session);
+		}
+	}
+
+native与uuid比较：
+	native递增。如果是mysql会选择increament,如果是oracle会选择sequence
+	uuid,不会重负的32位16进制的字符串
+	使用native做为主键生成策略的问题，会先到数据库中查找最大的id，然后加1作为id，所以会多发一条查询的sql语句
+	使用uuid会由hibernate生成，不需查询数据库，添加效率高，查询效率低
+	对于频繁的添加操作，不适用native，但我们一般的系统都是查询居多，使用native的查询效率比uuid好。所以实际中用native多
+
+一对多映射 添加操作的最佳实践： 先添加一方，再添加多的一方。
+因为多的一方维护关联关系，如果先添加多得一方，此时一的一方没有记录，所以多段的外键为空。在添加完一的一方后会发多余的update语句去更新外键
+
+一对一中，外键在哪一段就代表由哪一段来维护关联关系
+使用<manyToOne name="" column="" unique="true">
+如果是双向，要在对端加上<oneToOne name="" property-ref="" /> property-ref表示由对端来维护关联关系
+
+（假设person与idCard的一对一关联，由idCard维护关联关系）
+最佳实践就是，One2One的时候最好不要使用双向关联，如果使用双向关联，尽可能在没有维护关系的一边取数据
+hibernate会自动完成joine，仅仅只会发一条sql，如果使用维护关系端取数据，在通过延迟加载取关联对象时
+会同时再去取person的idCard关联，所以会发3条（1.取idCard 2.取idCard关联的person 3.取person关联的idCard）
+
+多对多：如Student与Course。  通常不会在两端都放一个Set，而是在创建一个类StudentCourse来维护关系，即将多对多拆分成2个一对多，
+Student与StudentCourse的一对多，Course与StudentCourse的一对多。
+如果使用多对多关系，生成的中间表只有2个id指向Student和Course。实际中我们要存储的数据可能不止这两个，如成绩。这样的话我们使用StudentCourse就有好处了
+
+hibernate3.5之前使用annotation要单独下载jar包，并且创建cfg对象时，要使用AnnotationConfiguration创建
+
+使用Annotation的弊端是失去了灵活性，以后要修改的话就要修改源代码。违背了ocp原则。 优点是简单快捷，无需配置
+但是实际项目中很少修改项目，修改源代码的。
+
+@Entity
+@Table
+@Id
+@GeneratedValue 默认使用自增
+@JoinColumn(name="") 指定外键
+@OneToMany(name="", targetEntity="", mappedBy="")  targetEntity相当于xml文件中的class，如果使用了泛型可以不加此属性.   mappedBy指定对端来维护关联关系的字段
+@ManyToOne(fetch=FetchType.LAZY) many2one的延迟加载
+@LazyCollection(LazyCollectionOption.EXTRA) 集合上的延迟策略  在获取集合大小的时候使用select count 而不是select *
+一对一： 
+	person: @OneToOne(mappedBy="person")
+	idCard: @OneToOne()    
+		@JoinColumn(name="pid") 
+多对多： 
+	user: @ManyToMany(mappedBy="users")  
+	role: @ManyToMany()
+	      @JoinTable(name="t_user_role",
+			 joinColumns=(@JoinColumn(name="role_id")),  //自己在关联表中的外键名称
+			 inverseJoinColumns=(@JoinColumn(name="user_id")))  //对端在关联表中的外键名称
+	      @LazyCollection(LazyCollectionOption.EXTRA)
+	也可以创建一个UserRole，然后用2个一对多的方式
+多对一：
+	student: @ManyToOne()
+		 @JoinColumn(name="classroom_id")
+	classroom: @OneToMany(mappedBy="classroom_id")
+		   @LazyCollection(LazyColletionOption.EXTRA)
+		   
+
+基于投影的hql查询，会返回一个List,里面是Object[]
+List<Object[]> list = session.createQuery("selcect s.username, s.password from Student s").list()；
+for(Object[] o : list) {
+	System.out.println(o[0] + " : " + o[1]);
+}
+
+使用对象的导航可以完成连接，但是是基于cross join的，效率不高，可以直接使用join来完成连接
+from Student s where s.classroom.id = 1;
+select s from Student s join s.classroom where s.classroom.id = 1; 这里有2个对象，所以要指定select哪个
+
+基于投影的连接查询，获得的是List<Object[]>对象。 但是在视图层根本不知道Object[]的第一个是什么，第二个是什么。
+解决办法，可以将投影的所有列 封装成一个dto对象，然后视图层就可以通过属性来获得对应的值了。
+
+对于xml文件的配置，使用fetch=join虽然可以将关联对象抓取，但是如果不使用关联对象也会一并查询出来，这样会占用相应的字符
+对于Annotation的配置而言，默认是基于join来抓取的，所以只发一条sql语句
+
+@ManyToOne(fetch=FetchType.EAGER) //LAZY就表示xml中的select，EAGER就表示xml中的join
+
+ManyToOne在xml中配置时，默认取关联对象是延迟加载的（fetch="select"），要想不延迟加载就改为（fetch="join"），这样就会通过join来取关联对象
+ManyToOne在annotation中配置时,默认是使用延迟加载的（），
+
+/**
+ * 在XML中配置了fetch=join仅仅只是对load的对象有用，对HQL中查询的对象无用，   
+ * 所以此时会发出查询班级的SQL，解决的这个SQL的问题有两种方案，
+ * 一种是设置对象的抓取的batch-size （xml文件的class节点上）
+ * 另一种方案在HQL中使用fecth来指定抓取 。 如果使用了join fetch就不能使用count
+ */
+List<Student> stus = session.createQuery("from Student").list();  //每个班都会发一条。若指定batch-size=20，有40个班就发2条
+//List<Student> stus = session.createQuery("select stu from Student stu join fetch stu.classroom").list(); //只发一条
+for(Student stu:stus) {
+	System.out.println(stu.getName()+","+stu.getClassroom());
+}
+(annation的EAGER对HQL查询的对象仍有用，但取Student的时候会取Classroom.取Classroom又会取关联的Special) 
+
+使用二级缓存的步骤
+1、hibernate并没有提供相应的二级缓存的组件，所以需要加入额外的二级缓存包，常用的二级缓存包是ECHcache
+2、在hibernate.cfg.xml中配置开启二级缓存
+	<!-- 设置二级缓存为true -->
+	<property name="hibernate.cache.use_second_level_cache">true</property>
+	<!-- 设置二级缓存所提供的类 -->
+	<property name="hibernate.cache.provider_class">net.sf.ehcache.hibernate.EhCacheProvider</property>
+	<!-- 在hibernate4.0之后需要设置facotory_class -->
+	<property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
+3、设置相应的ehcache.xml文件，在这个文件中配置二级缓存的参数，并且将文件在cfg文件中配置
+	<!-- 说明ehcache的配置文件路径 -->
+	<property name="hibernate.cache.provider_configuration_file_resource_path">ehcache.xml</property>
+4、开启二级缓存
+	在xml的配置中设置  （使用二级缓存一般都是设置成read-only，如果设置成read-write，要保持缓存和数据库同步代价太大）
+	<class name="Student" table="t_stu">
+    	<cache usage="read-only"/>
+5、二级缓存缓存的是对象，它是把所有的对象缓存到内存中，一定注意是基于对象的缓存(所以投影查询不会缓存)
+
+6、查询缓存是针对HQL语句的缓存，查询缓存仅仅只会缓存id而不会缓存对象
+
+iterate会先发一条语句来查所有的id，然后根据id到缓存中查找。如果此id对应的对象在缓存没有就发sql语句到数据库查询。 缓存没有会导致n+1问题
+list不会使用查询二级缓存，每次都会发出语句查询，查出的数据会放到缓存中。
+iterate存在的意义就是与二级缓存联合使用。
+list是基于hql查询的，可以使用查询缓存提高效率
+只有2个hql语句完全一样才会使用查询缓存，如果2个语句设置的参数不一样query.setPara.. 不一样也不会使用查询缓存。
+所以一般很少使用查询缓存
+
+hibernate3的悲观锁是使用同步的方式实现的，即在更新一个对象的时候，如果这个对象正在被更新，就会等待直到更新操作结束  session.load(User.class, 1, LockMode.UPGRAPE)
+这样会有性能问题，hibernate4改变了，如果该对象正在被更新就会抛1出异常。 session.load(User.class, 1, LockOptions.UPGRAPE)
+
+使用Hibernate的最佳实践
+ 1、在做关系尽可能使用单向关联，不要使用双向关联
+ 2、在大项目中(数据量如果超过百万条的项目，使用Hibernate可以酌情考虑以下几个原则)
+ 	2.1、不要使用对象关联，尽可能用冗余字段来替代外键(使用冗余字段所带来的问题就是在修改时必须修改所有的冗余)
+ 	2.2、查询数据不再使用HQL，全部使用SQL查询，如果涉及缓存，自己根据情况加入相应的缓存，而不是用Hibernate的缓存
+
+List<Student> stus = session.createSQLQuery("select * from t_stu where name like ?")
+				.addEntity(Student.class)   //查出来的数据转换为Student
+				.setParameter(0, "%张%")
+				.list();
+
+	@Test
+	public void test02() {
+		Session session = null;
+		try {
+			session = HibernateUtil.openSession();
+			List<Object[]> stus = session.createSQLQuery("select {stu.*},{cla.*},{spe.*} from " +
+					"t_stu stu left join t_classroom cla on(stu.cid=cla.id) " +
+					"left join t_special spe on(spe.id=cla.spe_id) where stu.name like ?")
+					.addEntity("stu",Student.class)
+					.addEntity("cla",Classroom.class)
+					.addEntity("spe",Special.class)
+					.setParameter(0, "%孔%")	
+					.setFirstResult(0).setMaxResults(10)
+					.list();
+			Student stu = null;
+			Classroom cla = null;
+			Special spe = null;
+			List<StuDto> list = new ArrayList<StuDto>();
+			for(Object[] obj:stus) {
+				stu = (Student)obj[0];
+				cla = (Classroom)obj[1];
+				spe = (Special)obj[2];
+				list.add(new StuDto(stu, cla, spe));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			HibernateUtil.close(session);
+		}
+	}
+	
+	@Test
+	public void test03() {
+		Session session = null;
+		try {
+			session = HibernateUtil.openSession();
+			List<StudentDto> stus = session.createSQLQuery("select stu.id as sid,stu.name as sname," +
+					"stu.sex as sex,cla.name as cname,spe.name as spename from " +
+					"t_stu stu left join t_classroom cla on(stu.cid=cla.id) " +
+					"left join t_special spe on(spe.id=cla.spe_id) where stu.name like ?")
+					.setResultTransformer(Transformers.aliasToBean(StudentDto.class)) //StudentDto不是映射成数据库的表，所以不能用addEntity
+					.setParameter(0, "%孔%")	
+					.setFirstResult(0).setMaxResults(10)
+					.list();
+			for(StudentDto sd:stus) {
+				System.out.println(sd);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			HibernateUtil.close(session);
+		}
+	}
+	

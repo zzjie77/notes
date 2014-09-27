@@ -1,0 +1,192 @@
+jbpm3:
+下载jbpm-installer-3.2.8.jar后,使用java -jar jbpm-installer-3.2.8.jar执行安装.
+在安装目录下的degisner目录下的有eclipse的插件，安装插件后配置eclipse的jboss runtime
+Window—Preferences—Runtime Locations-add-选择jboss的安装目录
+
+helloworld:
+	1. 在eclipse创建一个jbpm project
+	2. 创建一个流程定义 
+		<process-definition xmlns="urn:jbpm.org:jpdl-3.2" name="helloworld">
+			<start-state name="start-state1">
+				<transition to="state1"></transition>
+			</start-state>
+			<state name="state1">
+				<transition to="node1"></transition>
+			</state>
+			<node name="node1">
+				<transition to="state2"></transition>
+			</node>
+			<state name="state2">
+				<transition to="end-state1"></transition>
+			</state>
+			<end-state name="end-state1"></end-state>
+		</process-definition>
+	3. 测试
+		ProcessDefinition pd = ProcessDefinition.parseXmlResource("helloworld/processdefinition.xml");
+		ProcessInstance processInstance = new ProcessInstance(pd);
+		Token token = processInstance.getRootToken();
+		
+		System.out.println("1 current node name: " + token.getNode().getName());
+		token.signal();  //触发流程向下走
+		
+		System.out.println("2 current node name: " + token.getNode().getName());
+		token.signal();
+		
+		System.out.println("3 current node name: " + token.getNode().getName());
+		token.signal();
+		
+		System.out.println("is end = " + processInstance.hasEnded());
+		
+		输出结果：（注意：输出了start,state,end.没有输出node，因为node是自动触发的，不需sinal）
+			1 current node name: start-state1
+			2 current node name: state1
+			3 current node name: state2
+			is end = true
+
+JbpmConfiguration是用来读取JBPM配置文件的对象，通过该对象可以获取JBPM
+配置文件里的所有配置信息。在JBPM开发套件的src/jpdl/org/jbpm目录中
+	1、jbpmConfiguration是一个单列对象，在我们的应用系统里可以只有一个实例化的jbpmConfiguration对象
+	2、JbpmConfiguration  jbpmConfiguration = JbpmConfiguration.getInstance();
+	3、jbpmConfiguration对象的最大作用就是用来创建一个jbpmContext对象
+	4、常用方法：
+		createJbpmContext创建
+		getCurrentJbpmContext从TreadLocal获取
+		createSchema/dropSchema 创建/删除 JBPM数据库表
+		getJobExecutor 得到系统里的任务调度服务对象
+		startJobExcutor 开始系统的任务调度服务
+
+JbpmContext对象封装了大部分操作JBPM流程的方法。通过该对象可以开始一个新的流程实例、根据任务的参与者查找到待办的任务就任务实例，
+可以快速拿到HibernateSession并进行POJO对象，jbpmContext对流程数据持久化操作会自动产生一个Transaction(事物)。
+jbpmConfiguration的createJbpmContext方法创建jbpmContext，使用结束后调用close()方法进行关闭。
+JbpmContext常用方法：
+	1、deployProcessDefinition(ProcessDefinition  processDefinition)
+	      将给定的流程模版发布到数据库中
+	2、newProcessInstance(java.lang.String processDefinitionName)
+	      根据给出的流程定义的名称创建一个新的流程实例
+	3、loadProcessInstance(long  processDefinitionId)
+	      根据给出的流程实例ID加载对应的流程实例对象
+	4、getTaskList(java.lang.String actorId)
+	      返回给定的任务参与者的待办任务列表
+	5、getTaskInstance(long taskInstanceId)	
+	      根据任务实例的ID得到对应的任务实例对象
+	6、getSession()
+	      返回一个HibernateSession对象
+	7、getConnection()
+	      返回一个JDBC的Connection
+
+创建jbpm所有表的方法：
+	1. 执行jbpm安装目录下的db下的对应数据库的sql文件
+	2. 使用jbpmConfiguration.createScheama()，这种方法要配置好hibernate.cfg.xml
+
+流程发布的方式：
+	A、使用JBPM的流程设计器结合发布流程的servlet实现
+	B、使用JBPM的流程设计器导出一个zip来实现
+		processDefinition.parseXmlInputStream(new ZipInputStream(fileInputStream));
+
+版本：
+	JBPM的版本机制允许在数据库中多个同名流程定义共存。
+	第一个版本它的版本version值就是1，第二个版本它的版本version值就是2
+	此版本信息在jbpm_processdefinition此表中存储
+	ProcessDefinition pd = jbpmContext.getGraphSession().findLatestProcessDefinition("helloworld") //获取最新
+
+Token:
+	当一个流程实例创建出来的时候，一个Token(根令牌)也就被创建了，此时的Token自然就指向开始节点Start节点上。
+	Token  token  =  processInstance.getRootToken()  用来获取流程启动后产生的Token
+	Token.signal() 让流程实例向下流转(node会自动流转，state不会自动流转)
+
+流程上下文：
+	JBPM的流程上下文主要用来存储流程变量，流程变量是流程实例在运行过程中存储在流程上下文当中的键值对，一个流程实例有一个上下文。
+	ProcessInstance.getContextInstance()来获取一个流程实例的上下文对象。
+	JBPM当中可以使用流程变量的数据类型
+	String\Boolean\Character\Float\Double\Long\Byte\Short\Integer\Date\数组\Serializable  没有Object
+	ContextInstance对临时变量的读和写的操作方法
+		getTransientVriable(String name)
+		setTransientVariable(String name,Object value) 
+
+JPDL表达式
+	定义在流程模版里的Action或Event里面，用来访问流程上下文或任务变量的表达式语言
+	#{..}
+
+JBPM中提供了12种类型的节点
+	Start		开始节点 （一个流程必须有start,end节点）
+	State		等待节点 （状态节点，等待token.sinnal()促发流程向下流转）
+	End		结束节点
+	Fork		拆分节点 （与Join组合使用）
+	Join		聚合节点 （与Fork组合使用）
+	Decision		判断流程流转路线
+	Node		自动节点 （无需调用token.sinnal，到达node节点自动向下走）
+	Task node	任务节点 （最常用的节点，根据不同的权限分配给不同的人员）
+	Mail node	Email节点
+	ESB Service	调用Service节点
+	Process state	子流程节点
+	Super state	超状态节点
+
+node节点：
+	如果在Node节点上没有定义对应的Action，那么流程执行到此后不会停留。如果在Node节点上定义了Action，那么流程流转到
+	Node节点执行完对应的Action后，会停留在Node节点上。当外部对停留在Node节点上的Token发出signal指令时，流程才会继续向下流转。
+Node节点支持事件有：node-enter、node-leave，进入节点时和离开节点时触发相关事件。
+
+Task:
+	Task是JBPM的核心。一个Task Node里可以定义多个任务，但在开始节点里只可以定义一个任务。
+
+任务实例（对应表jbpm_taskinstance）：
+	任务实例是流程实例运行到任务节点是根据任务节点上定义的任务产生的，一个任务可以产生一个任务实例。
+	一个任务实例可以分配给一个参与者，当然也可以分给多个参与者，如果分给多个参与者，那么只能由一个人来完成任务。
+	任务分配有五种方式
+		A、Handler方式 通过一个接口类非常灵活地为任务实例分配一个参与者
+			public class MyAssignmentHandler implements AssignmentHandler {
+				public void assign(Assignable assignable, ExecutionContext executionContext) throws Exception {
+					assignable.setActorId("aa");
+					//数据库操作
+				}
+			}
+			<task-node name="task-node">
+				<task>
+					<assignment class="com.sample.action.MyAssignmentHandler"></assignment>
+				</task>
+				<transition to="end-state1"></transition>
+			</task-node>
+			当经过task-node的时候就自动回执行MyAssignmentHandler，然后停留，等待sinal向下
+		B、Expression方式
+		C、Swimlane方式
+		D、Pooled Actors方式
+			可以为一个任务直接分配多个参与者，多个参与者之间可以用逗号”，”隔开
+		E、Actor方式
+			Actor方式只能为任务指定一个参与者，而Pooled Actors可以指定多个。Actor方式将参与者和任务实例放在一行记录里，
+			而PooledActors则是将参与者放在另一张表中，通过外键与任务实例表关联。
+
+任务事件:
+	在JBPM当中，一个任务实例的生命周期分为三个阶段：create创建、start开始、end完成。
+对于一个任务来说，可能触发的事件有四个：task-create、task-assign、task-start、task-end
+一定会触发的事件有三个：task-create、task-assign、task-end
+TaskInstance ti = (TaskInstance) pi.getTaskMgmtInstance().getTaskInstances().iterator().next(); //获得任务实例
+ti.start(); //当执行start时，才会促发task-start事件
+
+任务提醒：
+	当一个任务产生任务实例并将这个任务实例分配给某个参与者的时候，对这个参与者发送邮件的提醒
+	1. 在jbpm.cfg.xml中加入：
+		<string name="jbpm.mail.smtp.host" value="mail.bstek.com"/>
+		<bean name="jbpm.mail.address.resolver" class="test.MyMailResolver" singleton="true"/>
+		<string name="jbpm.mail.from.address" value="gaojie@bstek.com"/>
+	2. 编写邮件解析器：
+		public class MyMailResolver implements AddressResolver{
+			public Object resolveAddress(String actorId) { //根据actorId返回对应的邮箱地址
+				if(actorId.equals("gaojie")){
+					return "jacky.gao@163.com";
+				}else{
+					return "aa@163.com";
+				}
+			}
+		}
+	3. 要发邮件，需要运行email服务
+		JbpmConfiguration.getInstance().getJobExecutor().start();
+	4. 运行测试
+		JbpmContext jbpmContext = JbpmConfiguration.getInstance().createJbpmContext();
+		ProcessInstance pi = jbpmContext.newProcessInstance("emailTest");
+		pi.signal();
+		jbpmContext.close();
+
+		
+
+
+

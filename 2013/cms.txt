@@ -1,0 +1,939 @@
+spring新版本中已经不用@resources jsr250 
+改为用inject jsr330
+
+hibernate4取消了HibernateDaoSupport和HibernateTemlate. 因为如果继承DaoSupport和HibernateTemplate，我们就必然要与spring一起使用
+而直接使用sessionFactory的话，我们就可以直接使用hibernate，不需整合spring，更干净
+
+hibernate的sql count查询会查询出BigInteger，所以通常调用longValue()方法获得long
+
+
+IBaseDao:
+  IBaseDao存在很多的方法(add, delete, list, find, listBy..)，如果IUserDao继承IBaseDao，则IUserDao也会得到很多用不上的方法
+  如果不希望IUserDao公布这么多的方法，只公布最常用的(add, delete, update, load). 那就把IBaseDao中除了(a,d,u,l)的方法删掉
+  而BaseDao中的实现方法不删除。IUserDao只存在(add, delete, update, load),当需要其他方法的时候，再在IUserDao中添加相应的方法(list, find, listBy..)，而这些方法在BaseDao中都有实现
+  这样做的好处：使IUserDao不必公布这么多方法，只是公布最常用的和有需要用的
+
+userDao:
+  public UserRole loadUserRole(int userId, int roleId) {
+    //String hql = "select ur from UserRole ur where ur.user.id=? and ur.role.id=?";
+    //这个hql的问题是不会抓取user和role，所以在ur.getUser()时又会发hql来查询。 使用join fetch解决：
+    String hql = "select ur from UserRole ur left join fetch ur.user u left join fetch ur.role r where u.id=? and r.id=?";
+    return (UserRole)this.getSession().createQuery(hql)
+          .setParameter(0, userId).setParameter(1, roleId).uniqueResult();
+  }
+
+userService:
+  public void delete(int id) ｛
+    //String hql = "delete UserRole ur where ur.user.id=?";
+    //userDao.updateByHql(hql);
+    // ..
+    //不这样写的原因是：service层不应该出现hql，这样会与dao层耦合在一起，一旦dao改变了，service层也要改变
+    //所以把上面的代码写到userDao中
+    userDao.deleteUserRoles(id);
+    userDao.deleteUserGroups(id);
+    userDao.delete(id);
+  ｝ 
+
+  /**
+   * 多对多更新，需要更新关联对象的常用策略：
+   * 更新用户，并更新用户的组和角色
+   * 如果rids存在erids不存在，则添加
+   * 如果rids不存在erids存在，则删除
+   * 其余情况不作操作
+   * 对于group而言，同上
+   * @param user 用户对象
+   * @param rids 更新页面选择的rid
+   * @param gids 更新页面选择的gid
+   */
+  public void update(User user, Integer[] rids, Integer[] gids) {
+    //1、获取用户已经存在的组id和角色id
+    List<Integer> erids = userDao.listUserRoleIds(user.getId()); //用户已存在的额rid
+    List<Integer> egids = userDao.listUserGroupIds(user.getId()); //用户已存在的额gid
+    //2、判断，如果erids中不存在rids就要进行添加
+    for(Integer rid:rids) {
+      if(!erids.contains(rid)) {
+        addUserRole(user, rid);
+      }
+    }
+    for(Integer gid:gids) {
+      if(!egids.contains(gid)) {
+        addUserGroup(user,gid);
+      }
+    }
+    //3、进行删除
+    for(Integer erid:erids) {
+      //rids是Integer[]，没有contains方法，所以通过commons-lang中的ArrayUtils来判断
+      if(!ArrayUtils.contains(rids, erid)) {
+        userDao.deleteUserRole(user.getId(), erid);
+      }
+    }
+    for(Integer egid:egids) {
+      if(!ArrayUtils.contains(gids, egid)) {
+        userDao.deleteUserGroup(user.getId(), egid);
+      }
+    }
+  }
+
+jquery.cms.core.js:
+  (function($){
+    //左侧导航栏插件
+    $.fn.myaccordion = function(opts) {
+      var settings = $.extend({
+        selectedClz:"navSelected",
+        titleTagName:"h3"
+      },opts||{});
+      var titleNode = $(this).find("ul>"+settings.titleTagName);
+      var selectedNode = $(this).find("ul."+settings.selectedClz+">"+settings.titleTagName);
+      titleNode.css("cursor","pointer");
+      titleNode.nextAll().css("display","none");
+      selectedNode.nextAll().css("display","block");
+      titleNode.click(function(){
+        var checked = $(this).parent().hasClass(settings.selectedClz);
+        if(checked) {
+          $(this).parent().removeClass(settings.selectedClz);
+          $(this).nextAll().slideUp();
+        } else {
+          $(this).parent().addClass(settings.selectedClz);
+          $(this).nextAll().slideDown();
+        }
+      });
+    };
+    
+    //偶数行有颜色， 鼠标覆盖时有颜色。 表格行变色插件。 
+    $.fn.trColorChange = function(opts) {
+      var settings = $.extend({
+        overClz:"trMouseover",
+        evenClz:"trEvenColor"
+      },opts||{});
+      $(this).find("tbody tr:even").addClass(settings.evenClz);
+      $(this).find("tbody tr").on("mouseenter mouseleave",function(){
+        $(this).toggleClass(settings.overClz);
+      });
+    };
+    
+    //确认操作弹框
+    $.fn.confirmOperator = function(opts) {
+      var settings = $.extend({
+        msg:"该操作不可逆，确定进行该操作吗？",
+        eventName:"click"
+      },opts||{});
+      $(this).on(settings.eventName,function(event){
+        if(!confirm(settings.msg)) {
+          event.preventDefault(); //如果没点确认，就停止click事件剩下的操作。即停止超链接跳转或提交表单
+          //preventDefault()与stopPro..不同。 stopPro是停止冒泡
+        }
+      });
+    }
+  })(jQuery)
+
+jquery.cms.validate.js:
+  //根据jquery validate编写自己的验证插件
+  (function($){
+    var __validate = $.fn.validate;
+    $.fn.cmsvalidate = function(opts) {
+      var __rules = $.extend({
+        username:"required",
+        password:"required",
+        confirmPwd:{
+          equalTo:"#password"
+        },
+        email:"email"
+      },opts?(opts.rules||{}):{});
+      var __messages = $.extend({
+        username:"用户名不能为空",
+        password:"用户密码不能为空",
+        confirmPwd:"两次输入的密码不正确",
+        email:"邮件格式不正确"
+      },opts?(opts.messages||{}):{});
+      var __defaultOpts = $.extend(opts||{},{
+        rules:__rules,
+        messages:__messages,
+        errorElement: opts?(opts.errorElement||"span"):"span",
+        errorClass:opts?(opts.errorClass||"errorContainer"):"errorContainer"
+      });
+      $.extend($.fn.validate.prototype,__defaultOpts);
+      __validate.call(this,__defaultOpts);
+    }
+  })(jQuery)
+
+类型这种只有几个固定值的 使用枚举：
+  public enum ChannelType {
+    NAV_CHANNEL("导航栏目"),TOPIC_LIST("文章列表栏目"),
+    TOPIC_CONTENT("文章内容栏目"),TOPIC_IMG("图片列表栏目");
+    
+    private String name; //页面要现实的名称
+    
+    private ChannelType(String name) {
+      this.name = name;
+    }
+    
+    public String getName() {
+      return name;
+    }
+    public void setName(String name) {
+      this.name = name;
+    }
+  }
+
+将枚举转换成list，map的工具类：
+  public class EnumUtils {
+    /**
+     * 将枚举中的值转换为一组序数列表
+     * @param clz
+     * @return
+     */
+    public static List<Integer> enum2Ordinal(Class<? extends Enum> clz) { //所有enum都继承抽象类Enum
+      if(!clz.isEnum()) return null;
+      Enum[] enums = clz.getEnumConstants();
+      List<Integer> rels = new ArrayList<Integer>();
+      for(Enum en:enums) {
+        rels.add(en.ordinal());
+      }
+      return rels;
+    }
+    /**
+     * 将枚举中的值转换为相应的名称字符串列表
+     * @param clz
+     * @return
+     */
+    public static List<String> enum2Name(Class<? extends Enum> clz) {
+      if(!clz.isEnum()) return null;
+      Enum[] enums = clz.getEnumConstants();
+      List<String> rels = new ArrayList<String>();
+      for(Enum en:enums) {
+        rels.add(en.name());
+      }
+      return rels;
+    }
+    /**
+     * 将枚举中的值转换为序号和名称的map
+     * @param clz
+     * @return
+     */
+    public static Map<Integer,String> enum2BasicMap(Class<? extends Enum> clz) {
+      if(!clz.isEnum()) return null;
+      Enum[] enums = clz.getEnumConstants();
+      Map<Integer,String> rels = new HashMap<Integer,String>();
+      for(Enum en:enums) {
+        rels.put(en.ordinal(),en.name());
+      }
+      return rels;
+    }
+    /**
+     * 将枚举中的值的某个属性转换为字符串列表
+     * @param clz
+     * @param propName某个属性值
+     * @return
+     */
+    public static List<String> enumProp2List(Class<? extends Enum> clz,String propName) {
+      if(!clz.isEnum()) return null;
+      try {
+        Enum[] enums = clz.getEnumConstants();
+        List<String> rels = new ArrayList<String>();
+        for(Enum en:enums) {
+          rels.add((String)PropertyUtils.getProperty(en, propName)); //commons-beanutils中的PropertyUtils
+           //也可以通过反射clz.getMethod("get"+propName).invoke(en)来获取
+        }
+        return rels;
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      } catch (InvocationTargetException e) {
+        e.printStackTrace();
+      } catch (NoSuchMethodException e) {
+        e.printStackTrace();
+      }
+      return null;
+    }
+    
+    /**
+     * 将枚举中的值的某个属性转换为序号和字符串列表
+     * @param clz
+     * @param propName某个属性值
+     * @return
+     */
+    public static Map<Integer,String> enumProp2OrdinalMap(Class<? extends Enum> clz,String propName) {
+      if(!clz.isEnum()) return null;
+      try {
+        Enum[] enums = clz.getEnumConstants();
+        Map<Integer,String> rels = new HashMap<Integer,String>();
+        for(Enum en:enums) {
+          rels.put(en.ordinal(),(String)PropertyUtils.getProperty(en, propName)); 
+        }
+        return rels;
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      } catch (InvocationTargetException e) {
+        e.printStackTrace();
+      } catch (NoSuchMethodException e) {
+        e.printStackTrace();
+      }
+      return null;
+    }
+    
+    /**
+     * 将枚举中的值的某个属性转换为名称和字符串map
+     * @param clz
+     * @param propName某个属性值
+     * @return
+     */
+    public static Map<String,String> enumProp2NameMap(Class<? extends Enum> clz,String propName) {
+      if(!clz.isEnum()) return null;
+      try {
+        Enum[] enums = clz.getEnumConstants();
+        Map<String,String> rels = new HashMap<String,String>();
+        for(Enum en:enums) {
+          rels.put(en.name(),(String)PropertyUtils.getProperty(en, propName)); 
+          //也可以通过反射clz.getMethod("get"+propName)来获取
+        }
+        return rels;
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      } catch (InvocationTargetException e) {
+        e.printStackTrace();
+      } catch (NoSuchMethodException e) {
+        e.printStackTrace();
+      }
+      return null;
+    }
+    
+    /**
+     * 将枚举中的两个属性转换为map
+     * @param clz
+     * @param keyProp 要转化的key的属性名称
+     * @param valueProp 要转换的value的属性名称
+     * @return
+     */
+    public static Map<String,String> enumProp2Map(Class<? extends Enum> clz,String keyProp,String valueProp) {
+      if(!clz.isEnum()) return null;
+      try {
+        Enum[] enums = clz.getEnumConstants();
+        Map<String,String> rels = new HashMap<String,String>();
+        for(Enum en:enums) {
+          rels.put((String)PropertyUtils.getProperty(en,keyProp),(String)PropertyUtils.getProperty(en,valueProp));
+        }
+        return rels;
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+      } catch (InvocationTargetException e) {
+        e.printStackTrace();
+      } catch (NoSuchMethodException e) {
+        e.printStackTrace();
+      }
+      return null;
+    }
+  }
+
+在使用dbunit恢复数据的时候，如果有外键关系时，经常会报错。在测试时，应该去除这种外键关系
+mysql中通过jdbc url中添加参数sessionVariables=FOREIGN_KEY_CHECKS=0来去除外键检测
+
+
+ztree: all.js = core + excheck + exedit
+需要引入 jquery.cms.core.js + zTreeStyle.css
+api包括3大部分的内容： tree对象(创建后可获得，可以增，删，改，获取，展开，关闭，编辑，移动...节点)，
+treeNode对象(可获取节点的信息)，setting配置(用于创建tree之前)
+hello world
+  <script type="text/javascript">
+      var setting = {
+          data:{
+              simpleData:{
+                  enable:true,//必须打开，默认是通过json的递归来创建树节点，打开后就可以通过id, pid来完成继承关系的指定
+                  idKey:"id",
+                  pIdKey:"pid" //默认是pid
+              }
+          },
+          view:{
+              dblClickExpand:false,
+              selectedMulti:false
+          }
+      }
+
+      var zNodes = [
+          {id:1, pid:0, name:"根节点"},
+          {id:2, pid:1, name:"用户管理"},
+          {id:3, pid:2, name:"用户管理1"},
+          {id:4, pid:2, name:"用户管理2"},
+          {id:5, pid:2, name:"用户管理3"},
+          {id:6, pid:1, name:"系统管理"},
+          {id:7, pid:6, name:"系统管理1"},
+          {id:8, pid:6, name:"系统管理2"},
+          {id:9, pid:6, name:"系统管理3"}
+      ];
+
+      $(function(){
+          $.fn.zTree.init($("#tree"), setting, zNodes);  //创建ztree
+      })
+
+  </script>
+  <ul id="tree" class="ztree"></ul> <!-- 写了class="ztree"才有样式 -->
+
+从后台获取数据然后转换成json， 转换成json，我们不实用Channel实体类。 因为有些树节点的属性可能实体类中没有
+所以创建一个ChannelTree专门用来转换json
+
+ztree异步一次性加载节点：
+  var setting = {
+      data: {
+          simpleData:{
+              enable:true,
+              pIdKey:"pid"
+          }
+      },
+      async:{
+          enable: true,
+          url: "treeAll"
+      }
+  }
+
+  $(function(){
+      $.fn.zTree.init($("#tree"), setting); 
+  })
+  在执行js的时候会再访问url：treeAll一次性获取所有节点
+  @RequestMapping(value = "/treeAll")
+  public @ResponseBody List<ChannelTree> treeAll(){
+      return channelService.generateTree();
+  }
+
+ztree第一次展开节点时加载子节点（数据量非常大的时候才使用）：
+  var setting = {
+    async: {
+      enable: true,
+      url: "treeAs",
+      autoParam:["id=pid"],//默认会访问treeAs?id=xx,指定后变成?pid=xx  来指定树的传递参数的key的名称
+      otherParam: { "ids":"1", "name":"test"},//用来传递其它的参数，ids=1,name=test
+    }
+  };
+  var t = $.fn.zTree.init($("#tree"), setting);
+  ----以上这种异步方式没有会传递pid来获取字节点，没有指定simpleData数据格式，所以后台返回的数据应为id, name, isParent
+  @RequestMapping(value="/treeAs",method=RequestMethod.POST)
+  public @ResponseBody List<TreeDto> tree(@Param Integer pid) {
+    List<TreeDto> tds = new ArrayList<TreeDto>();
+    if(pid==null||pid<=0) { //第一次访问没有传递pid， 所以只现实根栏目
+      tds.add(new TreeDto(0,"网站根栏目",1));
+      return tds;
+    }
+    List<ChannelTree> cts = channelService.generateTreeByParent(pid);
+    for(ChannelTree ct:cts) {
+      tds.add(new TreeDto(ct.getId(),ct.getName(),1)); //id ,name, isParent   这里只是演示，所以isParent都设成1
+    }
+    return tds;
+  }
+
+
+
+设置组可以管理栏目的分析：每个组都有一个完整栏目树，勾选后代表组有对应栏目的权限（组-栏目  多对多）
+1--勾选
+  1. 子节点不需要操作   （添加时，子节点是不联动的）
+  2. 如果父节点之前是没有勾选的，则要添加  beforeCheck
+2--取消勾选
+  1. 如果子节点之前是勾选的，则要删除  beforeCheck
+  2. 其父节点之前必然是勾选的，所以要判断父节点在oncheck事件的时候是否取消勾选，如果是，则删除  onCheck
+
+<script type="text/javascript">
+  $(function () {
+      var t = $("#tree").mytree({
+          url: $("#treePath").val(),
+          mine: {
+              listChild: 0
+          },
+          callback: {
+              onAsyncSuccess: function () {
+                  t.expandAll(true);
+                  var cids = $("input[name='cid']"); //要选中的id
+                  for (var i = 0; i < cids.length; i++) {
+                      var n = t.getNodeByParam("id", cids[i].value);  //要选中的节点   cids[i]是js的对象，所以用value
+                      t.checkNode(n, true, true); //选中节点。   第二个参数表示是否选中，第三个表示选中时父子节点是否联动
+                  }
+              },
+              beforeCheck: function (treeId, treeNode) {
+                  //取消勾选操作 -- 删除勾选了的子节点
+                  if(treeNode.checked) {
+                      var cs = new Array();  //要删除的节点
+                      getCs(treeNode, true, cs);
+                      cs.push(treeNode);   //自己也要删除
+                  }
+                  // 勾选操作 -- 添加没有勾选的父节点
+                  else {
+                      var ps = getPs(treeNode, false); //要添加的节点
+                      ps.push(treeNode);
+                  }
+              },
+              onCheck: function (event, treeId, treeNode) {
+                  // 取消勾选操作 -- 删除所有取消勾选的父节点
+                  if(!treeNode.checked) {
+                      var ps = getPs(treeNode, false); // 删除子节点的时候已经添加了treeNode本身，这里就不需要再添加
+                  }
+              }
+          },
+          check: {
+              enable: true,
+              chkboxType: { "Y": "p", "N": "ps" } //Y表示勾选， p表示父节点，s表示子节点。 Y:"ps" 表示勾选的是否联动父子节点。
+              // 我们这里勾选的时候不需要联动子节点。 取消勾选的时候需要联动父子节点
+          }
+      });
+
+      //获取所有指定状态的父节点， 如果checked为true则获取选中的父节点
+      function getPs(treeNode, checked) {
+          var ps = new Array();
+          var pn;
+          while ((pn = treeNode.getParentNode())) {
+              if (pn.checked == checked) ps.push(pn);
+              treeNode = pn;
+          }
+          return ps;
+      }
+
+      /**
+       * 获取所有(选中/不选中)的子节点。
+       * 因为每个节点都有多个子节点，不能像父节点那样用while来遍历，要使用递归来查找。使用递归就需要传递一个array来存储数据
+       * @param treeNode 从treeNode开始找
+       * @param checked true表示找选中的，false表示找不选中的
+       * @param cs Array，用来存储找到的节点
+       */
+      function getCs(treeNode, checked, cs) {
+          var cns
+          if ((cns = treeNode.children)) {
+              for (var i = 0; i < cns.length; i++) {
+                  var cn = cns[i];
+                  if (cn.checked == checked) cs.push(cn);
+                  getCs(cn, checked, cs);
+              }
+          }
+      }
+
+  });
+</script>   
+
+md5加密：
+  这种方式的缺点是只要密码一样，加密后的结果都一样，一旦别人入侵你的数据库，申请一个新帐号密码为12345，然后找到这个
+  帐号对应的密码，更新到其他帐号上， 就可以用其他帐号以12345登录了
+  public static String md5(String password) throws NoSuchAlgorithmException {
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      md.update(password.getBytes());
+      return new BigInteger(1,md.digest()).toString(16); // bigInteger的第一个参数是符号位， -1负数，0， 1正数
+  }
+  采用加盐(salt)方式的加密， 加上帐号一起加密， 帐号是唯一的，所以就算密码一样， 加密后也不一样
+  public static String md5(String username, String password) throws NoSuchAlgorithmException {
+      MessageDigest md = MessageDigest.getInstance("MD5");
+      md.update(username.getBytes());
+      md.update(password.getBytes());
+      return new BigInteger(1,md.digest()).toString(16); // bigInteger的第一个参数是符号位， -1负数，0， 1正数
+  }
+
+权限控制：
+  1. 创建两个annotation：
+    AuthClass(value默认为admin表示只有admin能访问，login表示这个类的方法需要相应的权限才能访问) 受权限的controller都要加上这个注解
+    AuthMethod(role默认为base表示只要登录就能访问，其他值时表示要相应值的角色才能访问) 在受控类中不加这个annotation表示要管理员才能访问
+  2. AuthUtil: 根据包名获取包下的所有类，通过反射加载所有有AuthClass注解的controller，然后
+  获取所有AuthMethod注解的方法，保存到一个Map<String,Set<String>> (roletype, Set<完整包名+方法名>)中。 返回这个map
+  3. InitServlet： 在初始化的时候把AuthUtil中获取的map保存到ServletContext中
+  4. 登录成功后根据自己拥有的角色(多个)，在map中查找自己拥有的所有操作(Set<完整包名+方法名>)添加到一个set。
+     然后保存到session中。 如果是管理员就不需要查找和加入到session
+  5. 创建AuthInterceptor继承spring的拦截器。 每次访问时，如果没有登录，就跳转到登录。如果是管理员，放行。
+     反则就要获取session中的set(自己能访问的所有方法)。 获取当前访问的方法，判断是否在set中。如果在就放行，
+     如果不再就提示没有权限
+
+     
+实现以List<Keyword>中的times倒序排列:
+ 1. 让Keyword实现Comparable接口：
+  public int compareTo(Keyword o) {
+      return this.getTimes()>o.getTimes()?-1:(this.getTimes()==o.getTimes()?0:1);
+  }
+ 2. Collections.sort(keywordList);
+
+hibernate session.list在没有数据的时候返回empty collection而不是null，所以在遍历的时候不需要判空
+session.load在没有数据的时候返回null
+
+jquery ui datepicker （要显示中文就要引入i18n的js）:
+  $( "#publishDate" ).datepicker({
+    dateFormat:"yy-mm-dd",//设置日期的格式
+    maxDate:0,//最大日期为0天后， 即今天
+    changeMonth:true,//可以选择一个月份
+    changeYear:true//可以选择一个年份
+  });
+
+xheditor:
+  var editor = $('#content').xheditor({tools:'simple'}); //full, mfull, mini, simple
+   $('#content').xheditor({tools:'Cut,Copy,Paste,Pastetext,|,Source,Fullscreen,About'});// 自定义按钮
+
+jquery ui autocomplete:
+  $(this).autocomplete({
+    source:{ab:"abc",bc:"bcde"}, //或填返回json的url
+    minLength:2
+  });
+
+异步文件上传uploadify：
+  $("#attach").uploadify({
+     auto: false, // 默认是选择文件后自动上传
+     swf: $("#ctx").val() + '/resources/js/uploadify/uploadify.swf', //flash上传所需要的swf文件
+     uploader: 'upload',  //上传的url
+     fileObjName: 'attach', //上传的参数名， 相当于file的name
+     formData : {sid : $("#sid").val()},
+     fileTypeExts: '*.jpg; *.jpeg; *.bmp; *.gif; *.doc; *.docx; *.txt; *.xls; *.xlsx; *.zip; *.rar',
+     onUploadSuccess: function (file, data, response) {
+         var data = $.parseJSON(data);
+         if(data.result==1) {
+             alert("上传成功");
+         }
+     }
+ })
+
+ $("#uploadFile").click(function(){
+     $("#attach").uploadify('upload','*');
+ });
+ <input type="hidden" id="sid" name="<%=session.getId()%>"/>
+ <input type="file" id="attach" name="attach"/>
+ <input type="button" id="uploadFile" value="上传文件"/> 
+
+ flash的上传默认会开启一个新的session，此时新session中没权限信息，验证不通过，就会上传不成功。解决传递参数sessionId
+  public class CmsSessionContext {
+    private static final Map<String,HttpSession> ctx = new HashMap<String,HttpSession>();
+    private CmsSessionContext(){}
+
+    public static void addSessoin(HttpSession session) {
+      ctx.put(session.getId(), session);
+    }
+
+    public static void removeSession(HttpSession session) {
+      ctx.remove(session.getId());
+    }
+
+    public static HttpSession getSession(String sessionId) {
+      return ctx.get(sessionId);
+    }
+  }
+  在登录的时候把session保存到CmsSessionContext<sessionId,session>中,在注销和session销毁的listener中removeSession
+  上传的时候传递参数sessionId，在权限拦截器中判断CmsSessionContext中存在此id，如果存在把session就使用它来判断权限
+
+flash的bug在新版本的uploadify中已经解决
+
+图片压缩：Thunbnails （使用：直接看它的example）
+
+dwr公布的方法名不能为delete,delete是关键字
+jquery valiate不能验证hidden。 
+form.submit也不会验证， 如果需要用form.submit来提交，就要在提交前手动调用validateor.valid()验证
+
+
+如果用spring mvc的表单(modelDriver)，在页面渲染之后通过js来添加隐藏域，后台通过model是接收不到这个数据的
+
+首页图片添加：
+  1. 使用uploadify上传图片
+  2. 页面接收到返回上传成功的信息后，在页面中显示图片，使用jcrop来框选图片。
+  3. 点确定后把框选图片的坐标发到服务器，服务器使用Thumbnail对图片进行截取，并生存缩略图
+  4. 删除原来上传的临时图片
+  public void uploadIndexPic(HttpSession session,HttpServletResponse resp,MultipartFile pic) {
+    resp.setContentType("text/plain;charset=utf-8");
+    AjaxObj ao = new AjaxObj();
+    PrintWriter out = null;
+    try {
+      out = resp.getWriter();
+      String oldName = pic.getOriginalFilename();
+      String newName = new Date().getTime()+"."+FilenameUtils.getExtension(oldName);
+      String realPath = session.getServletContext().getRealPath("");
+      File f = new File(realPath+FILE_PATH+"/temp");
+      if(!f.exists()) {
+        f.mkdirs();
+      }
+      BaseInfo baseInfo = (BaseInfo)session.getServletContext().getAttribute("baseInfo");
+      double w = baseInfo.getIndexPicWidth();
+      double h = baseInfo.getIndexPicHeight();
+      BufferedImage bi = ImageIO.read(pic.getInputStream());
+      double nw = bi.getWidth();
+      double nh = bi.getHeight();
+      if(nw>w&&nw/nh<w/h) { // nw/nh<w/h：保证nh在缩到w时，nh还要比h大。 即nh > nw*(h/w)
+        //图片的大小符合要求
+        //判断是否进行缩放
+        Builder<BufferedImage> b = Thumbnails.of(bi);
+        if(nw-w>150) {
+          b.scale((w+150)/nw);
+        } else {
+          b.scale(1.0);
+        }
+        BufferedImage bi2 = b.asBufferedImage();
+        b.toFile(realPath+FILE_PATH+"/temp/"+newName);
+        IndexPicDto ipd = new IndexPicDto();
+        ipd.setNewName(newName);
+        ipd.setOldName(oldName);
+        ipd.setIndexPicHeight(new Double(h).intValue());
+        ipd.setIndexPicWidth(new Double(w).intValue());
+        ipd.setImgWidth(bi2.getWidth());
+        ipd.setImgHeight(bi2.getHeight());
+        ao.setObj(ipd);
+        ao.setResult(1);
+      } else {
+        ao.setResult(0);
+        ao.setMsg("图片的尺寸不在有效范围中");
+      }
+      
+    } catch (IOException e) {
+      ao.setResult(0);
+      ao.setMsg(e.getMessage());
+    }
+    out.println(JsonUtil.getInstance().obj2json(ao));
+    out.flush();
+  }
+  ----------------
+  $("#addForm").cmsvalidate();
+  var indexPicWidth=0,indexPicHeight=0,imgWidth=0,imgHeight=0;
+  var x,y,w,h;
+  var newName,oldName;
+  var ctx = $("#ctx").val();
+  $("#indexPic").uploadify({
+    swf:ctx+"/resources/uploadify/uploadify.swf",
+    uploader:ctx+"/admin/pic/uploadIndexPic",
+    fileObjName:"pic",
+    multi:false,
+    formData:{"sid":$("#sid").val()},
+    fileTypeExts:"*.jpg;*.png;",
+    onUploadSuccess:function(file, data, response) {
+      var ao = $.parseJSON(data);
+      if(ao.result) {
+        newName = ao.obj.newName;
+        oldName = ao.obj.oldName;
+        $("#indexPicView").append("<img src='"+ctx+"/resources/indexPic/temp/"+newName+"'/><br/><input type='button' value='确定选择' id='confirmSelect'/>");
+        indexPicWidth = ao.obj.indexPicWidth; //主页图片要求的宽
+        indexPicHeight = ao.obj.indexPicHeight;
+        imgWidth = ao.obj.imgWidth; //原图片的宽
+        imgHeight = ao.obj.imgHeight;
+        $("#indexPicView").before("<div id='pc' style='width:"+indexPicWidth+"px;height:"+indexPicHeight+"px;overflow:hidden;margin-bottom:5px;'><img id='preview' src='"+ctx+"/resources/indexPic/temp/"+newName+"'/></div>");
+        
+        $("#indexPicView img").Jcrop({
+          aspectRatio:indexPicWidth/indexPicHeight, //以固定比例来框选
+          onChange: showPreview,
+          onSelect: showPreview,
+          setSelect: [0,0,indexPicWidth,indexPicHeight] //默认选中的坐标
+        });
+        $("#confirmSelect").click(confirmSelect);
+      } else {
+        alert(ao.msg);
+      }
+    }
+  });
+  function showPreview(coords)
+  {
+    if (parseInt(coords.w) > 0)
+    {
+      var rx = indexPicWidth / coords.w;
+      var ry = indexPicHeight / coords.h;
+      x = coords.x;
+      y = coords.y;
+      h = coords.h;
+      w = coords.w;
+      jQuery('#preview').css({
+        width: Math.round(rx * imgWidth) + 'px',
+        height: Math.round(ry * imgHeight) + 'px',
+        marginLeft: '-' + Math.round(rx * coords.x) + 'px',
+        marginTop: '-' + Math.round(ry * coords.y) + 'px'
+      });
+    }
+  }
+  $("#uploadFile").click(function() {
+    $("#indexPic").uploadify("upload","*");
+  });
+  function confirmSelect() {  //上传框选的坐标到服务器
+    var path = ctx+"/admin/pic/confirmPic";
+    $.post(path,{w:w,h:h,x:x,y:y,newName:newName},function(data) {
+      if($.ajaxCheck(data)) {
+        $("#indexPicView").prev("#pc").remove(); 
+        $("#indexPicView").html("<img src='"+ctx+"/resources/indexPic/"+newName+"'/>");
+        $("#newName").val(newName);
+      }
+    },"json")
+  }
+  ---------------------------------
+  public @ResponseBody AjaxObj confirmPic(HttpSession session,int x,int y,int w,int h,String newName) {
+    AjaxObj ao = new AjaxObj();
+    try {
+      BaseInfo baseInfo = (BaseInfo)session.getServletContext().getAttribute("baseInfo");
+      int pw = baseInfo.getIndexPicWidth();
+      int ph = baseInfo.getIndexPicHeight();
+      String path = session.getServletContext().getRealPath("");
+      String tpath = path+FILE_PATH+"/temp/"+newName;
+      File tf = new File(tpath);
+      BufferedImage bi = ImageIO.read(tf);
+      String npath = path+FILE_PATH+"/"+newName;
+      String ttpath = path+FILE_PATH+"/thumbnail/"+newName;
+      Builder<BufferedImage> b = Thumbnails.of(bi);
+      //写原图
+      BufferedImage bi2 = b.sourceRegion(x, y, w, h).size(pw, ph).asBufferedImage();
+      b.toFile(npath);
+      //写缩略图
+      Thumbnails.of(bi2).scale((double)T_W/(double)pw).toFile(ttpath);
+      tf.delete();
+      ao.setResult(1);
+      return ao;
+    } catch (IOException e) {
+      e.printStackTrace();
+      ao.setResult(0);
+      ao.setMsg(e.getMessage());
+    }
+    return ao;
+  }
+
+首页图片排序：
+  1. 为首页图片添加排序字段pos
+  2. 在添加首页图片的时候让原来的所有图片的pos+1，新增的pos为1
+     在删除首页图片的时候，让大于该pos的所有图片的pos-1，然后删除
+  3. 在列表页面使用jquery ui的spiner来排序
+       1. 后台获取数据库中的最大pos，和最小pos，保存在页面hidden
+       2. 点击排序按钮后使用最大pos，最小pos来初始化该行的spiner
+       3. 选好排序序号，点确定后获取原序号，新序号，该图片的id， 使用dwr更新排序
+          如果newPos<oldPos, [newPos, oldPos)范围的图片的pos加1，然后更新该id的pos为newPos
+          如果newPos>oldPos, (oldPos, newPos]范围的图片的pos减1，然后更新该id的pos为newPos
+
+
+备份：
+  1. 数据库
+  2. 附件
+  3. 首页图片
+
+备份mysql数据库：
+  mysqldump -u root -p fz_cms > c:/cms.sql
+  如果不重定向，就会直接在cmd上把sql打印出来
+  如果想一次性把密码也输入，密码跟在-p后没空格，用户名跟在-u后没空格
+  mysqldump -uroot -proot fz_cms
+  ------------------
+  //备份mysql
+  public void testMySql() {
+    String cmd = "cmd /c mysqldump -ufz -pfz123 fz_cms";  // /c代表执行完后关闭cmd窗口
+    Process proc = Runtime.getRuntime().exec(cmd);
+    BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+    BufferedWriter bw = new BufferedWriter(new FileWriter("d:/fz.sql"));
+    String str = null;
+    while((str=br.readLine())!=null) {
+      bw.write(str);
+      bw.newLine();
+    }
+    br.close();
+    bw.close();
+  }
+  //恢复
+  public void testResume() {
+    String cmd = "cmd /c mysql -ufz -pfz123 fz_cms";
+    Process proc = Runtime.getRuntime().exec(cmd);
+    BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(proc.getOutputStream()));
+    BufferedReader br = new BufferedReader(new FileReader("d:/fz.sql"));
+    String str = null;
+    while((str=br.readLine())!=null) {
+      bw.write(str);
+      bw.newLine();  //使用PrintWriter的println就不需要newLine了
+    }
+    br.close();
+    bw.close();
+  }
+
+备份文件夹并压缩（使用apache compress）:
+打tar包：
+  @Test
+  public void testTarFile() {
+    String path = "d:/kh/stu";
+    String tp = "d:/stu.tar";
+    tarFile(path,tp);
+  }
+  
+  @Test
+  public void testUnTarFile() {
+    String path = "d:/test";
+    File f = new File("d:/stu.tar.gz");
+    unGzipFile(f);
+    unTarFile(new File("d:/stu.tar"), path);
+  }
+  
+  // 将path目录打包压缩成tar.gz   以下代码均省略try catch与流关闭
+  private void tarGzFile(String path,String tarFile) {
+    File f = new File(path);
+    //假设打包d:/a/b/c, len为d:/a/b/的长度，因为要以相对路径打包，在里面的文件获取绝对路径时要去掉前面长为len的字符串
+    int len = f.getParent().length(); 
+    TarArchiveOutputStream taos = new TarArchiveOutputStream(new FileOutputStream(tarFile));
+    taos.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU); //文件名过长会报错，要设置这个模式
+    tarFile(new File(path),taos,len);
+    gzipFile(new File(tarFile));
+  }
+  
+  //使用递归打tar包
+  private void tarFile(File file, TarArchiveOutputStream taos,int len) {
+    if(file.isDirectory()) {
+      File[] fs = file.listFiles();
+      for(File f:fs) {
+        tarFile(f,taos,len); 
+      }
+    } else {
+      FileInputStream fis = new FileInputStream(file);
+      // TarArchiveEntry tae = new TarArchiveEntry(file); //这种会以绝对路径的方式打包  c:/a/b/c/*
+      // 绝对路径打包的好处是：在linux系统中，可在根目录下解压
+      // 坏处是：而对windows，可能打包进去的根目录是c:/, 当放在其他盘时就无法解压了
+      TarArchiveEntry tae = new TarArchiveEntry(file.getParent().substring(len)+File.separator+file.getName()); // c/*
+      tae.setSize(file.length());
+      taos.putArchiveEntry(tae);
+      IOUtils.copy(fis, taos);
+    }
+  }
+
+  //打gz包
+  private void gzipFile(File file) {
+    GZIPOutputStream gos = new GZIPOutputStream(new FileOutputStream(file.getAbsolutePath()+".gz"));
+    FileInputStream fis = new FileInputStream(file);
+    IOUtils.copy(fis, gos);
+    file.deleteOnExit();
+  }
+
+  // 解压tar
+  private void unTarFile(File file,String path) {
+    TarArchiveInputStream tais = new TarArchiveInputStream(new FileInputStream(file));
+    TarArchiveEntry tae = null;
+    while((tae=tais.getNextTarEntry())!=null) {
+      String name = path+File.separator+tae.getName();//d:/test/stu/.classpath
+      FileOutputStream fos = null;
+      File ff = new File(name);
+      if(!ff.getParentFile().exists()) ff.getParentFile().mkdirs();
+      try {
+        fos = new FileOutputStream(ff);
+        IOUtils.copy(tais, fos);
+      } catch (Exception e) {
+        e.printStackTrace();
+      } finally {
+        if(fos!=null) fos.close();
+      }
+    }
+  }
+  
+  // 解压gz
+  private void unGzipFile(File file) { 
+    GZIPInputStream gis = new GZIPInputStream(new FileInputStream(file));
+    String path = file.getAbsolutePath();
+    path = path.substring(0,path.lastIndexOf("."));  //去掉.gz
+    FileOutputStream fos = new FileOutputStream(path);
+    IOUtils.copy(gis, fos); 
+    file.deleteOnExit();
+  }
+  
+上传到samba（需要使用jcifs的jar包）：
+  // 应该把ip username password sambauUrl这些写到配置文件
+  String ip = "192.168.101.2";
+  UniAddress ua = UniAddress.getByName(ip);
+  NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(ip, "s1", "123");
+  SmbSession.logon(ua, auth);//验证是否能够成功登录
+  //创建Smb文件,地址一定要使用smb://
+  SmbFile sf = new SmbFile("smb://"+ip+"/samba/goagent-goagent-7805174.zip", auth);
+  //上传到samba服务器
+  IOUtils.copyLarge(new FileInputStream("d:/goagent-goagent-7805174.zip"), sf.getOutputStream());  
+  // 从samba上下载
+  IOUtils.copyLarge(sf.getInputStream(), new FileOutputStream("e:/tt.zip"));
+  
+
+滚动图片：jquery cycle
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

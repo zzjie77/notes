@@ -1,0 +1,206 @@
+1.  使用 Junit 的最佳实践： 
+1）  新建一个名为 test 的source folder，用于存放测试类源代码 
+2）  目标类与测试类应该位于同一个包下面，这样测试类中就不必导入源代码
+所在的包，因为他们位于同一个包下面 
+3）  测试类的命名规则：假如目标类是 Calculator，那么测试类应该命名为
+TestCalculator 或者是CalculatorTest
+
+2.  测试类必须要继承于 TestCase 父类。
+
+3.  在 junit 3.8 中，测试方法需要满足如下原则： 
+1）. public 的 
+2）. void的 
+3）.  无方法参数 
+4）.  方法名称必须以 test 开头 
+
+4.  Test Case 之间一定要保持完全的独立性，不允许出现任何的依赖关系。 
+
+5.   我们不能依赖于测试方法的执行顺序。   
+
+6. 关于 setUp 与tearDown 方法的执行顺序： 
+1）  setUp 
+2）  testMethod 
+3）  tearDown 
+
+7. TestSuite(测试套件):可以将测试组合在一起，同时执行多个测试
+
+public static Test suite() {       //该方法是固定的
+		TestSuite suite = new TestSuite();
+		suite.addTestSuite(TestLagest.class);
+		suite.addTestSuite(TestMyStack.class);
+		suite.addTestSuite(DeleteAllTest.class);
+
+		suite.addTest(new RepeatedTest(new Calculator("testAdd"),20));		
+		return suite;
+	}
+}
+
+8.JUnit4全面引入了Annotation来执行我们编写的测试
+
+9. JUnit4并不要求测试类继承TestCase父类
+
+10.在一个测试类中，所有被@Test 修饰的public void的方法都是Test Case,可以被JUnit执行
+
+11.虽然JUnit4不要求测试方法不要求test开头，但最好以test开头
+
+12. @before修饰的方法对应于3.8的setUp方法。@After -> tearDown
+  @beforeClass  @afterClass 修饰的方法要是static的。
+@ignore可用于方法，类上。表示不执行
+
+13.参数化测试（Parameters）：当一个测试类使用参数化运行器运行时，需要在
+类的声明处加上@RunWith(Parameterized.class)注解，表示该类将不使用 JUnit
+内建的运行器运行，而使用参数化运行器运行；在参数化运行类中提供参数
+的方法上要使用@Parameters 注解来修饰，同时在测试类的构造方法中为各
+个参数赋值（构造方法是由 JUnit 调用的），最后编写测试类，它会根据参数
+的组数来运行测试多次。
+
+14. 在 JUnit  4 中，如果想要同时运行多个测试，需要使用两个注解：
+@RunWith(Suite.class)以及@Suite.SuiteClasses()，通过这两个注解分别指定使
+用 Suite 运行器来运行测试，以及指定了运行哪些测试类，其中的
+@SuiteClasses 中可以继续指定 Suite，这样 JUnit 会再去寻找里面的测试类，
+一直找到能够执行的 Test Case 并执行之。 
+
+
+模板方法模式的组成  (Template Method)
+– 父类角色：提供模板。 
+– 子类角色：为模板提供实现。 
+JUnit的模板方法模式:
+public void runBare() throws Exception {
+	setUp();
+	try{
+		runTest();
+	}
+	finally {
+		tearDown();
+	}
+}
+
+
+
+适配器模式  (Adapter)
+
+将一个类的接口转换成客户希望的另外一个接口。Adapter模式使得原本由于接口不
+兼容而不能一起工作的那些类可以一起工作
+
+目标抽象角色（Target） 
+– 定义客户要用的特定领域的接口 
+适配器（Adapter） 
+– 调用另一个接口，作为一个转换器 
+适配器（Adaptee） 
+– 定义一个接口，Adapter需要接入 
+客户端（Client） 
+– 协同对象符合Adapter适配器 
+
+1.  适配器模式（Adapter Pattern）主要分为三种： 
+1）  基于类的继承方式    （adapter继承adaptee）
+2）  基于对象组合方式   （adapter持有adaptee引用）
+3）  缺省的适配器模式（AWT，Swing事件模型所采用的模式） 
+
+使用断言测试：
+	1. 创建类HelloWorld
+	public class HelloWorld {
+		public String hello() {
+			return "world";
+		}
+		public String world() {
+			return "hello";
+		}
+		public String nil() {
+			return null;
+		}
+		public String notNil() {
+			return "abc";
+		}
+		public String ext() {
+			return null;
+		}
+	}
+	2. 使用junit3进行测试
+	public class TestHello extends TestCase {
+		private HelloWorld hw;
+		
+		@Override
+		protected void setUp() throws Exception {
+			super.setUp();
+			hw = new HelloWorld();
+			System.out.println("helloWorld init");
+		}
+		public void testHello() {
+			String str = hw.hello();
+			assertEquals("测试world失败", str, "world");
+		}
+		public void testWorld() {
+			String str = hw.world();
+			assertEquals("测试world失败", str,"hello");
+		}
+		public void testNotNil() {
+			assertNotNull("对象为空", hw.notNil());
+		}
+		public void testNil() {
+			assertNull("对象不为空", hw.nil());
+		}
+		public void testExt() {
+			try {
+				hw.ext();
+				fail("没有抛出异常");
+			} catch (NumberFormatException e) {
+			}
+		}
+		@Override
+		protected void tearDown() throws Exception {
+			super.tearDown();
+			System.out.println("hello world destory");
+			hw = null;
+		}
+	}
+	3. 使用junit4进行测试
+	import static org.junit.Assert.*;
+
+	public class TestHello {
+		private HelloWorld hw;
+		
+		@Before
+		public void setUp() {
+			hw = new HelloWorld();
+		}
+		@Test
+		public void testHello() {
+			String str = hw.hello();
+			assertEquals("hello 测试失败",str,"world"); //Assert.assertEquals(..
+		}
+		@Test
+		public void testWorld() {
+			String str = hw.world();
+			assertEquals("world 测试失败",str, "hello");
+		}
+		@Test
+		public void testNil() {
+			assertNull("对象不为空",hw.nil());
+		}
+		@Test
+		public void testNotNil() {
+			assertNotNull("对象为空", hw.notNil());
+		}
+		@Test(expected=NumberFormatException.class)
+		public void testExt() {
+			hw.ext();
+		}
+		@After
+		public void tearDown() {
+			hw = null;
+		}
+	}
+	注：junit3中的assert..方法是继承的，junit4是通过Assert.assert..来使用断言的。为了junit4可以平滑过渡到junit3.
+	    使用静态导入import static org.junit.Assert.*;这样就可以在junit4中使用assert..的方式使用断言。
+
+
+
+
+
+
+
+
+
+
+
+

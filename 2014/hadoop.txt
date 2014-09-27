@@ -1,0 +1,17 @@
+hadoop与sql的关系：
+	向外扩展代替向上扩展
+	键值对代替关系表
+	函数式编程(MapReduce)代替声明式查询(SQL)
+	hadoop最适合一次写入、多次读取的数据存储需求
+
+wordcount的multiset不能是基于内存的，要改写成基于磁盘的，否则很容易把内存用完
+数据文件要存储在多台机上，否则单台机的io跟不上，再多的机器运算也没用
+
+分区与洗牌（partition & shuffle）:
+	用wordcount举例，阶段一是map,阶段二是reduce. reduce是只有一台机在运行的。
+	要想阶段二以分布式运行，则要经过分区和洗牌阶段。假设阶段二26台机
+	不分区是将阶段一的所有单词放在一个wordcount(multiset)中，分区后则是不同字母开头的单词放在wordcount-a、wordcount-b ..中
+	洗牌则是将阶段一所有的wordcount-a迁移到机器A进行运算，wordcount-b迁移到wordcount-b中进行运算
+
+
+

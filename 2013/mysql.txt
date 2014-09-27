@@ -1,0 +1,322 @@
+mysql集群是指冗余技术
+mysql主从复制指负载均衡
+mysql -uroot -p123 -h192.168.10.1 test 连接远程服务器的test数据库
+select database(); #查看当前使用的数据库
+\s 查看数据库的状态，可以查看字符集
+
+Mysql主从复制 基础知识：
+1. Mysql用户授权
+	select user,host,password from mysql.user # 查看mysql的用户
+	? grant  #查看授权用户命令的帮助
+	grant all on *.* to 'user1'@192.168.0.2 identified by '123'   # *.*所有数据库的所有表
+
+2. Mysql bin-log日志
+	开启Mysal bin-log日志
+	vi /etc/my.cnf
+	..
+	log-show-queries=mysql-slow.log #慢查询日志。查询时间超过10秒的语句
+	log-error=mysql.err #错误记录
+	log=mysql.log
+	log-bin=mysql-bin #开启bin-log,日志文件以'mysql-bin'开头。bin-log保存了所有增删改的信息。 保存在/usr/local/mysql/var下
+
+3. 与bin-log有关的日志刷新
+	flush logs #此时就会多出一个最新的bin-log日志
+	show master status #查看最后一个bin日志
+	reset master #清空所有bin-log
+	mysqlbinlog --no-defaults mysql-bin.000002 | more #查看mysql-bin.000002日志文件
+	mysqlbinlog --no-defaults mysql-bin.000002 | mysql -uuser1 -p123 test #恢复数据
+	#mysqldump在9点备份了数据。 10点Mysql崩溃了。 那么9点到10点的数据就只能通过bin-log来恢复
+
+4. 备份与恢复数据
+	#备份
+	mysqldump -uroot -proot test -l -F > /tmp/test.sql
+	-l  读锁，在备份的时候可以读，不可以写
+	-F  备份完之后自动刷新bin-log
+	#mysqldump恢复
+	mysql -uroot -proot test -f < /tmp/test.sql 
+	-f 当遇到错误的时候skip,继续执行下去
+	#bin-log恢复
+	mysqlbinlog --no-defaults /usr/local/mysql/var/mysql-bin.000002 | mysql -uroot -proot test
+
+重启mysql
+ps -ef | grep mysql
+pkill mysqld 或 kill -9 pid
+mysql_safe --user=mysql &
+	
+
+主从复制，对于实时性要求不那么高的数据， 写数据写到主服务器，读数据在从服务器读。 从服务器每隔10秒(默认)去主服务器获取bin-log日志，并执行来实现同步
+主从复制具体步骤：
+	主：
+	1. 登陆mysql数据库
+		mysql -uroot -p123 test
+	2. 给从服务器设置授权用户
+		grant all slave on *.* to user1@192.168.10.2 identified by 'pass'
+	3. 修改master的配置文件,开启bin-log,并设置server-id   /etc/mysql/my.cnf
+		log-bin=mysql-bin
+		server-id=1
+	4. 在主服务器上设置读锁定有效，确保没有数据库操作，以便获得一个一致性的快照(选做)
+	   mysql>flush tables with read lock;
+	5. 查看主服务器上当前的二进制日知名和偏移量
+	   mysql>show master status;
+	6. 目前服务器已经停止了更新操作，生成主数据库的备份，备份有两种方式
+	  1）cp全部的数据
+	  2）mysqldump备份数据方法
+	  如果主数据库的服务可以停止，那么直接cp数据文件应该是最快的生成快照的放安防
+	  tar -cvf data.tar data
+	7. 主数据库备份完毕后，主数据库可以恢复写操作
+	   mysql>unlock tables;
+	8. 把主数据库的备份数据拷贝到从数据库上
+	也可以使用mysqldump -l来自动加锁，而不需要像上面一样手动加锁
+	mysql> reset master; #备份之前先清空bin-log日志
+	mysqldump -uroot -p123 test -l -F > /tmp/test.sql
+	scp /tmp/test.sql 192.168.10.2:/tmp/
+从服务器操作步骤：
+	1. 清空原来的bin-log
+		msyql> reset master
+	2. 恢复使用mysqldump备份的数据
+		mysql -uroot -p123 test < /tmp/test.sql
+	3. 修改在从服务器上的配置文件
+		server-id=2
+		master-host=192.168.10.1 
+		master-user=user1  #master 授权的用户
+		master-password=pass
+		master-port=3306
+		log-bin=mysql-bin
+	4. 重启mysql服务
+		如果是rpm..安装,有脚本， service restart mysql
+		如果没有. 先(pkill mysqld或kill -9 pid) 然后 mysql_safe --user=mysql &
+	5. 查看是否同步成功
+		show slave status \G  # \G是把行列反转， 列数太多在command line下很难看
+		如出现： Slave_IO_Running： yes 说明已经成功获得master的bin-log
+		如出现： Slave_SQL_Running: yes 说明已经成功执行bin-log
+
+
+当某个表的记录多于1000w时，数据库就会变得很慢
+解决办法主要有2种：大表拆小表、优化sql
+sql优化： 可以添加索引，但是数据量的增大会导致维护索引的成本增大
+大表拆小表：
+	1. vertical partitioning 垂直分表
+	2. horizontal partitioning 水平分表
+	水平分表虽然可以解决大数据的问题，但是一个表拆成多个表名，程序员很难去维护
+	mysql 5.1之后出现分区技术，分区的不同之处是，在逻辑上还可以使用同一个表名，这样对于程序来说不需要改动
+分区类型： range, list , hash, key
+range用得最多，其次是list. range用于某个列的值在一定的连续的范围内，
+而list是range的一个特例，list是一定范围内并且是枚举值
+如可将用户表按年龄进行range分区，0-30,30-60，61-90,90+
+可将用户表按性别进行list分区：男，女
+如果列是没规律的，可以用hash，hash通常用于测试分区
+create table t_user (id int not null, age int, sex int, birth date)
+partition by range (age) (
+	partition p0 values less than (30),
+	partition p1 valuesless than (60),
+	partition p2 valuesless than (90),
+	partition p3 valuesless than MAXVALUE
+);
+
+create table t_user (id int not null, age int, sex int )
+partition by list (sex) (
+	partition pmale values in than (1),
+	partition pfemale valuesless than (2)
+);
+
+create table t_user (id int not null, age int, sex int, birth date )
+partition by hash(birth) 
+partitions 4;
+
+使用show create table t1; 可以查看表的create语句，如果sql中没有partition说明不是分区表
+mysql的表保存在/var/test下，
+如果是普通表，则有3个文件t1.frm(结构文件)，t1.MYD（数据文件），t1.MYI（索引文件）
+如果是分区表，加入t2是按birth分了4个区，则有t2.frm, t2.par, (t2#P#p0.MYD,t2#P#p0.MYI)*4     分区表从p0到p3
+
+myisam引擎的增删改查速度是最快的，innodb没它快
+innodb的文件结构有两种：共享表空间，独立表空间
+共享表空间： 所有的表结构和表数据都保存在一个文件中,文件名叫ibdata1
+独立表空间： 每个表都有一个独立的frm表描述文件，还有一个.ibd文件(数据和索引)
+共享表空间默认创建表的时候就有10M，因为所有数据都保存在一个文件，所以这种方式分区是没有效果的
+要分区就要使用独立表空间，修改配置文件innodb_file_per_table = 1打开独立表空间
+
+select count(*) from t1; 
+select count(*) from t1 where t1.xx=xx;   
+不带where的比较快， 带where的要全表扫描一遍，不带where的是优化过的
+
+desc select count(*) from t1 where t1.c=xx  \G  
+可以通过rows来查看扫描的记录数，如果t1对c进行了range分区，那rows就是对应分区的记录数
+如果没分区，表的总记录数
+
+
+1.1 mysql表复制
+create table t2 like t1 #复制表结构
+insert into t2 select * from t1 #复制表数据
+
+1.2 mysql索引   ? index
+创建索引：
+	create index index_name on table_name(col_list);
+	create unique index index_name on table_name(col_list);
+	# create 和drop的方式不能用于主键索引，所以不建议使用，建议使用alter
+	alter table table_name add index index_name(col_list);
+	alter table table_name add unique(col_list); #也可以加名字， 默认以列名为索引名
+	alter table table_name add primary key(col_list);
+
+删除索引：
+	drop index index_name on table_name
+	alter table table_name drop index index_name
+	alter table table_name drop primary key #如果主键是auto_increment，则要先去除自增
+
+查看表的索引：
+	show index from table_name
+
+1.3 视图   ? view
+	create view v_t1 as select * from t1 where id>4 and id<8;
+	select * from v_t1; #视图的数据会随着表数据的变化而变化， 删了id=5的，视图也查不到
+
+1.4 内置函数
+字符串函数：
+	concat(str, [...]) 连接字符串
+	lcase(str), ucase(str) 小写大写
+	length(), ltrim(), rtrim()  
+	repeat(str, count)， replace(str, search_str, replace_str)
+	substr(str, pos [, len])  pos开始取len个字符， space(n)  n个空格
+数学函数：
+	bin(num) 十进制转二进制, sqrt()开平方， rand() 0-1内的随机数
+	celling(), floor(), max(n1, n2), min(n1, n2)
+	select * from t1 order by rand() 取数据随机排序
+日期函数：
+	curdate() 日期， curtime()时间， now() 日期和时间
+	unix_timestamp(date) date的unix时间戳， from_unixtime()返回unix时间戳的日期值
+	week(date) 一年中第几周， year(date) 取年份， datediff(expr1, expr2)相差天数
+
+1.5 预处理语句。  提前编译sql, 这样可以多个相同句式的语句只编译一次
+	mysql> prepare stmt1 from 'select * from t1 where id>?';
+	mysql> set @i=1
+	mysql> select @i
+	mysql> execute stat1 using @i; #查询id>1的
+	mysql> drop prepare stmt1;  
+
+
+1.6 事务处理.  myisam引擎不支持事务，所以要用innodb
+	#alter table t1 engine=innodb
+	set autocommit=0 #关闭自动提交 select @@autocommit
+	delete from t1 where id=1
+	savepoint p1; 做一个还原点
+	delete from t1 where id=2
+	savepoint p2; 
+	rollkback to p1;  还原到p1， 此时p2会失效
+	rollback;   还原到最初状态
+	commit; 提交，没提交之前可以rollback
+	
+1.7 存储
+	创建一个存储p1();
+	mysql> \d //   # 等于delimiter //
+	mysql> create procedure p1()
+	-> begin 
+	-> set @i=0;
+	-> while @i < 10 do
+	-> select @i;
+	-> set @i=@i+1;
+	-> end while;
+	-> end;
+	-> //
+	执行存储p1();
+	mysql> \d ;
+	mysql> call p1();
+	查看procedure p1()的状态
+	mysql> show procedure p1 status \G
+	查看procedure p1()的具体信息:
+	mysql> show create procedure p1 \G
+
+1.8 触发器：
+	mysql> \d //
+	msyql> create trigger tg3 before update on t1 for each row
+	> begin udpate t2 set id=new.id where id=old.id;
+	> end//
+	mysql> \d ;
+	查看触发器： show trigger;
+
+1.9 重排auto_increment的值
+	清空表不要delete from t1; 慢，是一条条删除的，而且auto_increment不会重置
+	truncate table t1;  快，可重置auto_increment
+	alter table table_name auto_increment=1 不清表的情况下重 置
+	
+
+2.1 正则使用（比like更消耗资源，不建议）
+	select * from t1 where t1.email regexp "@163[,.]com$"
+
+2.2 使用rand()提取随机行
+	select * from stu order by rand() limit 3;  #随机取3行	
+
+2.3 利用group by的with rollup	
+2.5 外键。 myisam可以创建外键成功，但是不起作用
+2.6 ?
+	mysql> ? contents  #涵盖了所有的命令
+	-> ? functions
+	-> ? string functions
+	-> ? upper
+2.7 \G   当列特别多的时候，可以以这种方式显示，将每一行以列的方式显示
+
+3.1 优化sql的一般步骤：
+	3.1.1 通过show status命令了解各种sql的执行频率
+		show [session|global] status ;
+		sesseion是默认的，表示当前连接。 global是指数据库启动至今
+		show status like 'Com_%'; 
+		只针对innodb引擎的：InnoDB_rows_...  执行CRUD的影响行数。 Com_..是对所有表的，而且是sql的次数，而InnodDB_rows..是影响行数
+		其他：connections: 连接mysql的次数，包括连接失败的
+		Uptime: mysql启动到现在的秒数
+	Slow_queryies:慢查询的次数 (要先开启慢查询才能看)，默认超过10秒为慢查询
+	3.1.2 定位执行效率底的sql语句   explain和desc效果是一模一样的
+		1） explain select * from table where id=1000;
+		2） desc select * from table where id=1000;
+		看影响函数，是否使用了索引，单表查询还是多表查询
+	每一列的解析：
+		id:1
+		select_type:simple(简单表，不使用表连接或者子查询)、primary(主查询)、union、subquery
+		table: stu(表名)
+		type:range 表示表的连接类型，性能好到查：system(表只有一行)、const(只有一行匹配)、eq_ref(对于每一行使用主键和唯一)、ref(同ref，但没使用主键和唯一)、ref_or_null(同前面对null查询)、index_of_merge(索引合并优化)、unique_subquery(主键子查询)、index_subquery(非主键子查询)、range(范围查询)、index(都通过查询索引来获取数据)、all(全表扫描)
+		possible_keys: name 查询可能用到的索引
+		key: name 实际使用的索引
+		key_len: 40 索引字段的长度
+		ref: null
+		rows: 10 扫描表的行数
+		Extra: Using where, Using index 执行情况的说明和描述
+	
+	3.1.2
+		对索引列使用like, %放在前面不使用索引，%放在最后才使用索引
+		and, or 的条件必须所有列都是索引才有用，其中有一个不是索引，其他条件也不会用索引
+	3.2.2 对于varchar类型的字段，如果name=123不加引号，就不会使用索引	
+	3.2.3 查看索引使用情况
+		show status like 'Handler_read%'	
+		Handler_read_rnd_next的值越高，说明查询效率越低，说明需要使用索引
+	3.3.1 检测表
+	如创建了一个试图v_t1, 试图依赖t1, 当t1被删除时。v_t1就出问题
+	使用check table v_t1就可以看错误信息。
+	3.3.2 定期优化表 
+	optimize table t1;  如果删除或增加了表字段，可能会有碎片，导致一些空间没释放
+
+插入数据时，使用insert values(),()插入过个会更快
+插入时，关闭唯一索引，和自动提交也会加快。
+
+优化group by, group by默认会加order by 索引，如果不需要排序就可以通过order by null去掉
+
+读锁 local table  t1 read; 这时自己能读不能写，别人也能读不能写
+unlocal tables; 解锁。 解锁后才能增删改
+写锁 local table  t1 write; 这时自己能读写，别人不能读也不能写
+
+忘记密码：
+	service mysqld stop
+	mysql_safe --skip-grant-tables --user=mysql &
+	mysql -uroot  #此时登陆就不需要密码了
+	update mysql.user password=password('123') where user='root' and host='localhost'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

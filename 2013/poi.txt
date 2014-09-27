@@ -1,0 +1,104 @@
+hello world:
+public class PoiTest {
+	//一下代码省略了try catch
+	@Test
+	public void test01() {
+		Workbook wb = WorkbookFactory.create(new File("d:/test/aa.xls"));
+		Sheet sheet = wb.getSheetAt(0);
+		Row row = sheet.getRow(0);
+		Cell cell = row.getCell(0);
+		System.out.println(cell.getCellType()); //获取cell的类型，有 Cell.CELL_TYPE_BLANK, NUMERIC, STRING, FORMULA, BOOLEAN, ERROR
+		System.out.println(cell.getStringCellValue()); //获取cell的字符串值，如果cell中的值不是String,会抛异常
+	}
+
+	@Test
+	public void testList01() {
+		Workbook wb = WorkbookFactory.create(new File("d:/test/aa.xls"));
+		Sheet sheet = wb.getSheetAt(0);
+		Row row = null;
+		System.out.println(sheet.getLastRowNum());
+		for (int i = 0; i <= sheet.getLastRowNum(); i++) { //最后一行的索引
+			row = sheet.getRow(i);
+			for (int j = row.getFirstCellNum(); j < row.getLastCellNum(); j++) { //最后一列的索引+1
+				System.out.print(getValue(row.getCell(j)) + "---");
+			}
+			System.out.println();
+		}
+	}
+
+	@Test
+	public void testList02() {
+		Workbook wb = WorkbookFactory.create(new File("d:/test/aa.xls"));
+		Sheet sheet = wb.getSheetAt(0);
+		//也支持增强for循环的方式
+		/**
+		 * 注意该种方式使用不多，因为读取的数据并不一定是从第一行开始的，
+		 * 而且结束的数据也不一定就是最后一行
+		 */
+		for(Row row : sheet){
+			for(Cell cell : row) {
+				System.out.print(getValue(cell)+"---");
+			}
+			System.out.println();
+		}
+	}
+	
+	@Test
+	public void testWrite01() {
+		Workbook wb = new HSSFWorkbook();
+		FileOutputStream fos = new FileOutputStream(new File("d:/test/testWrite01.xls"));
+		Sheet sheet = wb.createSheet("sheet01");
+		Row row = sheet.createRow(0);
+		//设置行高
+		row.setHeightInPoints(30);
+		//创建样式  (这种方式来设置样式是显示的，应该使用excel模版来设置样式)
+		CellStyle style = wb.createCellStyle();
+		style.setAlignment(CellStyle.ALIGN_CENTER);
+		style.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
+		style.setBorderBottom(CellStyle.BORDER_DOTTED); 
+		style.setBorderLeft(CellStyle.BORDER_THIN); 
+		style.setBorderRight(CellStyle.BORDER_THIN);
+		style.setBorderTop(CellStyle.BORDER_THIN);
+		//row.setRowStyle(style);
+		//创建单元格
+		Cell cell = row.createCell(0);
+		cell.setCellValue("张三");
+		cell.setCellStyle(style);
+		cell = row.createCell(1);
+		cell.setCellValue("李四"); 
+		cell.setCellStyle(style);
+		cell = row.createCell(2);
+		cell.setCellValue("王五"); 
+		cell.setCellStyle(style);
+		//写到输出流
+		wb.write(fos);
+		fos.close();
+	}
+
+	/** 根据cell的类型获取值，返回对应的String值*/
+	private String getValue(Cell cell) {
+		String s = null;
+		switch (cell.getCellType()) {
+		case Cell.CELL_TYPE_BLANK:
+			s = "";
+			break;
+		case Cell.CELL_TYPE_BOOLEAN:
+			s = String.valueOf(cell.getBooleanCellValue());
+			break;
+		case Cell.CELL_TYPE_FORMULA:
+			s = String.valueOf(cell.getCellFormula());
+			break;
+		case Cell.CELL_TYPE_NUMERIC:
+			s = String.valueOf(cell.getNumericCellValue());
+			break;
+		case Cell.CELL_TYPE_STRING:
+			s = cell.getStringCellValue();
+			break;
+		default:
+			break;
+		}
+		return s;
+	}
+}
+
+

@@ -1,0 +1,371 @@
+1. <img src='<s:property value="logoPhotoPath">' />会输出堆栈中的logoPhotoPath属性:/upload/xx.jpg
+如果要带项目名称就使用：<img src='<s:url value="${logoPhotoPath}">' /> 输出：/xx/upload/xx.jpg
+
+2.struts2上传：
+	1) 在action中加下属性及对应的getter、setter：
+	private File logoPhoto;
+	private String logoPhotoFileName;
+	private String logoPhotoContentType;
+	2) action中的上传方法实现
+	public String doAddLogo() {
+		// 如果文件名合法才允许上传（判断是为空或空字符串）
+		if (ValidateUtil.isValid(logoPhotoFileName)) {
+			// 获得upload目录的绝对路径
+			String dir = ServletActionContext.getServletContext().getRealPath("/upload");
+			// 构建文件名(纳秒级时间+后缀)
+			long l = System.nanoTime();
+			String ext = logoPhotoFileName.substring(logoPhotoFileName.lastIndexOf("."));
+			File newFile = new File(dir, l + ext);
+			// 将logoPhoto改名到新目录下
+			logoPhoto.renameTo(newFile);
+			// 更新数据库
+			surveyService.updateLogoPhotoPath(sid, "/upload/" + l + ext);
+		}
+		return "designSurveyAction";
+	}	
+	3）限制文件大小，文件扩展名，文件类容类型
+	<action ..>  
+	    ..
+	    <!-- 覆盖拦截器的某些属性 -->
+            <interceptor-ref name="LoginStack">
+            	<!-- 限制文件上传大小 -->
+            	<param name="fileUpload.maximumSize">200000</param>
+            	<!-- 限制文件扩展名 -->
+            	<param name="fileUpload.allowedExtensions">jpg,bmp,png,jpeg,gif</param>
+            	<!-- 限制文件扩类型  -->
+            	<param name="fileUpload.allowedTypes">image/pjpeg,image/jpg,image/bmp,image/png,image/jpeg,image/gif</param>
+            	<!-- 使用自定义的消息文件  -->
+            	<param name="fileUpload.useActionMessageBundle">true</param>
+            </interceptor-ref>
+	</action>
+
+3. struts2 interceptor中获得actionName和namespace
+	ActionProxy proxy = invocation.getProxy();
+	String ns = proxy.getNamespace();
+	String actionName = proxy.getActionName();
+
+4. 拦截器中获得spring容器
+	ServletContext sc = ServletActionContext.getServletContext();
+	//获取spring容器
+	WebApplicationContext ctx = WebApplicationContextUtils.getWebApplicationContext(sc);
+
+5. 权限控制（获取url）：在开发阶段，通过拦截器获取所有url，如果该url在数据库权限表中不存在，则添加记录到数据库中。
+	public String intercept(ActionInvocation invocation) throws Exception {
+		if(!enable){
+			return invocation.invoke();
+		}
+		ActionProxy proxy = invocation.getProxy();
+		String ns = proxy.getNamespace();
+		String actionName = proxy.getActionName();
+		if(!ValidateUtil.isValid(ns) || ns.equals("/")){
+			ns = "" ;
+		}
+		//
+		String url = ns + "/" + actionName ;
+		
+		ServletContext sc = ServletActionContext.getServletContext();
+		//通过spring工具类获得application范围的spring容器
+		ApplicationContext ac = WebApplicationContextUtils.getWebApplicationContext(sc);
+		//得到servletcontext范围中的spring容器
+		//ApplicationContext ac = (ApplicationContext) sc.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
+		//得到rightService
+		RightService rs  = (RightService) ac.getBean("rightService");
+		rs.addRight(url);
+			/**
+			 * 通过url追加权限
+			 */
+			public void addRight(String url){
+				String hql = "from Right r where r.rightUrl = ?" ;
+				List<Right> rights = this.findEntityByHQL(hql, url);
+				if(!ValidateUtil.isValid(rights)){
+					Right r = new Right();
+					r.setRightUrl(url);
+					this.saveOrUpdateRight(r);
+				}
+			}
+		return invocation.invoke();
+	}
+
+6. 在applicationListener中使用@resource注解，服务器启动的时候有异常
+	@Component()
+	public class InitRightListener implements ApplicationListener,ServletContextAware{
+		/* 注入RightService */
+		@Resource
+		private RightService rightService ;
+		
+		/* 接受servletContext */
+		private ServletContext servletContext;
+		
+		public void onApplicationEvent(ApplicationEvent event) {
+			if(event instanceof ContextRefreshedEvent){
+				System.out.println(event);
+				List<Right> rights = rightService.findAllRights();
+				Map<String, Right> map = new HashMap<String, Right>();
+				for(Right r : rights){
+					map.put(r.getRightUrl(), r);
+				}
+				//
+				servletContext.setAttribute("all_right_map",map);
+				System.out.println("权限map初始化完成");
+			}
+		}
+		
+		/**
+		 * 注入ServletContext
+		 */
+		public void setServletContext(ServletContext servletContext) {
+			this.servletContext = servletContext ;
+		}
+	}
+
+异常如下：
+javax.naming.NameNotFoundException: Name cn.itcast.surveypark.listener.InitRightListener is not bound in this Context
+
+原因：实现spring的ApplicationListener的listener不需要在web.xml中配置。配置了会产生异常
+
+7.  序列化接口通常应用于网络传输或磁盘存储
+序列化版本id的作用：假设服务器端和客户端都有User类。如果没有显示声明版本id，修改了其中一端的User类（增、删、改属性）
+那么对应的版本id也会随之修改。服务器端发送User类的字节码到客户端，在客户端进行反序列化的过程中发现版本id不一致，
+就会抛出异常。如果两端显示声明了一致的版本id，在反序列化过程就可能成功可能失败
+（若客户端的属性服务器端不存在则使用默认值，若属性都存在但类型不一致可能会出现转换异常。。。）。
+如果想类中的某个属性不进行序列化。可以在属性上加上transien t关键字修饰
+
+8. 调用服务可以使用webservice，也可用spring远程调用。 spring远程调用配置：
+	创建web服务器项目
+		1.引入类库
+			引入spring类库
+			引入spring-webmvc.jar
+		2.配置web.xml
+			<?xml version="1.0" encoding="UTF-8"?>
+			<web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee 
+				http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+				<!-- 配置spring的servlet -->
+				<servlet>
+					<servlet-name>service</servlet-name>
+					<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+				</servlet>
+				<servlet-mapping>
+					<servlet-name>service</servlet-name>
+					<url-pattern>*.service</url-pattern>
+				</servlet-mapping>
+				<welcome-file-list>
+					<welcome-file>index.jsp</welcome-file>
+				</welcome-file-list>
+			</web-app>
+		3.创建接口和实现类
+			public interface WelcomeService {
+				public void sayHello(String name);
+				public int getLength(String str);
+				public List<Student> getStudents(int n);
+			}
+
+			public class WelcomeServiceImpl implements WelcomeService {
+				public void sayHello(String name) {
+					System.out.println(name);
+				}
+				...
+			}
+		4.创建web-inf/${servlet名称}-servlet.xml
+			<?xml version="1.0"?>
+			<beans xmlns="http://www.springframework.org/schema/beans"
+				xmlns:context="http://www.springframework.org/schema/context"
+				xmlns:tx="http://www.springframework.org/schema/tx" 
+				xmlns:aop="http://www.springframework.org/schema/aop"
+				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+				xsi:schemaLocation="http://www.springframework.org/schema/beans 
+									http://www.springframework.org/schema/beans/spring-beans-2.5.xsd 
+									http://www.springframework.org/schema/context 
+									http://www.springframework.org/schema/context/spring-context-2.5.xsd 
+									http://www.springframework.org/schema/tx 
+									http://www.springframework.org/schema/tx/spring-tx-2.5.xsd 
+									http://www.springframework.org/schema/aop 
+									http://www.springframework.org/schema/aop/spring-aop-2.5.xsd ">
+				<!-- pojo -->
+				<bean id="ws" class="cn.itcast.spring.service.WelcomeServiceImpl">
+				</bean>
+				
+				<!-- 通过http导出器将pojo导出成action，这里要使用name，不能使用id -->
+				<bean name="/httpws.service" class="org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter">
+					<property name="serviceInterface">
+						<value>cn.itcast.spring.service.WelcomeService</value>
+					</property>
+					<property name="service" ref="ws" />
+				</bean>
+			</beans>
+
+	创建java客户端项目
+		引入spring类库
+		复制服务器端接口到客户端中.
+		创建客户端配置文件.
+			
+使用spring远程调用将统计服务对外公开,以便于远程访问.
+	1.引入spring-webmvc类库
+	2.配置web.xml(DispatcherServlet)
+		<web-app>
+			...
+			<!-- 配置spring远程调用的servlet -->
+			<servlet>
+				<servlet-name>service</servlet-name>
+				<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+				<!-- 通过初始化参数,指定具体的配置文件的位置 -->
+				<init-param>
+					<param-name>contextConfigLocation</param-name>
+					<param-value>classpath:remote.xml</param-value>
+				</init-param>
+			</servlet>
+			<servlet-mapping>
+				<servlet-name>service</servlet-name>
+				<url-pattern>*.service</url-pattern>
+			</servlet-mapping>
+			<welcome-file-list>
+				<welcome-file>index.jsp</welcome-file>
+			</welcome-file-list>
+		</web-app>
+	3.配置src/remote.xml
+		<?xml version="1.0"?>
+		<beans xmlns="http://www.springframework.org/schema/beans"
+			xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			xsi:schemaLocation="http://www.springframework.org/schema/beans 
+								http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+			<!-- 通过导出器导出统计服务,对外公开 -->
+			<bean name="/httpStatisticsService.service" class="org.springframework.remoting.httpinvoker.HttpInvokerServiceExporter">
+				<property name="serviceInterface">
+					<value>cn.itcast.surveypark.service.StatisticsService</value>
+				</property>
+				<property name="service" ref="statisticsService" />
+			</bean>
+		</beans>
+	4.添加QuestionStatistics和OptionStatisticsModel类增加Serializable接口,以便能够串行化.
+	  添加QuestionStatistics类中的question属性设置transient关键字,以便串行化时不包含该属性.
+		public class QuestionStatisticsModel implements Serializable{
+			private transient Question question ;
+			...
+		}
+	
+		public class OptionStatisticsModel implements Serializable{
+			...
+		}
+
+
+	5.配置web.xml文件中上下文参数指定多个spring配置文件.
+		<web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee 
+			http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+			<!-- 通过上下文参数指定spring配置文件的位置 -->
+			<context-param>
+				<param-name>contextConfigLocation</param-name>
+				<param-value>classpath:beans.xml,classpath:remote.xml</param-value>
+			</context-param>
+			...
+		</web-app>
+
+	6.客户端项目中配置构建路径,引用服务器项目,以便能够使用到服务器声明的所有的类.
+	7.配置client.xml
+		<bean id="ss" class="org.springframework.remoting.httpinvoker.HttpInvokerProxyFactoryBean">
+			<property name="serviceInterface">
+				<value>cn.itcast.surveypark.service.StatisticsService</value>
+			</property>
+			<property name="serviceUrl">
+				<value>http://localhost:8085/lsn_surveypark/httpStatisticsService.service</value>
+			</property>
+		</bean>
+	8.编写测试方法
+		ApplicationContext ac = new ClassPathXmlApplicationContext("client.xml");
+		StatisticsService ss = (StatisticsService) ac.getBean("ss");
+		ss.statistics(1);
+
+使用spring缓存模块配置servcie缓存.
+	1.引入spring缓存类库
+		 spring-modules-cache.jar
+	2.引入第三方缓存的供应商
+		backport-util-concurrent.jar
+		ehcache-1.4.1.jar
+		jsr107cache-1.0.jar
+	3.配置ehcache配置文件(src/ehcache.xml),配置过期策略
+		<ehcache>
+			<diskStore path="java.io.tmpdir"/>
+			<defaultCache
+					maxElementsInMemory="10000"
+					eternal="false"
+					timeToIdleSeconds="120"
+					timeToLiveSeconds="120"
+					overflowToDisk="true"
+					maxElementsOnDisk="10000000"
+					diskPersistent="false"
+					diskExpiryThreadIntervalSeconds="120"
+					memoryStoreEvictionPolicy="LRU"
+					/>
+		</ehcache>
+	4.配置spring的缓存配置文件(src/serviceCache.xml)
+		<beans xmlns="http://www.springframework.org/schema/beans"
+			xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			xmlns:ehcache="http://www.springmodules.org/schema/ehcache"
+			xsi:schemaLocation="http://www.springframework.org/schema/beans
+								http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+								http://www.springmodules.org/schema/ehcache
+								http://www.springmodules.org/schema/cache/springmodules-ehcache.xsd">
+			<!-- 配置ehcache缓存过期策略文件配置 -->
+			<ehcache:config configLocation="classpath:ehcache.xml"/>
+			<!-- 缓存代理 -->
+			<ehcache:proxy id="surveyServiceCacheProxy" refId="surveyService">
+				<!-- 缓存数据 -->
+				<ehcache:caching methodName="get*" cacheName="surveycache"/>
+				<ehcache:caching methodName="load*" cacheName="surveycache"/>
+				<ehcache:caching methodName="find*" cacheName="surveycache"/>
+				
+				<!-- 清除缓存 -->
+				<ehcache:flushing methodName="save*" cacheNames="surveycache" when="after"/>
+				<ehcache:flushing methodName="delete*" cacheNames="surveycache" when="after"/>
+				<ehcache:flushing methodName="update*" cacheNames="surveycache" when="after"/>
+				<ehcache:flushing methodName="batch*" cacheNames="surveycache" when="after"/>
+			</ehcache:proxy>
+		</beans>
+	5.将缓存代理注入Action
+		EngageSurveyAction{
+			@Resource(name="surveyServiceCacheProxy")
+			private SurveyService surveyService ;
+		}
+	6.配置web.xml文件,将缓存配置文件一同加载进来.
+		<context-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>classpath:beans.xml,classpath:remote.xml,classpath:serviceCache.xml</param-value>
+		</context-param>
+		
+注意事项:
+	登陆完成并计算完权限总值后,需要将user的roles集合置空,不然会导致大量的对象存放到session中.
+	LogicAction{
+		...
+		/**
+		 * 进行登陆
+		 */
+		public String login(){
+			String hql = "from User u where u.email = ? and u.password = ?" ;
+			List<User> list = userService.findEntityByHQL(hql, model.getEmail(),model.getPassword());
+			if(ValidateUtil.isValid(list)){
+				User u = list.get(0);
+				//初始化权限总值数组
+				Integer max = (Integer) rightService.uniqueResult("select max(r.rightPos) from Right r");
+				if(max == null){
+					u.setRightSum(new long[0]);
+				}
+				else{
+					u.setRightSum(new long[max + 1]);
+				}
+				//计算权限总值
+				u.calculateRightSum();
+				/**************************************************************************/
+				//一定要设置null,不会在session存放对象.
+				u.setRoles(null);
+				/**************************************************************************/
+				sessionMap.put("user", u);
+				return SUCCESS ;
+			}
+			else{
+				addActionError("email/password信息不正确!!");
+				return INPUT;
+			}
+		}
+		...
+	
+	}

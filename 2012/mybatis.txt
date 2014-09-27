@@ -1,0 +1,383 @@
+helloworld：
+	1. 将mybatis-3.1.0.jar和数据库驱动拷贝到项目中
+	2. 创建mybatis-config.xml，加入dtd（可在文档中找到），完成数据库的连接配置
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE configuration
+		  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+		  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+		<configuration>
+		  <properties resource="jdbc.properties"/>
+		  <typeAliases>
+		    <package name="itat.zttc.shop.model"/>
+		  </typeAliases>
+		  <environments default="development">
+		    <environment id="development">
+		      <transactionManager type="JDBC"/>
+		      <dataSource type="POOLED">
+			<property name="driver" value="${driver}"/>
+			<property name="url" value="${url}"/>
+			<property name="username" value="${username}"/>
+			<property name="password" value="${password}"/>
+		      </dataSource>
+		    </environment>
+		  </environments>
+		  <mappers>
+		    <mapper resource="com/zzjie/shop/model/UserMapper.xml"/>
+		    <!--<mapper class="com.zzjie.shop.mapper.UserMapper"/>-->
+		  </mappers>
+		</configuration>
+	3. 创建UserMapper.xml，并加入如下配置
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		<mapper namespace="com.zzjie.shop.model.User">
+			<insert id="add" parameterType="com.zzjie.shop.model.User">
+				insert into t_user(username, password, nickname, type) value
+					(#{username}, #{password}, #{nickname}, #{type});
+			</insert>
+			
+			<update id="update" parameterType="com.zzjie.shop.model.User">
+				update t_user set username=#{username}, password=#{password},
+					nickname=#{nickname}, type=#{type} where id=#{id};
+			</update>
+			
+			<delete id="delete" parameterType="int">
+				delete from t_user where id=#{id}
+			</delete>
+			
+			<select id="load" parameterType="int" resultType="User">
+				select * from t_user where id=#{id}
+			</select>
+			
+			<select id="list" resultType="User">
+				select * from t_user
+			</select>
+		</mapper>
+	4. 编写测试程序
+	public void testAdd() {
+		SqlSession session = null;
+		try {
+			session = MybatisUtil.createSession();
+			User u = new User();
+			u.setNickname("张三");
+			u.setPassword("123");
+			u.setType(0);
+			u.setUsername("zhangsan");
+			//session.insert("com.zzjie.shop.model.User.add", u); //第一个参数是mapper文件的namespace+"."+id
+			session.insert(User.class.getName()+".add", u); //等同上面那句,不用直接写字符串，更好
+			
+			//session.update(User.class.getName()+".update", u);
+			//session.delete(User.class.getName()+".delete", 7);
+			//User u = session.selectOne(User.class.getName()+".load", 4);
+			//List<User> users = session.selectList(User.class.getName()+".list");
+
+			session.commit();
+		} catch (Exception e) {
+			e.printStackTrace();
+			session.rollback();
+		}  finally {
+			session.close();
+		}
+	}
+	注：
+		1. ${driver}会引用<properties resource="jdbc.properties"/>中的内容
+		2. sql语句中的#{id}会访问parameterType的getId方法。
+		3. parameterType如果是一个类，要写全路径名称。也可在mybatis-config.xml文件中定义别名
+			  <typeAliases>
+			    <package name="com.zzjie.shop.model"/>
+			  </typeAliases>
+	           会自动扫描com.zzjie.shop.model包下所有的类，把每个类的全路径名起别名为它的简单类名
+		4. session.insert(User.class.getName()+".add", u);除了这种方式还可以这样session.getMapper(UserMapper.class).add(u)；
+		   需要定义一个接口UserMapper
+			public interface UserMapper {
+				public void add(User u);
+				public void update(User u);
+				public void delete(int id);
+				public User load(int id);
+				public List<User> list();
+			}
+		   修改xxmapper.xml文件
+		   <!-- <mapper namespace="com.zzjie.shop.model.User"> -->
+		   <mapper namespace="com.zzjie.shop.mapper.UserMapper">
+		5. 还可以不用xxmapper.xml文件，使用annotation方式。也需要定义一个接口。（不推荐使用）
+			@Insert("insert into t_user(username, password, nickname, type) value (#{username}, #{password}, #{nickname}, #{type})")
+			public void add(User u);
+			@Update
+			..
+		   这种方式要在mybatis-config.xml文件中修改
+		   <!--  <mapper resource="com/zzjie/shop/model/UserMapper.xml"/> -->
+		   <mapper class="com.zzjie.shop.mapper.UserMapper"/>
+			
+
+为了使用方便，创建MybatisUtil类：
+	public class MybatisUtil {
+		private static SqlSessionFactory factory;
+		static{
+			try {
+				InputStream is = Resources.getResourceAsStream("mybatis-config.xml");
+				factory = new SqlSessionFactoryBuilder().build(is);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		public static SqlSession createSession(){
+			return factory.openSession();
+		}
+		
+		public static void closeSession(SqlSession session){
+			if (session != null) session.close();
+		}
+	}
+
+加入log4j可以查看mytabis发出的sql语句
+
+分页查询：
+	1. 创建Pager类和SystemContext类
+	2. 写mapper文件：
+		<mapper namespace="com.zzjie.shop.model.User">
+			<select id="find" resultType="User" parameterType="map">
+				select * from t_user where (username like #{name} or nickname like #{name})
+					order by ${sort} ${order}
+					limit #{pageOffset},#{pageSize}
+			</select>
+			
+			<select id="find_count" resultType="int" parameterType="map">
+				select count(*) from t_user where (username like #{name} or nickname like #{name})
+			</select>
+		</mapper>
+	3. dao实现：
+		public Pager<User> find(String name) {
+			int pageOffset = SystemContext.getPageOffset();
+			int pageSize = SystemContext.getPageSize();
+			String sort = SystemContext.getSort();
+			String order = SystemContext.getOrder();
+			SqlSession session = MyBatisUtil.createSession();
+			Pager<User> pager = new Pager<User>();
+			try {
+				Map<String, Object> params = new HashMap<String, Object>();
+				params.put("name", "%"+name+"%");
+				params.put("pageOffset", pageOffset);
+				params.put("pageSize", pageSize);
+				params.put("sort", sort);
+				params.put("order", order);
+				List<User> datas = session.selectList(User.class.getName()+".find", params);
+				int totalRecord = session.selectOne(User.class.getName()+".find_count", params);
+				pager.setDatas(datas);
+				pager.setTotalRecord(totalRecord);
+				pager.setPageOffset(pageOffset);
+				pager.setPageSize(pageSize);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return pager;
+		}
+	注：${sort} ${order}与#{sort} #{order}的区别，#会使用?号替代，然后用preparedStatment.setParameter().
+	     所以如果是sort是String，那产生的sql语句就是order by 'id' 'desc'。$会使用等值替代。不会附加单引号
+
+动态sql：
+	<select id="find" resultType="User" parameterType="map">
+		select * from t_user where 1=1
+			<if test="name!=null">and (username like #{name} or nickname like #{name})</if>
+			<if test="type!=null">and type=#{type}</if>
+			<if test="sort!=null">
+				order by ${sort}
+				<choose>
+					<when test="order!=null">${order}</when>
+					<otherwise>asc</otherwise>
+				</choose>
+			</if> 
+			limit #{pageOffset},#{pageSize}
+	</select>
+	注：上面的where子句可改写为如下：
+		<where>
+			<if test="name!=null">(username like #{name} or nickname like #{name})</if>
+			<if test="type!=null">and type=#{type}</if>
+		</where>
+	
+mybatis-config.cml和mapper.xml文件的dtd文件在org.apache.ibatis.builder.xml下
+
+BaseDao实现：
+	public class BaseDao<T> {
+		public void add(T obj) {
+			SqlSession session = null;
+			try {
+				session = MyBatisUtil.createSession();
+				session.insert(obj.getClass().getName()+".add",obj);
+				session.commit();
+			} catch (Exception e) {
+				e.printStackTrace();
+				session.rollback();
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+		}
+		
+		public void update(T obj) {
+			SqlSession session = null;
+			try {
+				session = MyBatisUtil.createSession();
+				session.update(obj.getClass().getName()+".update", obj);
+				session.commit();
+			} catch (Exception e) {
+				e.printStackTrace();
+				session.rollback();
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+		}
+		
+		public void delete(Class<T> clz,int id) {
+			SqlSession session = null;
+			try {
+				session = MyBatisUtil.createSession();
+				session.delete(clz.getName()+".delete", id);
+				session.commit();
+			} catch (Exception e) {
+				e.printStackTrace();
+				session.rollback();
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+		}
+		
+		@SuppressWarnings("unchecked")
+		public T load(Class<T> clz,int id) {
+			SqlSession session = null;
+			T t = null;
+			try {
+				session = MyBatisUtil.createSession();
+				t = (T)session.selectOne(clz.getName()+".load",id);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return t;
+		}
+		
+		@SuppressWarnings("unchecked")
+		public T loadBySqlId(String sqlId,Map<String,Object> params) {
+			SqlSession session = null;
+			T t = null;
+			try {
+				session = MyBatisUtil.createSession();
+				t = (T)session.selectOne(sqlId,params);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return t;
+		}
+		
+		@SuppressWarnings("unchecked")
+		public T loadBySqlId(String sqlId,Object obj) {
+			SqlSession session = null;
+			T t = null;
+			try {
+				session = MyBatisUtil.createSession();
+				t = (T)session.selectOne(sqlId,obj);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return t;
+		}
+		
+		public List<T> list(Class<T> clz,Map<String,Object> params) {
+			return this.list(clz.getName()+".list", params);
+		}
+		
+		public List<T> list(String sqlId,Map<String,Object> params) {
+			List<T> list = null;
+			SqlSession session = null;
+			try{
+				session = MyBatisUtil.createSession();
+				list = session.selectList(sqlId,params);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return list;
+		}
+		
+		public Pager<T> find(Class<T> clz,Map<String,Object> params) {
+			return this.find(clz.getName()+".find", params);
+		}
+		
+		public Pager<T> find(String sqlId,Map<String,Object> params) {
+			int pageSize = SystemContext.getPageSize();
+			int pageOffset = SystemContext.getPageOffset();
+			String order = SystemContext.getOrder();
+			String sort = SystemContext.getSort();
+			Pager<T> pages = new Pager<T>();
+			SqlSession session = null;
+			try{
+				session = MyBatisUtil.createSession();
+				if(params==null) params = new HashMap<String, Object>();
+				params.put("pageSize", pageSize);
+				params.put("pageOffset", pageOffset);
+				params.put("sort", sort);
+				params.put("order", order);
+				List<T> datas = session.selectList(sqlId, params);
+				pages.setDatas(datas);
+				pages.setPageOffset(pageOffset);
+				pages.setPageSize(pageSize);
+				int totalRecord = session.selectOne(sqlId+"_count",params);
+				pages.setTotalRecord(totalRecord);
+			} finally {
+				MyBatisUtil.closeSession(session);
+			}
+			return pages;
+		}
+		
+	}		
+
+将t_adress表的postcode字段改为post_code。这时使用Address的load/list方法会调用setPost_code.由于没有这方法，所以取得的Address的postcode属性为空。
+使用resultMap解决：
+	<resultMap type="Address" id="addressMap">
+		<result column="post_code" property="postcode"/>
+	</resultMap>
+	<select id="load" parameterType="int" resultMap="addressMap">
+		..
+	</select>
+取得Address的同时获得其关联的User对象：
+	<!-- 当数据库中的字段信息和对象的属性不一致时需要通过resultMap来映射 -->
+	<resultMap type="Address" id="addressMap" autoMapping="true">
+		<id column="a_id" property="id"/>
+		<!-- 使用以下方式进行关联最大的问题就是N+1问题，所以以下取关联的方式不会被使用 -->
+		<!-- <association property="user" column="user_id" javaType="User" select="itat.zttc.shop.model.User.load"/> -->
+		<association property="user" javaType="User">
+			<id column="user_id" property="id"/>
+			<result column="username" property="username"/>
+			<result column="nickname" property="nickname"/>
+			<result column="type" property="type"/>
+		</association>
+	</resultMap>
+	<select id="list" resultMap="addressMap" parameterType="map">
+		select *,t1.id as 'a_id' from t_address t1 right join t_user t2 on(t1.user_id=t2.id) where t2.id=#{userId}
+	</select>
+
+取得User的同时获得其关联的Addresses对象（collection ofType）：
+	<resultMap type="User" id="userMap" autoMapping="true">
+		<id column="user_id" property="id"/>
+		<result column="username" property="username"/>     <!-- 因为有autoMapping="true"，这些column与property名字相同的result不用写-->
+		<collection property="addresses" ofType="Address">
+			<id column="a_id" property="id"/>
+			<result column="phone" property="phone"/>
+			<result column="postcode" property="postcode"/>
+			<result column="name" property="name"/>
+		</collection>
+	</resultMap>
+	
+	<select id="load" parameterType="int" resultMap="userMap">
+		select *,t2.id as 'a_id' from t_user t1 left join t_address t2 on(t1.id=t2.user_id) where t1.id=#{id}
+	</select>
+
+	注：autoMapping="true"会将非关联的属性（不在association和collection里面的属性）与column关联。
+
+order与cartProduct一对多关系,加order的时候级联添加cartProduct:
+	public void add(Order o) {
+		super.add(o);
+		for(CartProduct cp : o.getProducts()) {
+			cp.setOrder(o);         
+			cartProductDao.add(cp);     //添加的时候会有问题，o的id为0，而cp表的外键指向o表的主键，不能为0，所以会出错
+		}
+	}
+	解决：在mapper文件的<insert>标签上加上useGeneratedKeys="true" keyProperty="id"。这样添加后会把自动生成的id设置到o上。
+

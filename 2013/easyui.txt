@@ -1,0 +1,94 @@
+hello world:
+	1. 引入easyui的js和css
+	  <link rel="stylesheet" href="jslib/jquery-easyui-1.3/themes/gray/easyui.css" type="text/css"/> 
+	  <link rel="stylesheet" href="jslib/jquery-easyui-1.3/themes/icon.css" type="text/css"/>  
+	  <script type="text/javascript" src="jslib/jquery-easyui-1.3/jquery-1.7.2.min.js" charset="utf-8"/> 
+	  <script type="text/javascript" src="jslib/jquery-easyui-1.3/jquery.easyui.min.js"/>
+	  <script type="text/javascript" src="jslib/jquery-easyui-1.3/locale/easyui-lang-zh_CN.js"></script> 
+	  注：icon.css和easyui-lang-zh_CN.js不是必须的. gray主题下有很多css文件，easy.css包含所有css 
+	2. 写一个对话框效果
+	 通过指定class
+		<div id="dd" class="easyui-dialog" title="My Dialog" style="width:400px;height:200px;"  
+			data-options="iconCls:'icon-save',resizable:true,modal:true">  
+		    Dialog Content.   
+		</div> 
+	 通过js控制	：
+		<div id="dd">Dialog Content.</div>
+		$('#dd').dialog({   
+		    title: 'My Dialog',   
+		    width: 400,   
+		    height: 200,   
+		    closed: false,   
+		    cache: false,   
+		    href: 'get_content.php',   
+		    modal: true  
+		}); 
+easyloader使用（可以动态引入js,css等）：如果觉得jquery.easyui.min.js（200多k）太大,可以用easyloader引入plugins下需要的模块的js.
+	首先不引入jquery.easyui.min.js，引入easyloader.js
+	easyloader.load([ 'dialog', 'messager' ], function(){    
+	    //在加载完dialog，messager对应的js后，执行的回调函数。    
+	    $('#dd').dialog();               //dialog，messager要在回调函数里使用   	
+	    $.messager.alert('Title', 'load ok');   
+	});
+	这种方式引入的js大小可能比较小，但引入的数量多，而且jquery.easyui.min.js不是太大。所以这种方式没必要
+
+调试使用console.info($(#'dd'))，能再firebug控制台下输出信息。
+
+parser是解析器，它会将class="easy-xx"的组件解析成对应easy样式
+
+panel:
+	<div id="p"> .. </div>
+	创建panel一样可以通过clsss或者js方式。js方式$('#dd').panel(匿名对象);
+	常用属性：collapsible是否可折叠，minimizable最小化，maximizable最大化，closable是否可关闭。 closed是否显示
+	调用panel的方法，假如调用move方法
+	$('#p').panel('move',{     //注意，不是 $('#p').move()这样调用的
+	  left:100,   
+	  top:100   
+	});
+
+页面可能经常要将form中的表单元素拼接成json字符串来发送ajax请求，如果表单元素多得话，自己拼接很麻烦。jquery提供了序列化
+$("#form").serialize()可将表单序列化成字符串(name=aa&age=14)。 serializeArray可以将form序列化成数组.
+如果需要序列化成json字符串需要自己实现方法。
+
+json格式是{username: "zs", password: "123"} ,标准json格式{"username": "zs", "password": "123"}
+jQuery.parseJSON(json) 将json字符串转换为dom对象，相当于eval("(+json+)").  如果传入畸形的json字符串(使用单引号或不使用引号parseJSON会跑异常)
+
+easyui的form使用了无刷新提交，原理是：创建一个隐藏的iframe或者iframe不在屏幕范围内显示，把表单数据在iframe中提交。
+easyui的form对比ajax方式的好处是支持文件上传
+
+validatebox：验证
+<input id="vv" class="easyui-validatebox" data-options="required:true,validType:'equals[5]'" />  
+data-options="required:true,validType:'equals[5]'" 也可写成 required=true validType=equals[5]"
+使用validatebox，在input失去焦点后就会执行验证。
+validType（验证规则）默认定义了几种类型：email, url,length[6,10],remote  //remote是通过ajax来验证，但每输入一个字母都会发一个同步的ajax(会卡住).不推荐使用
+自己扩展validType:
+	$.extend($.fn.validatebox.defaults.rules, {   
+	    equals: {    //validType的名字
+		validator: function(value,param){    //具体的验证方法，value是使用equals的表单元素的值，param是equals[5]的参数
+		    return value == $(param[0]).val();   //相等返回true
+		},   
+		message: 'Field do not match.'  //出错提示信息
+	    }   
+	}); 
+
+easyui的form会自动在submit的之前，根据验证规则验证表单的元素，如果验证不通过就不会submit。
+如果ajax方式怎么验证呢。执行ajax之前，手动调用表单的验证方法.
+if($("#formID").form('validate')) {  
+	$.ajax(..); //验证通过才执行
+}
+
+layout(大小能自适应，随浏览器大小改变而改变):
+	<body class="easyui-layout">  <!-- class="easyui-layout"也可定义在div中 -->
+	    <div data-options="region:'north',title:'North Title',split:true" style="height:100px;"></div>  <!-- 根据需要选择上下左右panel。center不能删-->
+	    <div data-options="region:'south',title:'South Title',split:true" style="height:100px;"></div>  
+	    <div data-options="region:'east',iconCls:'icon-reload',title:'East',split:true" style="width:100px;"></div>  
+	    <div data-options="region:'west',title:'West',split:true" style="width:100px;"></div>  
+	    <div data-options="region:'center',title:'center title'" style="padding:5px;background:#eee;"></div>  
+	</body> 
+	layout中的href属性，可以在layout载入页面，注意只载入页面的body中的内容，如果被载入页面的<head>有js，也不会载入.所以可以将js写在body中。
+	layout中放的是上下左右中panel, 可通过layout的panel方法获得具体的panel
+
+DataGrid:
+	
+
+

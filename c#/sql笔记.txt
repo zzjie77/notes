@@ -1,0 +1,128 @@
+creat table [penson_1]([id] [int],[name] [nvarchar(20)],...);
+不加[]也可以
+
+insert into penson_1 (name,age,id)values('kong',43,newid())
+
+update penson_1 set id=newid() where number=2
+update penson_1 set birthday=007,id=newid(),age=456 where number=3
+delete from penson_1 where name='xiaozhang'
+
+select name as 姓名, age as 年龄,id as 编号 from penson_1
+
+select @@version as 列1,getdate() as 列2,newid()as 列2
+select count(*) from penson_1 
+select max(age) from penson_1
+select min(age) from penson_1
+select sum(age) from penson_1
+select count(*) from penson_1  where salary>=5000;
+select * from penson_1 order by age asc;
+select * from penson_1 order by age desc;
+select * from penson_1 order by age desc,salary asc;
+select * from penson_1 where salary>=2000 order by age   
+（注意：where在order之前）
+
+通配符 ：  单字符_    多字符%
+例：select * from penson_1 like '_iaozhang'
+    select * from penson_1 like '%n%'
+
+数据类型null表示不知道，不表示空
+错：name=null    name!=null   name<>null
+对:name is null     name is not null
+
+select * from penson_1 where age in (21,65,12)
+select * from penson_1 where age between 21 and 60
+select * from penson_1 where age >=21 and age<=60
+
+
+select  age , count(*)  from penson_1  group by age
+ （where  在group  by之前）
+聚合函数不能出现在where子句中   （count、max、 min...)
+如果要使用就要用having,    having在group之后
+select  age , count(*)  from penson_1  group 
+by age  having  count(*)>1
+having是对分组后信息的过滤，能用的列和select用能用的列是一样的
+having无法代替where， where是对原始数据进行过滤
+
+select top 3 * from penson_1 order by salary desc 
+
+alter table penson_1 add subcompany varchar(20)
+alter table penson_1 add department varchar(20)
+
+select distinct department from penson_1
+select dintinct department ,subcompany from penson_1消除完全重复的行 
+
+select age,salary from penson_1
+union         
+select age,salary from penson_2        列数要一致，类型要相容
+ 默认会过滤重复数据，想要不合并就用union all
+
+abs():求绝对值
+ceiling():舍入到最大整数
+floor()：舍入到最小整数
+round():四舍五入，舍入到“离我半径最近的数”   
+round(-3.61,0) = -4  第二个参数是精度，是0，代表0个小数点
+len():计算字符串的长度    len(name)  or  len('zhang')
+lower()  upper() :转小写，大写
+ltrim():字符串左侧的空格去掉
+rtrim():字符串右侧的空格去掉
+substring('sdlkfjsld',2,3) 从第2个字符开始长度为3的子串
+getdate():取得当前日期时间
+dateadd(datepart,number,date)计算增加以后的日期，参数date为待计算的日期，参数number为增量，datepart是number的计量单位,可取年，月，日...
+dateadd(month,-8,gatedate())
+datediff(datepart,startdate,enddate):计算两个日期的差额
+datepart(datepart,date):取出date的datepart部分
+
+数据类型转换：cast(expression as data_type)
+              convert(data_type,expression)
+        cast('123' as int)               convert(int,'123')
+        cast('2008-08-08' as datetype)   convert(varchar(20),123)
+
+select isnull(name,'一名') from penson_1
+
+
+--注释
+
+select name,
+(
+case level                         case 
+when 1 then 'vip用户'              when    salary<2000   then..
+when 2 then '高级用户'             when    salary>2000   then..
+when 3 then '普通用户'
+esle '用户类型错误'
+end
+)as 客户类型
+from costomer
+
+
+
+select (case when a>b then a else b end),(case when b>c then b esle c end)from penson_1
+
+
+select distinct name,
+(select (*count) from t_scores where score=n'胜' group by name),
+(select (*count) from t_scores where score=n'负' group by name)
+from t_scores
+
+
+select 单号,(case when 单号>0 then 单号 else 0 end) as 收入,
+(case when 单号<0 then abs(单号) else 0 end) as 支出 from table
+
+
+select  o.id,c.name,c.age   from t_orders as o join T_customers as c on o.customerid=c.id
+
+
+select * from (select * from penson_1)as o1  要个表名01
+
+
+求工资排在3到6的员工信息2种方法：top 、rownumber
+1 select top 4 * from employee where salary not in
+(select top 2 number from employee order by salary desc)
+ order by salary desc
+
+2 错误：select row_number() over(order by salary desc) as rownum,
+  id ,name ,age ,salary from employee where rownumber() over(order by salary desc)>=3 and rownumber() over(order by salary desc)<=6
+-- rownnumber是开窗函数，不能放在where中,只能放在select,order by中
+正确：select * from
+(select row_number() over(order by salary desc) as rownum,
+  id ,name ,age,salary from employee
+)  as e1 where e1.rownum >=3 and e1.rownum<=6

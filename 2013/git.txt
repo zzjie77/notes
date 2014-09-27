@@ -1,0 +1,107 @@
+git init 
+touch README
+git add README
+git status
+git commit -m "1st"  #这时没配置用户名和邮箱，会有警告
+git config --global user.name "zzjie"
+git config --global user.email "zzjie77@gmail.com"
+cat ~/.gitconfig   # git config实际上配置写到这个文件
+git log  #查看所有提交日志   -2查看最近2次
+git log -p #查看历史纪录以来哪几行被修改
+sudo apt-get install tig  # 由于git log查看的样式不好，用tig来查看样式比较好看
+tig
+git commit -a -m "add和commit一起做" #注意，这个文件add过一次，以后才可以用这种方式
+git commit -a # 添加多行注释
+git config --global core.editor vim  # 修改多行注释时的编辑器
+git commit -a -v      # -v在提交的时候可以看到有哪些修改
+git config --global alias.ci "commit -a -v"
+
+------------------
+~/.gitconfig
+	throw = reset --hard HEAD
+	throwh = reset --hard HEAD^	
+git add . # 删除文件要提交到git要使用git rm file. 使用git add .会自动扫描决定添加还是删除
+git diff # 查看工作区与上次更新后的不同
+git throw # 如果修改多个文件后，使用git diff发现不想修改了，就可使用throw来还原多个文件到修改前的状态
+git throwh # git throw可以去除工作区的修改，还原到上次更新的最新版本。 throwh可以去掉最新版本，还原到上上个最新版本
+
+bug修复流程：
+	1. 如果开发过程中，发现了之前版本的一个Bug,但是现在这个版本的开发还没完成，可以先把现在开发到一半的功能先隐藏起来，还原到上次提交的版本，使用git stash
+	2. 修改后修复bug，然后提交  git ci # 此时开发到一半的功能已经隐藏，不会提交
+	3. git stash # 恢复隐藏的代码，可以继续开发了
+git checkout -b tmp # 创建一个分支tmp,并切换到tmp
+git checkout master # 切换到master分支
+git branch -D tmp # 删除tmp分支
+git checkout fe544a -b tmp # 以fe544a这次提交的版本创建分支
+
+------------------
+github page:   
+要先在github上创建一个仓库username.github.com
+mkdir lovelypeter.github.com
+cd lovelypeter.github.com
+git init
+touch README
+git add README
+git remote add origin git@github.com:lovelypeter/loverlypeter.github.com.git
+echo "hi I am index.html">index.html
+git add .
+git ci
+git push -u origin master  # -u | set up-stream  当有多个远程仓库的时候就要通过u来指定使用哪个源
+# 将.git/config中的url从https改成ssh就可以不输入用户名密码，如url = git@github.com:happycasts/episodes.git
+# 还要使用ssh-keygen命令公钥和私钥(~/.ssh/)，然后把公钥的内容复制添加到github中
+_config.yml：
+	markdown: maruku # 使用maruku解析器来解析markdown
+	pygments: true   # 代码高亮， 还需要加入css
+
+https://github.com/oojdon/jdonmvc.git
+git@github.com:oojdon/jdonmvc.git
+https://github.com/oojdon/jdonmvc
+
+------------------
+pull和rebase区别：
+A和B一起开发项目，B已经push了，而A还是旧代码，此时A再push会失败
+pull: 
+	A要先pull，然后后再push，pull的方式A和B的版本在一个节点分叉，然后会在不同的时间线上，当A再提交的时候就会merge
+	使用git log就能看到再A提交之后还有一次merge的记录
+	如果出现冲突， 修改冲突后，git add . ， 然后再git push
+rebase: 
+	A要先git fetch origin/master, 然后git rebase origin/master, 然后再push。
+	这种方式就会出现两条不同的时间线，A在B的版本上再提交，使用git log也不会有merge的记录
+	如果git rebase后出现冲突，修改冲突后git add .， 然后git rebase --continue， 然后才git push
+
+------------------------
+git diff 
+git diff 比较working dir和index的区别
+git diff --staged 比较index和repository的区别
+git diff HEAD 比较working dir和repository的区别， 也可以直接指定版本号，HEAD其实也只是一个最新的版本号
+git diff version1 version2 比较两个版本的区别
+git diff branch1 branch1 比较两个分支的区别
+如果只想查看某些文件的区别，可以在最后指定文件名或目录
+git diff --staged 用来查看 staging area 中的内容，也就是下次将要被做到下个版本之中去的内容
+git diff 用来查看我们在最新版本之上做的所有修改之中还没有放到 staging area 中的这部分
+git diff HEAD 以上两者之和，用来看总共的修改内容
+
+------------------------------
+git add
+git add -p # 一个文件中比较近的多个修改会认为是一处修改，-p patch交互式的add，会询问每个处修改是否提交。
+# 如果一处修改中包含多个临近的修改，按s可以把一处修改拆分成个多个修改，然后决定每个修改是否提交
+# 这样拆分的好处是，把相同的功能作为一次提交，以后好回滚
+git add -i # -p有一个问题是不能对untracked的文件起作用，使用-i就可以
+以上是添加文件到index中，下面是把文件从index中吐出来
+.git/index 中保存着要添加到index中的文件名， 使用git ls-files可查看
+git rm --cached file 可以删除.git/index中的file文件
+git rm --cached file  # 把index中的file删除，也就是暂时先不提交这个file
+git reset file # 把index中的file删除，在work dir还有file
+
+---------------------------------
+git reset
+git reset --hard HEAD  重置working，index中的内容为repo中的最新版本，通常用于修改了文件，提交前发现不想要了
+git reset --hard HEAD^   重置working，index中的内容为repo中HEAD的上一个版本，并且local repo中的版本也会回滚到上一个版本
+git reset --soft HEAD^  local repo中的内容回滚到上一个版本，但是working,index中的内容不变。使用git diff --cached还能看到修改
+使用reset回到上一个版本，就回不去HEAD了，而且reset不能控制只想回滚某些文件，使用check out可以解决
+git checkout versionId 可以回到指定的版本，然后git checkout master又可以回到HEAD
+git checkout file 可以指定回滚某个文件
+
+---------------------------------
+git config
+

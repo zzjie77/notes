@@ -1,0 +1,415 @@
+hello world:
+	1. 在ftl包下新建01.ftl, 新建一个html，建好后改名为02.ftl
+		01.ftl:你好：${username}
+		02.ftl的body中：你好：${username}
+	2. 编写FreemarkUtil.java
+		//getTemplate("01.ftl")
+		public Template getTemplate(String name) {
+			try {
+				//通过Freemaker的Configuration读取相应的ftl
+				Configuration cfg = new Configuration();
+				//设定去哪里读取相应的ftl模板文件
+				cfg.setClassForTemplateLoading(this.getClass(),"/ftl");
+				//在模板文件目录中找到名称为name的文件
+				Template temp = cfg.getTemplate(name);
+				return temp;
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+		
+		public void print(String name,Map<String,Object> root) {
+			try {
+				//通过Template可以将模板文件输出到相应的流
+				Template temp = this.getTemplate(name);
+				temp.process(root, new PrintWriter(System.out));
+			} catch (TemplateException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		public void fprint(String name,Map<String,Object> root,String outFile) {
+			//通过一个文件输出流，就可以写到相应的文件中
+			FileWriter out = new FileWriter(new File("D:\\webservice\\ftl\\"+outFile));
+			Template temp = this.getTemplate(name);
+			temp.process(root, out);
+			
+		}
+	3. 测试
+		FreemarkerUtil fu;
+		Map<String,Object> root = null;
+		
+		@Before
+		public void setUp() {
+			fu = new FreemarkerUtil();
+			root = new HashMap<String,Object>();
+		}
+
+		@Test
+		public void test01() {
+			//1、创建数据模型
+			Map<String,Object> root = new HashMap<String,Object>();
+			//2、为数据模型添加值
+			root.put("username", "张三");
+			//3、将数据模型和模板组合的数据输出到控制台
+			fu.print("01.ftl", root);
+			fu.print("01.ftl", root, "02.html"); //输出html文件
+		}
+
+if：
+	<#if user.age lt 12>
+		${user.name}还是一个小孩
+	<#elseif user.age lt 18>
+		${user.name}快成年
+	<#else>
+		${user.name}已经成年
+	</#if>
+循环：
+	<#list users as user>
+	${user.id}---------${user.name}-------${user.age}<br/>
+	</#list>
+ftl中包含另一个ftl:
+	<#include "/inc/top.ftl"/>
+空值处理：
+	${user.group} 如果user中的gourp对象为空，会报错，与el表达式不同，freemarker不能处理空值，遇到空值会报错。
+	修改为${user.group!} 这时如果group为空就不输出， 也可这样写${user.group!"没有值"}为空时输出“没有值”
+	${user.group.name!} 这样加!只会判断name是否为空。如果user或group为空，一样会报错。 
+	${(user.group.name)!} 应该这样写全部判断，只要有一个为空就不会输出
+	${(a.b)!"没有a.b元素"} 没有的元素也可以用!来判断
+判断是否为空用??：
+	<#if (a.b)??>
+		不为空
+	<#else>
+		为空
+	</#if>
+注释： <#-- 注释 -->
+基本数据类型：数字，字符串，Boolean，日期
+	<#--定义变量-->
+	<#assign username="张三"/>
+	${username}
+	<#--定义了一个数字-->
+	<#assign num=10>
+	${num+11}   <#--21-->
+	<#assign str="10"/>
+	${str+11}    <#--1011字符串相加-->
+	<#--值会完成覆盖-->
+	<#assign str=33/>   <#-- str上面已经使用过，这里assign，值会覆盖 -->
+	${str+11}
+	<#assign b=true/>
+	<#--不能直接输出数字或者字符串以外的类型，否则都会报错，需要转换为字符串才能输出
+		使用xxx?string可以完成对字符串的转换
+	-->
+	<#--${b}-->  
+	${b?string}   <#-- ?string转换为string  -->
+	${(a.d)???string}    <#--  前2个问号判断时候为空，最后一个问号将结构转换为string -->
+	<#--日期也不能直接输出，需要转换为字符串-->
+	${now?string("yyyy-MM-dd HH:mm:ss")}
+	<#--${now?string}没有为日期设定格式也会报错-->
+
+	<#--以下显示了使用字符链接和插值的方式连接字符串-->
+	${"hello"+username}
+
+	${"hello${username}"}
+
+	<#--字符串转换为日期
+	date用来转换日期，datatime用来转换日期和时间,time用来转换时间
+	-->
+	<#assign bir="1979-12-02 12:22:33"?date("yyyy-MM-dd HH:mm:ss")>
+	<#assign bir="1979-12-02 12:22:33"?datetime("yyyy-MM-dd HH:mm:ss")>
+	${bir}
+
+	${"<br/>"?html} <#-- 将换行以"<br/>"显示 -->
+
+	[${"abcde"?left_pad(10,"--")}] <#-- 如果不够10位就在左边填充"--" -->
+
+	${1.4?string(0)}
+	${1.8?int}   <#-- 转换为int，舍去小数点 -->
+	
+序列与哈希表：
+	<#assign nums=[1,3,4,56,33,43]/> <#-- 定义序列 -->
+	${nums?first}                 <#-- 输出序列的第一个元素 -->
+	<#--特别注意，以下定义不使用[12..200]-->
+	<#assign nums=12..200/><#--定义了一个连续的序列从12到199-->
+	<#--序列的拆分-->
+	<#assign nums1=nums[1..10]>    <#-- 取nums的前10个元素 -->
+	<#list nums1 as num>           <#-- 遍历序列 -->
+	${num}
+	</#list>
+	${"你好，你来了吗今天看书了吗！"[0..8]}...  <#-- 序列的拆分可以支持字符串的拆分 -->
+	<#assign maps={"1":"张三","2":"李四"}>
+	${maps["1"]}          <#-- key是整数不能使用maps.1来取值 -->
+	<#--以下代码可以将map的key转换为相应的序列-->
+	<#assign keys=maps?keys>
+	<#list keys as key>   <#-- 遍历哈希表 -->
+	${key}---${maps[key]}    <#-- 这里的key是变量，所以不能使用maps.key -->
+
+	<#assign users={"username":"张三","password":"123"}>
+	${users.username}---${users["password"]}   <#-- 不是数字，不是变量，可以使用users.username -->
+	</#list>
+
+自定义指令：
+	<#macro hello>  <#-- 自定义指令hello -->
+		<h1>hello</h1>
+	</#macro>
+	<@hello/>  <#-- 用 @调用自定义指令hello -->
+	<#macro hello name num>  <#-- 定义hello指令，name是第一参数，num是第二个参数 -->
+		<#list 1..num as n>
+			hello ${name} n
+		</#list>
+	</#macro>
+	<@hello name="zhagnsan" num=4/>  <#-- 调用的时候不能省略参数名 -->
+	<#macro hello name="zhangsan" num="4"> <#-- 如果定义的时候给了初始值，调用的时候可以不传参数，直接嗲用<@hello/> --> 
+
+	<#macro test>
+		<#nested/>  <#--nested会输出指令中的内容,即：<h1>你好啊</h1> -->
+	</#macro>
+	<@test><h1>你好啊</h1></@test>
+
+变量分为:
+	1. 数据模型中的变量：---root map中的变量
+	2. 模版中的变量---使用<#assign>定义的变量
+	3. 局部变量---在指令marco中定义的变量
+	4. 循环变量---在循环中的变量
+	后台：Map<String, Object> root = new HashMap(); root.put("username", "张三");
+	页面：
+	<#assign username="李四">
+	${username}  <#-- "李四"，此时模板中的变量的名称和模型中的变量名称一致，不是覆盖，而是隐藏-->
+	${.globals.username}  <#-- "张三",使用.globals可以访问模型中的变量-->
+	<#macro test>
+	<#--此时当调用该指令之后，会将模板中的变量username覆盖为王五
+	所以这种方式存在风险，所以一般不使用这种方式在指令中定义变量-->
+		<#--<#assign username="王五"/>-->
+		<#--使用local可以声明局部变量，所以在marco中非特殊使用局部变量-->
+		<#local username="王五"/>
+		${username}
+	</#macro> <#-- 使用local定义的局部变量，除了macro后不起作用 -->
+	<@test/>
+	${username}   
+	<#list 1..3 as username>
+		${username}  <#--循环中的变量出了循环就消失-->
+	</#list>
+	${username}  
+	-------------------
+	<#--
+		使用incldue可能会出现覆盖的问题(如inc1,inc2都定义相同的变量)，可以使用import来完成导入，并且加入名称空间
+		<#include "/inc/inc1.ftl"/>  
+		<#include "/inc/inc2.ftl"/>  
+	-->
+	<#import "/inc/inc2.ftl" as inc2/> <#-- inc2是名称空间 -->
+	<#import "/inc/inc1.ftl" as inc1/>
+		${inc2.username}
+		${inc1.username}
+	<#--将一个变量定义到名称空间中-->
+	<#assign age=12 in inc2/>
+	${inc2.age}
+	<#--访问名称空间中的自定义指令-->
+	<@inc1.test/>
+
+实现类似struts2的select
+	<#macro select id datas value="" key="" text="" headkey="" headtext="">
+		<select id="${id}" name="${id}">
+			<#if headkey!="">
+				<option key="${headkey}">${headtext}</option>
+			</#if>
+			<#if datas?is_hash_ex> <#-- 使用is_hash_ex方法判断是否是hash表  -->
+				<#local keys=datas?keys />
+				<#list keys as key>
+					<#if key==value>
+						<option selected value="${key}">${datas[key]}</option>
+					<#else>
+						<option value="${key}">${datas[key]}</option>
+					</#if>
+				</#list>
+			<#else>
+				<#list datas as data>
+					<#if key!="">     <#-- datas的元素是对象，key不为空，对象中属性为key的属性值作为option的value -->
+						<#if data[key]==value>
+							<option selected value="${data[key]}">${data[text]}</option>
+						<#else>
+							<option value="${data[key]}">${data[text]}</option>
+						</#if>
+					<#else>
+						<#if data==value>  <#-- 普通序列 [1,2,"aa"] -->
+							<option selected>${data}</option>
+						<#else>
+							<option>${data}</option>
+						</#if>
+					</#if>
+				</#list>
+			</#if>
+		</select>
+	</#macro>
+上面的select虽然已经方便，但对很多个过滤条件的select页面或是动态表单，使用起来依然不方便。
+可通过xml文件配置好所需的过滤条件，然后在freemarker来获取xml中的配置来生成表单
+field.xml(存放所有动态表单需要的数据):
+	<fields>
+		<field id="sex" name="请选择性别">
+			<data>
+				<key>0</key>
+				<value>男</value>
+			</data>
+			<data>
+				<key>1</key>
+				<value>女</value>
+			</data>
+		</field>
+		..
+	</fields>
+objFilter.xml:
+	<filters>
+		<!-- 表示student页面的表单，需要的过滤字段有sex,zydm... 通过cid找到filed.xml对应的filed然后填充数据 -->
+		<filter id="student">
+			<field cid="sex" id="xbdm_equals" type="select"/>
+			<field cid="zydm" id="zydm_equals"/>
+			<field cid="nation" id="mzdm_equals"/>
+			<field cid="dep" id="dep_equals"/>
+		</filter>
+		
+		<filter id="classroom">
+			<field cid="zydm" id="zydm_equals"/>
+			<field cid="dep" id="dep_equals"/>
+		</filter>
+	</filters>
+在后台把xml的数据保存到rooMap中：
+	root.put("fieldDoc", NodeModel.parse(new InputSource(TestFreemarker.class.getResourceAsStream("/field.xml"))));
+	root.put("filterDoc", NodeModel.parse(new InputSource(TestFreemarker.class.getResourceAsStream("/objFilter.xml"))));
+	root.put("obj", "student");
+	util.sprint(root, "10.ftl");
+select.ftl:
+	<#macro xmlselect cid id>
+		<#local tt=fieldDoc["fields/field[@id='${cid}']"].@name/>
+		${tt}:
+		<select id="${id}" name="${id}">
+			<option value="">${tt}</option>
+			<#list fieldDoc["fields/field[@id='${cid}']/data"] as d>
+				<option value="${d.key}">${d.value}</option>
+			</#list>
+		</select>
+	</#macro>	
+页面表单:
+	<#-- 可以通过索引来取数据， 使用@来获取属性。-->
+	<#-- 
+	${doc.fields.field[0].@id}--${doc.fields.field[0].@name}
+	<#list doc.fields.field[0].data as d>
+	${d.key}---${d.value}
+	</#list>
+	-->
+
+	<#-- 后台设置obj=student,所以不能通过索引来取数据，可通过xpath来取对应obj -->
+	<#import "/inc/select.ftl" as my/>
+
+	<#list filterDoc["filters/filter[@id='${obj}']/field"] as f>
+		<@my.xmlselect cid="${f.@cid}" id="${f.@id}"/>
+	</#list>
+
+
+实现分页：
+	1.pager.ftl
+		<#macro pager totalPage curPage url showPage clz="">
+			<#--如果要显示的页数大于总页数，则显示所有页-->
+			<#if showPage gte totalPage>
+				<@showPager start=1 end=totalPage url=url clz=clz curPage=curPage/>
+			<#else>
+				<#local half=(showPage/2)/>
+				<#--当要showPage小于totolPage，应该显示showPage-half到showPage+half。但要排除两种极端
+					1. 当showPage-half<1, 现实最开头的showPage页，即1到showPage
+					2. 当showPage+half>totalPage,现实最后的showPage页，即totalPage-showPage到totalPage
+				-->
+				<#if half gte curPage>
+					<@showPager start=1 end=showPage url=url clz=clz curPage=curPage/>
+				<#elseif (curPage+half) gte totalPage>
+					<@showPager start=(totalPage-showPage) end=totalPage url=url clz=clz curPage=curPage/>
+				<#else>
+					<@showPager start=(curPage-half) end=(curPage+half) url=url clz=clz curPage=curPage/>
+				</#if>
+			</#if>
+		</#macro>
+
+		<#macro showPager start end url clz curPage>
+			<#list start..end as page>
+				<#if curPage==page>
+					[${page}]
+				<#else>
+					<a href="${url}" ${(clz=="")?string("","class='${clz}'")}>${page}</a>
+				</#if>
+			</#list>
+		</#macro>
+	2. 测试
+		<#import "/inc/pager.ftl" as my/>
+		<@my.pager url="#" totalPage=150 curPage=14 class="pagers" showPageNum=20/>
+
+显示文章：
+	1. ftl:
+		<#macro showTopics topics titleSize>
+			<dl>
+				<dt><span><#nested/></span></dt>
+				<#list topics as t>
+				<dd><a href="#">
+					<#if t.title?length gte titleSize>
+						${t.title[0..titleSize]}...
+					<#else>
+						${t.title}
+					</#if>
+				</a></dd>
+				</#list>
+			</dl>
+		</#macro>
+
+		<@showTopics topics=topics["1"] titleSize=12>
+			第一个栏目
+		</@showTopics>
+
+		<@showTopics topics=topics["2"] titleSize=5>
+			哇哈哈哈哈哈
+		</@showTopics>
+	2. 
+		Map<String,List<Topic>> topics = new HashMap<String,List<Topic>>();
+		topics.put("1",Arrays.asList(new Topic("撒旦发撒旦发生大法撒旦发撒旦发撒旦发生的发"),
+				new Topic("撒旦斯蒂芬斯蒂芬"),
+				new Topic("萨发生发生的发生的地方"),
+				new Topic("撒阿斯顿撒旦发大法官大法官的的"),
+				new Topic("阿斯顿嘎斯复活节的风格和地方规划撒旦发生的发斯蒂芬斯蒂芬")));
+		
+		topics.put("2",Arrays.asList(new Topic("上课讲的富利卡设计的法律框架阿斯顿的法律框架阿斯"),
+				new Topic("新浪科技类抗菌素离开房间啊垃圾啊"),
+				new Topic("阿斯顿噶是否噶撒旦发生大幅"),
+				new Topic("撒阿斯顿撒的的"),
+				new Topic("阿斯顿复活节的风格和地方规划撒旦发生的发斯蒂芬斯蒂芬")));
+		root.put("topics", topics);
+		util.sprint(root, "13.ftl");
+
+freemarker与spring mvc整合
+	1. 在xx-servlet.xml中添加freemarker配置（注意：要在普通资源视图InternalResourceViewResolver之前）
+		<bean id="freemarkerConfig" class="org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer">
+			 <property name="templateLoaderPath" value="/WEB-INF/ftl/"/>
+		</bean>
+		<bean id="viewResolver" class="org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver">
+			<property name="cache" value="true"/>
+			<property name="prefix" value=""/>
+			<property name="suffix" value=".ftl"/>
+			<property name="contentType" value="text/html; charset=UTF-8"></property>
+		</bean>
+		<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+			<property name="viewClass" value="org.springframework.web.servlet.view.JstlView" />
+			<property name="prefix" value="/WEB-INF/jsp/"></property>
+			<property name="suffix" value=".jsp"></property>
+		</bean>
+	2. controller
+		@Controller
+		public class HelloController {
+			@RequestMapping("/hello")
+			public String hello(Model model) {
+				model.addAttribute("username", "张三");
+				return "hello";
+			}
+			@RequestMapping("/helloworld")
+			public String helloworld(Model model) {
+				model.addAttribute("username","张是");
+				return "world";
+			}
+		}
+		返回"hello"，会先找(FreeMarkerViewResolver)/WEB-INF/ftl/hello.ftl，看有没有，如果没有再到(InternalResourceViewResolver)
+		/WEB-INF/jsp/hello.jsp。
+

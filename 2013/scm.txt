@@ -1,0 +1,188 @@
+进销存系统也称供应链管理系统（Supply Chain Management，SCM）
+SCM基本内容：计划、采购、（制造）、库存、销售、退换货管理。
+SCM总体为两大流程：物品流、财务流
+
+crm通常包括：客户信息管理系统，OA，进销存(入库，出库，库存)，有些大型的还包括ERP
+项目和产品的区别：项目是针对某一企业的特别定制的，价格较高。而产品是较通用，通过量来获益，价格较低
+
+
+数据库是否应该要外键：
+	如果不使用外键，由程序来控制关系，可能某些误操作删除了一些数据，其他数据还引用着被删除的数据，导致垃圾数据存在
+	如果使用外键，可避免上面的错误，但由于会额外增加检测约束的开销，从而影响执行效率。
+	所以，如果能确保程序无误，就不使用外键关系
+
+使用ibatis：
+	1. 拷jar 
+	2. 总配置文件 
+	3. 每个实体类的mapper配置文件， 每条sql对应一个sqlId
+	4. 使用SqlClientMap执行sqlId对应的sql(在mybatis3中，是SqlSession)
+
+使用ibator可以根据表生产pojo，mapper配置文件和dao。 可装一个eclipse的插件，根据配置文件来生成
+我一般使用可以使用pojo和mapper
+
+
+ibatis缓存, 如在user要使用缓存:
+	<cacheModel type="LRU" id="accCache">  <!-- 使用LRU(最近最少使用)算法，还有FIFO -->
+		<flushInterval hours="24" /> <!-- 24小时更新一次缓
+		存，还可以hours，minutes -->
+		<flushOnExecute statement="user.addAcc" />  <!-- 执行sqlId为user.addAcc也去更新缓存 -->
+		<flushOnExecute statement="user.editAcc" />
+		<property name="size" value="100" /> <!-- 最大可以缓存100个user -->
+	</cacheModel>
+
+DateUtils：
+	public class DateUtils {
+	    public static Date toDayStart(Date date) {
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+	        try {
+	            return sdf.parse(sdf.format(date));
+	        } catch (ParseException e) {
+	            return null;
+	        }
+	    }
+
+	    public static Date toDayEnd(Date date) {
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+	        Date tmp = null;
+	        try {
+	            tmp = sdf.parse(sdf.format(date));
+	        } catch (ParseException e) {
+	            return null;
+	        }
+	        return new Date(tmp.getTime() + 24 * 60 * 60 * 1000 - 1);
+	    }
+
+	    public static String fmtDate(Date date) {
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+	        return sdf.format(date);
+	    }
+	    
+	    public static String fmtDateTime(Date date) {
+	        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	        return sdf.format(date);
+	    }
+	}
+
+自定义标签，方法：
+	1. 在web-inf下新建tag文件custom-tag.tld
+		...
+		<!-- 自定义标签 -->
+		<tag>
+			<name>privShow</name>
+			<tag-class>net.beifeng.mobile_scm.web.PrivShowTag</tag-class>
+			<body-content>JSP</body-content>
+			<attribute>
+				<name>action</name>
+				<required>true</required>
+				<rtexprvalue>false</rtexprvalue>
+			</attribute>
+		</tag>
+
+		<!-- 自定义方法，格式化日期，通过el表达式${my:fmtDate(date)}来使用。也可以通过struts或jstl的格式化标签实现格式化 -->
+		<function>
+			<name>fmtDate</name>
+			<function-class>net.beifeng.mobile_scm.utils.DateUtils</function-class>
+			<function-signature>java.lang.String fmtDate(java.util.Date)</function-signature>
+		</function>
+	2. 在页面引用
+	
+日志：action中的方法都通过拦截器来记录业务日志，不需要记录日志的通过自己建的Annotation @DoLog(false)来标注.
+业务日志的信息量十分大，定期每个月1号清除上个月的日志。
+
+spring-quartz配置：
+	<!-- 计划任务管理器 -->
+	<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+	    <property name="triggers">
+	        <list>
+	            <ref bean="clearLogTrigger" />
+	        </list>
+	    </property>
+	</bean>
+	
+	<!-- 清理日志任务 -->
+	<bean id="clearLogTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+	    <property name="jobDetail">
+	        <ref bean="methodInvokingJobDetail" />
+	    </property>
+	    <property name="cronExpression">
+	        <value>0 0 1 1 * ?</value>
+	    </property>
+	</bean>
+	
+	<!-- 以代理方式执行任务方法，另一种不以代理方式执行的方法要继承quartz的类(不推荐) -->
+	<bean id="methodInvokingJobDetail"
+	    class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="targetObject">
+	        <ref bean="logService" />
+	    </property>
+	    <property name="targetMethod">
+	        <value>clearLog</value>
+	    </property>
+	</bean>
+	<!--   前六项是必须的，年不是必须的。  由于有了日就能确定星期几，有了星期几就能确定日。所以他们是冲突的，故只需填其中一个。
+	秒  分   时    日    月    星期几   年
+	0   0    0     10    12    ?        2009   
+	0   0    0     10    2-5   ?        *		  每年2到5月的10日1时0分0秒。   还可以写成2,3,4,5
+	0   0    1     L     2/2   ?                  每年2,4,6,8,10,12月的最后一日1时0分0秒. L表示最后一日  2/2表示从2开始，每次递增2
+	-->
+
+分页：
+	<select sqlId="log_find_count">select count(*) from sys_log</select>
+	<select sqlId="log_find">select * from sys_log limit #pageOfset,#pageSize#</select>
+	可以使用上面的方法来实现分页。
+	也可以通过ibatis提供的分页方法 sqlMapClient().queryForList(sqlId, parameter, skip, pageSize); 
+	然后获取总页数可可以不写到mapper文件中，而是通过select count(*) from (select * from sys_log) tmp
+	来获取，只要根据log_find获取sql字符串，就可以拼接获取总记录数的sql
+		// BaseDao中的分页查询
+		public List queryPaginatedList(String sqlId, Object parameter, int skip,
+		        int pageSize) throws SQLException {
+		    return getSqlMapClient().queryForList(sqlId, parameter, skip, pageSize);
+		}
+
+		// 获取总记录数。 
+		public int getTotalRecordCnt(String sqlId, Object parameter) {
+		    SqlMapClientImpl clientImpl = (SqlMapClientImpl) getSqlMapClient();
+		    MappedStatement mappedStatement = clientImpl.getMappedStatement(sqlId);
+
+		    Sql sql = mappedStatement.getSql();
+
+		    StatementScope statementScope = new StatementScope(new SessionScope());
+		    mappedStatement.initRequest(statementScope);
+
+		    String strSql = sql.getSql(statementScope, parameter); //以上是根据参数获取动态sql
+		    // select * from sys_log where accName=? and beginDate=? 
+		    // 获取总记录数的sql， 合理的做法还应该去掉order by以加快速度
+		    strSql = "select count(1) from (" + strSql + ") tmp";
+
+		    Object[] vals = null;
+		    if (parameter != null) {
+		        vals = sql.getParameterMap(statementScope, parameter)
+		                .getParameterObjectValues(statementScope, parameter);
+		    }
+
+		    Connection conn = null;
+		    PreparedStatement ps = null;
+		    ResultSet rs = null;
+
+		    int cnt = 0;
+		    try {
+		        conn = clientImpl.getDataSource().getConnection();
+		        ps = conn.prepareStatement(strSql);
+		        if (vals != null && vals.length > 0) {
+		            for (int i = 0; i < vals.length; i++) {
+		                ps.setObject(i + 1, vals[i]);
+		            }
+		        }
+		        rs = ps.executeQuery();
+		        if (rs.next()) {
+		            cnt = rs.getInt(1);
+		        }
+		    } catch (SQLException e) {
+		    } finally {
+		        // close resourses
+		    }
+
+		    return cnt;
+		}
+
+
