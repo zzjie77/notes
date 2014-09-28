@@ -14,4 +14,24 @@ wordcount的multiset不能是基于内存的，要改写成基于磁盘的，否
 	洗牌则是将阶段一所有的wordcount-a迁移到机器A进行运算，wordcount-b迁移到wordcount-b中进行运算
 
 
+NameNode跟踪文件的元数据——描述系统中所包含文件以及文件如何被分割为数据块
+DataNode提供数据块的备份存储，并不断向NameNode报告，以保持元数据为最新状态
+Secondary NameNode也是监测HDFS集群状态，与NameNode不同的是它不接收或记录HDFS的实时变化。相反，它与NameNode通信，隔一段时间获取HDFS元数据的快照。
+	NameNode在2.4.1之前是单点故障，出现故障后，可以手动启动SNN，SNN保存了一部分元数据，可减少损失
+JobTracker:一旦代码提交集群，JobTracker会确定执行计划，包括据顶处理哪些文件、为不同的任务分配节点监控所有任务的运行。如果任务失败，JT会重启任务
+TaskTracker：负责执行由JobTracker分配的单项任务。每个从节点只有一个TT，但每个TT可以生成多个JVM来并行处理
+	DataNode和TaskTracker一定是在同一一台机的
+	SNN通常也独占一台服务器，不运行DataNode和TaskTracker，集群很小的时候可以合并SNN到从节点
+	NameNode一般和JobTracker一台机，大集群中可以各自占一台
+
+技巧：建立多个配置目录conf.cluster、conf.pseudo、conf.standalone，使用ln -s conf.cluster conf来切换
+
+web管理界面：
+	NameNode： http://namenode-host:50070/ 可以看到HDFS的状态和使用情况，以及每个DataNode的情况，可以浏览文件系统
+	JobTracker: http://jobtracker-host:50030/ 可以监控活跃的MapReduce作业，并访问每个map和reduce任务的日志，以及某个作业的特定参数配置
+
+MapReduce的输入输出都是以键值对的形式，键必须实现WritableComparable，值必须实现Writable接口
+
+Mapper和Reducer必须基础MapReduceBase
+Partitioner：重定向Mapper输出，即完成partitioning和shuffing
 
