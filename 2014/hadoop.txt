@@ -28,10 +28,12 @@ TaskTracker：负责执行由JobTracker分配的单项任务。每个从节点�
 
 web管理界面：
 	NameNode： http://namenode-host:50070/ 可以看到HDFS的状态和使用情况，以及每个DataNode的情况，可以浏览文件系统
-	JobTracker: http://jobtracker-host:50030/ 可以监控活跃的MapReduce作业，并访问每个map和reduce任务的日志，以及某个作业的特定参数配置
+	JobTracker: http://jobtracker-host:50030/ 2.x版本的端口是8088    可以监控活跃的MapReduce作业，并访问每个map和reduce任务的日志，以及某个作业的特定参数配置
 
 MapReduce的输入输出都是以键值对的形式，键必须实现WritableComparable，值必须实现Writable接口
 
 Mapper和Reducer必须基础MapReduceBase
 Partitioner：重定向Mapper输出，即完成partitioning和shuffing
+Combiner: 本地reducer，map之后先进行本地reducing以减少数据传输
+
 
