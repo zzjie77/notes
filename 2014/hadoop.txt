@@ -23,17 +23,197 @@ TaskTracker：负责执行由JobTracker分配的单项任务。每个从节点�
 	DataNode和TaskTracker一定是在同一一台机的
 	SNN通常也独占一台服务器，不运行DataNode和TaskTracker，集群很小的时候可以合并SNN到从节点
 	NameNode一般和JobTracker一台机，大集群中可以各自占一台
-
+h
 技巧：建立多个配置目录conf.cluster、conf.pseudo、conf.standalone，使用ln -s conf.cluster conf来切换
 
 web管理界面：
 	NameNode： http://namenode-host:50070/ 可以看到HDFS的状态和使用情况，以及每个DataNode的情况，可以浏览文件系统
-	JobTracker: http://jobtracker-host:50030/ 2.x版本的端口是8088    可以监控活跃的MapReduce作业，并访问每个map和reduce任务的日志，以及某个作业的特定参数配置
+	JobTracker: http://jobtracker-host:50030/ 可以监控活跃的MapReduce作业，并访问每个map和reduce任务的日志，以及某个作业的特定参数配置
 
 MapReduce的输入输出都是以键值对的形式，键必须实现WritableComparable，值必须实现Writable接口
 
 Mapper和Reducer必须基础MapReduceBase
 Partitioner：重定向Mapper输出，即完成partitioning和shuffing
-Combiner: 本地reducer，map之后先进行本地reducing以减少数据传输
+
+
+常用InputFormat：
+	1. TextInputFormat 在文本文件的每一行为一个记录。键为一行的字节变异，而值为一行的内容
+	2. KeyValueTextInputFormat 在文本文件中的每一行均为一个记录。以key.value.separator.in.input.line为分割，默认\t
+	3. SequenceFileInputFormat<K, V> 用于读取序列文件的InputFormat。键和值由用户定义。专用于一个MapReduce作业和其他MapReduce作业之间传送数据
+	4. NLineInputFormat 与TextInputFormat相同，但每个分片一定有N行。N在属性mapred.line.input.format.linespermap中设定，默认1
+	自定义InputFormat需要实现InputFormat接口，但通常我们并不需要关注如何把文件分块getSplits，可以继承FileInputFormat抽象类，已经实现了getSplits方法。上面的常用InputFormat都是继承FileInputFormat，只有NullInputFormat不继承
+	class SelfInputFormat implements InputFormat<Text, Text> {
+		public RecordReader<Text, Text> getRecordReader(InputSplit splict, JobConf conf, Reporter reporter)
+				throws IOException {
+			return null;
+		}
+
+		public InputSplit[] getSplits(JobConf conf, int numSplits) throws IOException {
+			return null;
+		}
+	}
+
+常见OutputFormat：默认TextOutputFormat
+	1. TextOutputFormat<K,V> 将每个记录写成一行文本。键和值以字符串的形式写入，以mapred.textoutputforamt.seperator分隔，默认\t
+	2. SequenceFileOutputFormat<K,V> 与SequenceFileInputFormat配合使用
+	3. NullOutputFormat<K, V> 无输出
+
+hadoop 0.2 API的改变：
+	1. org.apache.hadoop.mapred的许多类移到org.apache.hadoop.mapreduce,类库移到org.apache.hadoop.mapreduce.lib
+	2. context替换OutputReporter、Reporter对象
+	3. 新的抽象类Mapper和Reducer取代了Mapper和Reducer接口，也替换了MapReducerBase类
+	4. reduce方法的values类型从Iterator变成Iterable，可以使用foreach语法
+	5. JobConf和JobClient被替换成Configuration(JobConf的父类)和Job(新类)
+		诸如setOutputKeyClass、setInputFormat等方法从JobConf移到Job
+		提交作业从JobClient.runJob(jobconf) 变成 System.exit(job.waitForCompletion(true) ? 0 : 1);
+	6. KeyValueTextInputFormat不被提供，要使用TextInputFormat。 后来的版本又支持了
+
+hadoop streaming
+	使用其他语言来编写MapReduce，只要遵循UNIX的标准输入、输出就行，主要用于编写简单，短小的MapReduce程序
+
+1. 通过unix命令使用streaming
+ bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
+	-input input/cite75_99.txt
+	-output output
+	-mapper ‘cut -f 2 -d ,’ #以逗号分隔，去第二列
+	-reducer ‘uniq’
+	# -D mapred.reduce.tasks=0 #也支持GenericOptionsParser
+2. 通过脚本使用streaming
+	RandomSample.py  #随机取10%的行
+		#!/usr/bin/env python
+		import sys, random
+		for line in sys.stdin:
+		if (random.randint(1,100) <= int(sys.argv[1])):
+		print line.strip()
+	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
+		-input input/cite75_99.txt
+		-output output
+		-mapper ‘RandomSample.py 10’
+		-file RandomSample.py   #需要指定脚本文件，才能拷贝到各个节点使用
+		-D mapred.reduce.tasks=1
+	默认使用IdentityReducer，即直接把输入进行输出
+	如果reducer的数目为0，则输出文件的数目等于mapper的数目
+	如果reducer数目不为0，则输出文件的数目等于reducer的数目
+
+	求最大值满足分配率：max(X1,X2,X3,X4) = max(max(X1,X2), max(X3,X4))
+	AttributeMax.py #求某列的最大值
+	#!/usr/bin/env python
+	import sys
+	index = int(sys.argv[1])
+	max = 0
+	for line in sys.stdin:
+		fields = line.strip().split(“,”)
+		if fields[index].isdigit():
+			val = int(fi elds[index])
+			if (val > max):
+				max = val
+	else:
+		print max
+	bin/hadoop jar contrib/streaming/hadoop-0.18.1-streaming.jar
+		-input input/apat63_99.txt
+		-output output
+		-mapper ‘AttributeMax.py 8’ #先求出每个mapper第9列的最大值
+		-reducer ‘AttributeMax.py 0’ #求出各个mapper中的最大值
+		-file AttributeMax.py    
+		-D mapred.reduce.tasks=1
+
+聚合函数的类别：
+	1. 分配性 
+		最小值、总和、计算
+	2. 代数型
+		平均值、方差
+	3. 全集型
+		中值、k个最小值，k个最大值
+
+streaming是如何完成partition和shuffing的。分区是在reducer中完成的，reducer把所有记录进行排序，reduce方法读到相同的key都连续的，从而达到<k2, list(v2)>的目的
+
+求国家-专利声明数的平均值
+	AverageByAttributeMapper.py:
+	#!/usr/bin/env python
+	import sys
+	#一次读取一行，而不像java中分好key, value
+	for line in sys.stdin:
+		fields = line.split(“,”)
+		if (fi elds[8] and fi elds[8].isdigit()):
+			print fi elds[4][1:-1] + “\t” + fi elds[8]
+	--------------------
+	 AverageByAttributeReducer.py：
+	 #!/usr/bin/env python
+	import sys
+	(last_key, sum, count) = (None, 0.0, 0)
+	#一次读取一行，而不像java中分好key, value
+	for line in sys.stdin:
+		(key, val) = line.split(“\t”)
+		# streaming中的reducer会排好序，所以可以判断key是否是上一个达到java中<k2, list<v2>的效果
+		if last_key and last_key != key:   
+			print last_key + “\t” + str(sum / count)
+			(sum, count) = (0.0, 0)
+		last_key = key
+		sum += float(val)
+	count += 1
+	print last_key + “\t” + str(sum / count)
+	------------------------------
+	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
+ 	  -input input/apat63_99.txt
+ 	  -output output
+ 	  -fi le playground/AverageByAttributeMapper.py
+ 	  -mapper ‘AverageByAttributeMapper.py’
+ 	  -D mapred.reduce.tasks=0
+
+3. 使用Aggregate使用streaming
+	mapper输出的格式： function:key\tvalue
+	function支持的类型：
+		DoubleValueSum、LongValueMax、LongValueMin、LongValueSum、StringValueMax、StringValueMin、
+		UniqValueCount、ValueHistogram（个数，最小值，中值，最大值，平均值，标准方差）
+	----------------------------
+	AttributeCount.py
+	#!/usr/bin/env python
+	import sys
+	index = int(sys.argv[1])
+	for line in sys.stdin:
+		fields = line.split(",")
+		print "LongValueSum:"" + fields[index] + "\t" + "1"
+	----------------------------
+	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
+	  -input input/apat63_99.txt
+	  -output output
+	  -file AttributeCount.py
+	  -mapper 'AttributeCount.py 1' #求个各个年份的专利数
+	  -reducer aggregate
+
+	ValueHistogram的mapper格式是ValueHistogram: key_a\tvalue_a\t10， 如果没有\t10就为1
+
+Combiner：	Combiner必须是一个java类
+	combiner一般与reducer一样，使用combiner来计算平均值的问题在于在reduce不知道value值是几个值的和，不适用combiner的时候每个value就是一个值的和
+	所以要在平均值使用combiner，首先要对mapper和reducer进行改造
+	等效于 AverageByAttributeMapper.py的java类
+	AverageByAttributeMapper.py:   #在value中加入了计数，
+	public static class MapClass extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text> {
+		public void map(LongWritable key, Text value,
+			OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
+			String fi elds[] = value.toString().split(“,”, -20);
+			String country = fields[4];
+			String numClaims = fields[8];
+			if (numClaims.length() > 0 && !numClaims.startsWith(“\”)) {
+				output.collect(new Text(country), new Text(numClaims + “,1”));    
+				#也可以新建一个WritableComparable来包含numClaims和计数，但这种方式更简单
+			}
+		}
+	}
+	----------------------
+	public static class Reduce extends MapReduceBase implements Reducer<Text, Text, Text, DoubleWritable> {
+		public void reduce(Text key, Iterator<Text> values, OutputCollector<Text, DoubleWritable> output, Reporter reporter) throws IOException {
+			double sum = 0;
+			int count = 0;
+			while (values.hasNext()) {
+				String fi elds[] = values.next().toString().split(“,”);
+				sum += Double.parseDouble(fi elds[0]);
+				count += Integer.parseInt(fi elds[1]);
+			}
+			output.collect(key, new DoubleWritable(sum/count));
+		}
+	}
+
+
 
 
