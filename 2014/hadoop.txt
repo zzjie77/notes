@@ -250,7 +250,7 @@ Combiner：	Combiner必须是一个java类
 4、 安装jdk
 5、关闭防火墙
 	RedHat:
-	/etc/init.d/iptables stop 关闭防火墙。
+	service iptables stop 关闭防火墙。
 	chkconfig iptables off 关闭开机启动。
 	Ubuntu:
 	ufw disable (重启生效)
@@ -285,7 +285,7 @@ Combiner：	Combiner必须是一个java类
 		</property>
 		<property>
 			<name>hadoop.tmp.dir</name>
-			<value>/usr/local/hadoop/data/tmp</value>
+			<value>/home/hduser/hadoop/tmp</value>
 		</property>
 
 	配置文件5：hdfs-site.xml
@@ -329,8 +329,8 @@ Combiner：	Combiner必须是一个java类
 这里可以写一个shell脚本进行操作（有大量节点时比较方便）
 cp2slave.sh：
 #!/bin/bash 
-scp –r /home/hduser/hadoop hduser@cloud002:/home/hduser
-scp –r /home/hduser/hadoop hduser@cloud003:/home/hduser
+scp -r /home/hduser/hadoop hduser@cloud002:/home/hduser
+scp -r /home/hduser/hadoop hduser@cloud003:/home/hduser
 #拷贝之后可能需要修改JAVA_HOME配置
 
 4、启动验证
@@ -353,4 +353,29 @@ scp –r /home/hduser/hadoop hduser@cloud003:/home/hduser
 
 PS：dataNode 无法启动是配置过程中最常见的问题，主要原因是多次format namenode 造成namenode 和datanode的clusterID不一致。建议查看datanode上面的log信息。解决办法:修改每一个datanode上面的CID(位于dfs/data/current/VERSION文件夹中)使两者一致。
 还有一种解决方法: clusterID不一致，namenode的cid和datanode的cid不一致，导致的原因是对namenode进行format的之后，datanode不会进行format，所以datanode里面的cid还是和format之前namenode的cid一样，解决办法是删除datanode里面的dfs.datanode.data.dir目录和tmp目录，然后再启动start-dfs.sh
+
+
+
+echo ${JAVA_HOME//\//\\\/} #将java_home的/替换成\/
+# 将hadoop-env.sh文件的${JAVA_HOME}字符替换成真实的环境变量
+sed -i "s/\${JAVA_HOME}/`echo ${JAVA_HOME//\//\\\/}`/g" `echo ${HADOOP_HOME}`/etc/hadoop/hadoop-env.sh
+# 将27行替换成真实java_home
+sed -i "27 c  export JAVA_HOME=`echo ${JAVA_HOME//\//\\\/}`" `echo ${HADOOP_HOME}`/etc/hadoop/hadoop-env.sh
+
+
+org.apache.hadoop.yarn.exceptions.YarnException: Unauthorized request to start container. 
+This token is expired. current time is 1413052223092 found 1413006056540  时间没同步
+
+*/10 * * * *    ( /usr/sbin/ntpdate pool.ntp.org ) #pool.ntp.org是互联网上的时钟服务器，也可以自己通过ntpd搭建
+
+同步完之后看看市区是否一致，是否东八区date -R，修改市区：
+cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+
+添加第三方jar包的集中办法， 推荐第三种
+Option 1) 将jar拷贝到所有节点的$HADOOP_HOME/lib中，也可以是其他目录，通过hadoop classpath查看任意一个目录 
+Option 2) 使用选项-libjars comma_seperated_jars，提交类继承Tool以支持GenericOptions
+Option 3) 打jar包的时候包含一个lib目录，存放第三方jar包
+Option 4) DistributedCache.addFileToClassPath(hdfsJar, conf)把jar包加入缓存
+Option 5) 打一个fat jar包，即jar包里包含所有依赖，这种方式需要把hadoop本身的jar也要打进去，使jar包变得非常大
 
