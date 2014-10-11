@@ -102,9 +102,9 @@ hadoop streaming
 	index = int(sys.argv[1])
 	max = 0
 	for line in sys.stdin:
-		fields = line.strip().split(“,”)
+		fields = line.strip().split(",")
 		if fields[index].isdigit():
-			val = int(fi elds[index])
+			val = int(fields[index])
 			if (val > max):
 				max = val
 	else:
@@ -133,9 +133,9 @@ streaming是如何完成partition和shuffing的。分区是在reducer中完成�
 	import sys
 	#一次读取一行，而不像java中分好key, value
 	for line in sys.stdin:
-		fields = line.split(“,”)
-		if (fi elds[8] and fi elds[8].isdigit()):
-			print fi elds[4][1:-1] + “\t” + fi elds[8]
+		fields = line.split(",")
+		if (fields[8] and fields[8].isdigit()):
+			print fields[4][1:-1] + "\t" + fields[8]
 	--------------------
 	 AverageByAttributeReducer.py：
 	 #!/usr/bin/env python
@@ -143,15 +143,15 @@ streaming是如何完成partition和shuffing的。分区是在reducer中完成�
 	(last_key, sum, count) = (None, 0.0, 0)
 	#一次读取一行，而不像java中分好key, value
 	for line in sys.stdin:
-		(key, val) = line.split(“\t”)
+		(key, val) = line.split("\t")
 		# streaming中的reducer会排好序，所以可以判断key是否是上一个达到java中<k2, list<v2>的效果
 		if last_key and last_key != key:   
-			print last_key + “\t” + str(sum / count)
+			print last_key + "\t" + str(sum / count)
 			(sum, count) = (0.0, 0)
 		last_key = key
 		sum += float(val)
 	count += 1
-	print last_key + “\t” + str(sum / count)
+	print last_key + "\t" + str(sum / count)
 	------------------------------
 	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
  	  -input input/apat63_99.txt
@@ -191,11 +191,11 @@ Combiner：	Combiner必须是一个java类
 	public static class MapClass extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text> {
 		public void map(LongWritable key, Text value,
 			OutputCollector<Text, Text> output, Reporter reporter) throws IOException {
-			String fi elds[] = value.toString().split(“,”, -20);
+			String fields[] = value.toString().split(",", -20);
 			String country = fields[4];
 			String numClaims = fields[8];
-			if (numClaims.length() > 0 && !numClaims.startsWith(“\”)) {
-				output.collect(new Text(country), new Text(numClaims + “,1”));    
+			if (numClaims.length() > 0 && !numClaims.startsWith("\")) {
+				output.collect(new Text(country), new Text(numClaims + ",1"));    
 				#也可以新建一个WritableComparable来包含numClaims和计数，但这种方式更简单
 			}
 		}
@@ -206,9 +206,9 @@ Combiner：	Combiner必须是一个java类
 			double sum = 0;
 			int count = 0;
 			while (values.hasNext()) {
-				String fi elds[] = values.next().toString().split(“,”);
-				sum += Double.parseDouble(fi elds[0]);
-				count += Integer.parseInt(fi elds[1]);
+				String fields[] = values.next().toString().split(",");
+				sum += Double.parseDouble(fields[0]);
+				count += Integer.parseInt(fields[1]);
 			}
 			output.collect(key, new DoubleWritable(sum/count));
 		}
