@@ -379,3 +379,271 @@ Option 3) 打jar包的时候包含一个lib目录，存放第三方jar包
 Option 4) DistributedCache.addFileToClassPath(hdfsJar, conf)把jar包加入缓存
 Option 5) 打一个fat jar包，即jar包里包含所有依赖，这种方式需要把hadoop本身的jar也要打进去，使jar包变得非常大
 
+
+链接MapReduce作业：
+1. 顺序链接：一个MapReduce作业执行完之后调用另一个作业的driver，每个作业都创建自己的JobConf，并将当前作业的输入设置为上一个作业的输出，全部执行完再删除中间产生的数据
+2. 具有复杂依赖的MapReduce链接（场景：如c要a,b执行完后才执行）：通过Job和JobController来管理，对于Job对象x和y，x.addDependingJob(y)意味着y执行完才会执行x，然后通过JobController.addJob()方法添加x,y。再调用JobController.run()来提交
+3. 预处理和后处理的链接：如wordcount前过滤停用词(a、the..)，或转换一个词的不同形式为相同形式（finish finished）
+这些预处理可以通过一个MR作业来完成，但是这种做法会产生中间结果会占用存储和IO，十分低效，可以使用ChainMapper和ChianReducer来简化
+如: map1 | map2 | reduce | map3 | map4  #map2和reduce才是mr的核心，map1是预处理，map3,map4是后处理
+ChainMapper.addMapper(job, Map1.class, LongWritable.class, Text.class, Text.class, Text.class, true, map1conf);
+ChainMapper.addMapper(job, Map2.class, Text.class, Text.class, Text.class, Text.class, true, map1conf);
+addMapper签名的参数是(JobConf conf, Class k1, Class v1, Class k2, Class v2, boolean byValue, JobConf mapperConf);
+conf和mapperConf分别是全局和局部的配置，k1,v1,k2,v2是输入输出的键值类型
+byValue，默认true,意味着按值传递，即context.write(k1, v1)之后不会改变k1, v1。如果多个mapper在相同的jvm线程中执行，
+传递引用可减少数据复制从而提高效率，必须确保后续的mapper不会对k, v进行修改。
+
+
+数据联结：
+1. Reduce联结：因为主要的操作在reduce侧完成，所以称为reduce联结，可以通过datajoin包来完成
+	customers:
+		customer_id, name, phone
+		1,Stephanie Leung,555-555-5555
+		..
+	orders:
+		customer_id, order_id, price, time
+		1, B,88.25,20-May-2008
+		..
+	联结后的数据：
+	1,Stephanie Leung,555-555-5555, B,88.25,20-May-2008
+
+	// 使用DatJoin, Mapper和Reducer要继承DataJoinMapperBase，DataJoinReducerBase
+	public class DataJoin extends Configured implements Tool {
+	    
+	    public static class MapClass extends DataJoinMapperBase {
+	        // tag用于标记数据来源，使用文件名
+	        protected Text generateInputTag(String inputFile) {
+	            String datasource = inputFile.split("-")[0];
+	            return new Text(datasource);
+	        }
+	        
+	        // groupkey即为数据库中的joinKey，要是Text类型，作为mapper的key
+	        protected Text generateGroupKey(TaggedMapOutput aRecord) {
+	            String line = ((Text) aRecord.getData()).toString();
+	            String[] tokens = line.split(",");
+	            String groupKey = tokens[0];
+	            return new Text(groupKey);
+	        }
+	        
+	        // TaggedMapOutput包含data和tag，用于mapper的value，还要实现Writable，所以使用TaggedWritable
+	        protected TaggedMapOutput generateTaggedMapOutput(Object value) {
+	            TaggedWritable retv = new TaggedWritable((Text) value);
+	            retv.setTag(this.inputTag);
+	            return retv;
+	        }
+	    }
+	    
+	    public static class Reduce extends DataJoinReducerBase {
+	        // 通过combine来过滤数据，combine来决定使用内联结，左联结还是右联结
+	        // tags的元素个数与values的一致，并且一一对应
+	        protected TaggedMapOutput combine(Object[] tags, Object[] values) {
+	            if (tags.length < 2) return null;  //由于使用内联结，小于2的返回空
+	            String joinedStr = ""; 
+	            for (int i=0; i<values.length; i++) {
+	                if (i > 0) joinedStr += ",";
+	                TaggedWritable tw = (TaggedWritable) values[i];
+	                String line = ((Text) tw.getData()).toString();
+	                String[] tokens = line.split(",", 2);
+	                joinedStr += tokens[1];
+	            }
+	            TaggedWritable retv = new TaggedWritable(new Text(joinedStr));
+	            retv.setTag((Text) tags[0]); 
+	            return retv;
+	        }
+	    }
+	    
+	    //TaggedMapOutput实现了getTag和setTag，并指定了抽象方法getData
+	    public static class TaggedWritable extends TaggedMapOutput {
+	    
+	        private Writable data;
+	        
+	        public TaggedWritable(Writable data) {
+	            this.tag = new Text("");
+	            this.data = data;
+	        }
+	        
+	        public Writable getData() {
+	            return data;
+	        }
+	        
+	        public void write(DataOutput out) throws IOException {
+	            this.tag.write(out);
+	            this.data.write(out);
+	        }
+	        
+	        public void readFields(DataInput in) throws IOException {
+	            this.tag.readFields(in);
+	            this.data.readFields(in);
+	        }
+	    }
+
+	    // main method
+	    
+	}
+	
+2. 基于DistributedCache的复制联结：（不需要reduce）
+	reduce联结非常灵活，但是效率很低，map阶段的全部数据都会在网络重排，直到reduce阶段才会做联结，并且会丢弃大部分数据
+	实现map阶段联结的难点在于一个mapper正在处理的记录可能与另一个不易访问的记录进行联结
+	当一个数据源的与另一个数据源相差好几个数量级，小数据源可以载入全部节点内存时，就可以实现map阶段的联结
+	借用数据库的术语，叫复制联结（replicated join）,即一个表被复制到集群中的所有节点上
+	使用DistributedCache.addCacheFile，文件是通过HDFS作为共享数据中心分发到各节点的，且只发给任务被调度到的节点。会保存在工作目录中，MR结束后会删除
+	然后再在configure阶段通过DistributedCache.getLocalCacheFiles获取缓存文件在本地hdfs的路径，然后加载到内存
+	GenericOptions的-files, -archieve(解压jar, zip..), -libjars(加入classpath)就是通过DistributedCache来完成的
+扩展：可能小表的大小装不下内存，或者内存装得下但是数据量太大导致复制到各个mapper的开销过大。
+所以可以使用半联结(map测过滤后在reduce侧联结)。
+例如广州地区客户与订单的联结，先在map过滤出广州客户，然后分到各个map节点上，加载到内存中
+
+3. Bloom Filter
+	可能使用半联结过滤出的数据依然很大，放不下内存，这时可以使用BloomFilter的数据结构。
+	这是一种集合的紧凑表示法，保证了没有漏报，但是有小概率的误报。oracle 11g也用了这种技术
+	BloomFilter的主要的签名如下：
+	class BloomFilter<E> implements Writable {
+	    
+	    private BitSet bf;
+	    
+	    public void add(E obj) { }
+	    public boolean contains(E obj) { }
+	    public void union(BloomFilter<E> other) { }
+	}
+
+	使用BloomFilter：
+	public class BloomFilterMR extends Configured implements Tool {
+	    
+	    public static class MapClass extends MapReduceBase
+	        implements Mapper<Text, Text, Text, BloomFilter<String>> {
+	        
+	        BloomFilter<String> bf = new BloomFilter<String>();
+	        OutputCollector<Text, BloomFilter<String>> oc = null;
+	        
+	        public void map(Text key, Text value,
+	                        OutputCollector<Text, BloomFilter<String>> output,
+	                        Reporter reporter) throws IOException {
+	            // 自己持有一个OutputCollector的引用，因为close方法要使用。 
+	            if (oc == null) oc = output; 
+	            
+	            // oc.collect的问题是占用空间太大，把元素加到BloomFilter，可大大节省空间
+	            bf.add(key.toString());
+	        }
+	        
+	        public void close() throws IOException {
+	        	// 输出bloomfilter.    0.2x后的cleanup方法包含context参数，所以不需要自己持有oc引用
+	            oc.collect(new Text("testkey"), bf);
+	        }
+	    }
+	    
+	    public static class Reduce extends MapReduceBase
+	        implements Reducer<Text, BloomFilter<String>, Text, Text> {
+	        
+	        JobConf job = null;
+	        BloomFilter<String> bf = new BloomFilter<String>();
+	        
+	        public void configure(JobConf job) {
+	            this.job = job;
+	        }
+	        
+	        public void reduce(Text key, Iterator<BloomFilter<String>> values,
+	                           OutputCollector<Text, Text> output,
+	                           Reporter reporter) throws IOException {
+	            
+	            while (values.hasNext()) {
+	            	// 每个mapper的分片数据都加到一个br中，在reduce阶段把这些br合并
+	                bf.union((BloomFilter<String>)values.next());
+	            }
+	        }
+	        
+	        public void close() throws IOException {
+	        	// 获取输出路径，然后把br输出成二进制文件
+	            Path file = new Path(job.get("mapred.output.dir") +
+	                                 "/bloomfilter");
+	            FSDataOutputStream out = file.getFileSystem(job).create(file);
+	            bf.write(out);
+	            out.close(); 
+	        }
+	    }
+	    
+	    public int run(String[] args) throws Exception {
+	        Configuration conf = getConf(); 
+	        JobConf job = new JobConf(conf, BloomFilterMR.class);
+	        
+	        Path in = new Path(args[0]);
+	        Path out = new Path(args[1]);
+	        FileInputFormat.setInputPaths(job, in);
+	        FileOutputFormat.setOutputPath(job, out);
+
+	        job.setJobName("Bloom Filter");
+	        job.setMapperClass(MapClass.class);
+	        job.setReducerClass(Reduce.class);
+	        job.setNumReduceTasks(1);
+	        
+	        job.setInputFormat(KeyValueTextInputFormat.class);
+	        // 自己写文件输出，不通过collector输出
+	        job.setOutputFormat(NullOutputFormat.class);
+	        job.setOutputKeyClass(Text.class);
+	        job.setOutputValueClass(BloomFilter.class);
+	        job.set("key.value.separator.in.input.line", ",");
+	        
+	        JobClient.runJob(job);
+	        
+	        return 0;
+	    }
+	    
+	    public static void main(String[] args) throws Exception {
+	        int res = ToolRunner.run(new Configuration(), new BloomFilterMR(), args);
+	        System.exit(res);
+	    }
+	}
+
+
+日志：
+	hadoop_home/logs下， namenode, snn, jt, tt 每个组件都有一个以自己命名的日志文件
+	hadoop_home/logs/userlogs下，通过sysout,syserr输出的信息保存在这个目录下，每次提交作业都产生新日志文件
+	作为程序员应该多关注taskTracker/nodeManager的日志，代码的异常会记录在这
+
+杀掉作业：
+	hadoop job -kill job_id #job_id可以在web控制台查看
+
+计数器：
+	Reporter.incrCounter(String group, String counter, long amount)来使用计算器，譬如要跟踪坏记录的数量，计数结果会在web控制台显示
+
+跳过坏记录：
+	hadoop支持skipping模式，如果skipping模式启用，当作业失败两次后进入该模式，跳过一定大小的数据，重新运行作业，如果再失败则再跳过一定大小，再运行
+	可以通过jobconf或者配置文件设置跳过数据的大小、skipping模式的尝试次数等属性
+
+用IsolationRunner重新运行出错任务：
+	作业失败，可能通过日志并不能找到原因。可以使用IsolationRunner重新运行失败的任务。
+	首先要配置属性keep.failed.tasks.files为true，然后作业失败的文件就会保存在任务失效节点的
+	local_dir/taskTracker/jobcache/job_id/attempt_id/word， local_dir是mapred.local.dir
+	通过设置JVM属性让JVM支持远程调试
+	export HADOOP_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,address=8000"
+	jvm会在8000端口侦听调试器，运行代码前等待调试器接入。可以查看IDE的文档看如何接入，可以使用jdb来接入
+	重新运行失败作业：（job.xml包含了IsolationRunner所需的配置信息）
+	bin/hadoop org.apache.hadoop.mapred.IsolationRunner ../job.xml
+
+性能调优：
+	1. 使用combiner
+	2. 减少输入数据量，如将大的数据文件拆分成几个小的数据集
+	3. 使用压缩
+		mapred.compress.map.output   boolean，是否压缩
+		mapred.map.output.compression.codec  Class属性，使用哪种压缩
+		conf.setBoolean("mapred.compress.map.output", true);
+		conf.setClass("mapred.map.output.compression.codec", GzipCodec.class, CompressionCodec.class);
+		也可以使用conf.setCompressMapOutput()、setMapOutputCompressorClass()来设置
+		压缩器还有DefaultCodec（扩展名.deflate），GzipCodec（.gz），BZip2Codec（.bz2，特别之处是可以分割，即使不使用序列文件）
+		序列文件是用于存储键/值对的可压缩的二进制文件格式，它被设计用于支持压缩并保持可分割
+		一个大的压缩文件，hadoop在读取的时候要进行解压，如果当成一个文件来解压，则失去并行性，
+		如果先把它拆分块，每块进行再解压，这就能提高效率。 这就是使用序列文件的好处
+
+		conf.setOutputFormat(SequenceFileOutputFormat.class); // 使用序列文件输出
+		SequenceFileOutputFormat.setOutputCompressionType(conf, CompressionType.BLOCK); // type还有Record，每条记录压缩
+		FileOutputFormat.setCompressOutput(conf, true);
+		FileOutputFormat.setOutputCompressorClass(conf, GzipCodec.class);
+	4. 重用JVM
+		默认每个mapper,reducer任务都要用一个新的jvm来运行，而启动jvm的时间非常慢
+		mapred.job.reuse.jvm.num.tasks属性指定每个jvm运行的任务数(同一个作业中)， -1表示没限制
+		也可通过conf.setNumTasksToExecutePerJvm来设置
+	5. 根据猜测执行来运行
+		某个任务可能变得很慢，hadoop会在另一个节点执行相同的任务，其中一个任务执行完就会停止另一个任务
+		默认map和reduce都是启用猜测执行的，将它关闭的情况是，多个任务产生副作用，如多个任务都要创建相同的外部文件，这是就会有冲突
+		通过这两个属性为false就可关闭：
+		mapred.map.tasks.speculative.execution
+		mapred.reduce.tasks.speculative.execution
