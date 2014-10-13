@@ -649,6 +649,7 @@ byValue，默认true,意味着按值传递，即context.write(k1, v1)之后不�
 		mapred.reduce.tasks.speculative.execution
 
 
+<<<<<<< HEAD
 获取任务的特定信息：
 	mapred.job.id  String  作业ID
 	mapred.jar  String  作业目录中jar的位置
@@ -715,5 +716,139 @@ byValue，默认true,意味着按值传递，即context.write(k1, v1)之后不�
 
 以数据库作为输入输出：
 	使用DBInputFormat，DBOutputFormat
+=======
+保持输出顺序：hadoop不能保证reduce输出的顺序，它只能保证排好序的输入，使用TotalOrderPartitioner可排序
+
+管理Hadoop：
+生产一般需要修改的值：第三列是推荐值
+	dfs.name.dir  在NameNode的本地文件系统中，存储HDFS元数据的目录  /home/hadoop/dfs/name
+	dfs.data.dir  在DataNode的本地文件系统中，存储HDFS文件块的目录  /home/hadoop/dfs/data
+	mapred.system.dir  在HDFS中存储共享的MapReduce系统文件的目录   /hadoop/mapred/system
+	mapred.local.dir   在TaskNode的本地文件系统中，用于存储临时数据的目录
+	mapred.tasktracker.{map|reduce}.tasks.maximum   在一个TaskTracker上可同时运行map和reduce任务的最大值
+	hadoop.tmp.dir     Hadoop的临时目录    /home/hadoop/tmp
+	dfs.datanode.du.reserved  DataNode应该具备的最小空闲空间  1073741824
+	mapred.child.java.opts    每个子任务的堆栈大小  -Xmx512m
+	mapred.reduce.tasks    一个作业的reduce任务个数
+	#dfs.name.dir指定多个磁盘的路径可以实现备份
+	#dfs.data.dir  mapred.local.dir指定多个磁盘的路径可以有效利用并行来提高效率
+	#每个TT可运行的map和reduce任务数默认是2,2. 对于一台四核机器，你可以设置3,3，加上TT和DN都算一个，总共8个
+	#对于双四核你也可以设置7，7  这是基于大多数任务是IO密集型的，如果是CPU密集型的任务可以调低点
+	#通常建议一个作业的reduce任务数= 工作节点数 * mapred.tasktracker.reduce.tasks.maximum * （0.95或1.75）
+	#0.95让所有reduce任务马上加载，1.75让一些任务马上加载，较早执行完的再执行第二轮，从而更好的负载
+
+系统体检：
+	bin/hadoop fsck / #递归检查/目录所有文件的健康状态
+	# -files -blocks -locations -racks 可以加上这些选项，查看详细信息，注意有顺序，blocks需要有files, locations需要有前面两个
+	bin/hadoop dfsadmin -report #获取DataNode的情况
+	bin/hadoop dfsadmin -metasave filename #获取当前NameNode的活动状态，将一部分元数据保存在logs/filename中
+
+权限设置
+	bin/hadoop fs -chmod 、 -chown、 chgrp	
+
+配额管理： 设置目录下的文件数量，目录的大小
+	bin/hadoop dfsadmin -setQuota <N> dir   # N是要设置的数字， dir是目录路径，限制目录下的文件数量
+	bin/hadoop dfsadmin -setSpaceQuota <N> dir   # 空间配额，限制目录的空间大小
+	可以通过-clrQuota清除配额
+	bin/hadoop fs -count -q directory  #查看配额
+
+启用回收站：
+	在core-site.xml配置fs.trash.interval为1440，单位分钟，即表示删除的文件会保存在用户目录的.Trash/下1440分钟
+
+删除DataNode：
+	1. 让参数dfs.hosts.exclude指向一个排除文件，启动HDFS是空的
+	2. 把要删除DataNode的IP加入排除文件，一行一个
+	3. 执行bin/hadoop dfsadmin -refreshnode
+
+增加DataNode：
+	1. 在主服务器conf/slaves加上新的IP
+	2. DataNode上做好配置，手动启动bin/hadoop datanode
+	3. bin/start-balancer.sh  可以手动停止stop-balancer.sh  默认阈值是10%,各个DataNode相差10%内就认为是均衡的
+
+NN与SNN：
+	默认NN和SNN是同一台机，对于10台或以上的集群，应该为SNN分配单独的机器	
+	NN的数据是保存在FSImage和EditLog两个文件中的，FSImage是启动时的元数据快照，EditLog是后来元数据的修改记录
+	在NN关闭并重启时，会合并这两个文件到FSImage，清空EditLog. 如果NN长时间不重启，Editlog会很大，下次启动会变得很慢
+	SNN的意义就是可以定时合并这两个文件，不需等到下次重启才合并。
+	SNN会获取NN的数据存放在另一个目录进行合并，所以SNN保留了一定时间间隔的元数据，当NN出现故障，可以使用SNN的数据，但不是最新的
+	配置SNN为另一台机：
+		1. conf/masters 写上SNN的IP
+		2. 在SNN节点上修改hdfs-site.xml的dfs.http.address为namenode_host:50070
+		   SNN是通过此地址来获取元数据的namenode_host:50070/getimage?getimage=1  或?getedit=1
+
+恢复失效的NameNode：
+	1. 当NN宕机时，修改SNN的IP为NN的IP。
+	2. SNN的fs.checkpoint.dir会保存NN的快照，默认一个小时获取一次，所以要修改SNN的dfs.name.dir为fs.checkpoint.dir目录先
+	3. 在SNN节点启动start-dfs.sh
+	上面这种方式的元数据并不是最新的，会有一定时间的数据丢失，解决办法是，把SNN的dfs.name.dir通过nfs挂载到NN的/mnt/hadoop-dfs下，然后在NN的fs.checkpoint.dir加入/mnt/hadoop-dfs，
+	这样每次写入元数据就会写入fs.checkpoint.dir指定的所有目录
+	如果没有单独的SNN节点，处于安全考虑，至少应该fs.checkpoint.dir指定另一个磁盘的目录
+
+感知网络布局和机架的设计
+	假设一个hdfs的文件副本数3，上传文件的节点会放一份，第二个副本放在第一个副本不同的机架，第三个放在与第二个同机架不同节点，如果副本数大于3，后面的副本随机放。 除了块的放置，任务的放置也是机架感知的，尽量靠近数据源
+
+	hadoop如何知道节点属于哪个机架，是通过core-site.xml的topology.script.file.name属性指定脚本，hadoop会传入一组ip
+	使用空格间隔，脚本返回一组机架名称。可以通过topology.script.number.args指定传入参数个数，为了简单设为1
+	#!/bin/bash
+	ipaddr=$1 
+	segments='echo $ipaddr | cut --delimiter=. --fields=4'
+	if [ "$segments" -lt 128 ]; then
+	    echo /rack-1
+	else
+	    echo /rack-2
+	fi
+	#如果没有指定脚本，则所有节点都指向/default-rack中
+
+多用户作业调度：
+	默认采用FIFO，弊端是可能大作业占用很长时间，导致应该先执行的很多小作业等待
+	通过Facebook开发的公平调度器(Fair Scheduler)和雅虎开发的容量调度器(Capacity Scheduler)，可以为作业指定优先级
+	在core-site.xml指定使用公平调度器：
+	<!-- 指定调度器 -->
+	<property>
+	  <name>mapred.jobtracker.taskScheduler</name>
+	  <value>org.apache.hadoop.mapred.FairScheduler</value>
+	</property> 
+	<!-- 公平调度器使用的池配置文件 -->
+	<property>
+	  <name>mapred.fairscheduler.allocation.file</name>
+	  <value>HADOOP_CONF_DIR/pools.xml</value>
+	</property> 
+	<!-- 可提高速度 -->
+	<property>
+	  <name>mapred.fairscheduler.assignmultiple</name>
+	  <value>true</value>
+	</property>
+	<!-- 指定jconf的属性 -->
+	<property>
+	  <name>mapred.fairscheduler.poolnameproperty</name>
+	  <value>pool.name</value>
+	</property> 
+	<property>
+	  <name>pool.name</name>
+	  <value>${user.name}</value>
+	</property>
+	pooms.xml:
+	<?xml version="1.0"?>
+	<allocations>
+	  <pool name="ads">
+	    <minMaps>2</minMaps>
+	    <minReduces>2</minReduces>
+	  </pool>
+	  <pool name="hive">
+	    <minMaps>2</minMaps>
+	    <minReduces>2</minReduces>
+	    <maxRunningJobs>2</maxRunningJobs>
+	  </pool>
+	  <user name="chuck">
+	    <maxRunningJobs>6</maxRunningJobs>
+	  </user>
+	  <userMaxJobsDefault>3</userMaxJobsDefault>
+	</allocations>
+	定义了两个特殊的池ads和hive。 hive池一次最多运行2个作业。如果要使用这些池，作业配置中pool.name要设成ads或hive
+	一个用户默认最多运行3个作业，而chuck用户最多运行6个
+	如果一个作业被分配到ads池中，两个作业分配到hive池，三个作业由hduser用户提交
+	则一个作业至少先满足两个map,两个reduce，另外两个作业“公平分配”hive池的两个map，两个reduce，
+	剩下的资源再让6个作业“公平分配”， 优先级高的获取资源多
+>>>>>>> 8304af519b06743007e775e976f9e0d3ef785625
 
 
