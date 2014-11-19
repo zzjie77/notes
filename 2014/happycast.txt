@@ -117,6 +117,8 @@ rsync: remote syncronize
   rsync -rv --dry-run --delete test hostname: 
   #误删除后可以同此命令从服务器还原
   rsync -r  hostname:~/test/ ~/test/
+  rsync -a, --archive  归档模式，表示以递归方式传输文件，并保持所有文件属性，等于-rlptgoD.推荐使用a，因为保持了文件属性
+  -z 压缩再传输
   
 apache:
   sudo apt-get install apache2

@@ -8,3 +8,4 @@ nimbus 雨云，主节点的守护进程，负责为工作节点分发任务。
 topology 拓扑结构，Storm的一个任务单元
 define field(s) 定义域，由spout或bolt提供，被bolt接收
 
+Storm集群的输入流由一个被称作spout的组件管理，spout把数据传递给bolt， bolt要么把数据保存到某种存储器，要么把数据传递给其它的bolt。
