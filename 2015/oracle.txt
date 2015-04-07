@@ -1,0 +1,88 @@
+一个Oracle实例（Oracle Instance）有一系列的后台进程（Backguound Processes)和内存结构（Memory Structures)组成。一个数据库可以有n个实例（只有通过实例才能对数据库进行操作）。
+
+Oracle数据库可以创建多个实例，每个实例可以创建多个表空间，每个空间可以被多个用户授权访问，每个用户可以创建多个表（每个表被表空间随机存储在一个或多个数据库文件中）。
+
+每个表随机存储在一个或多个dbf或ora(数据文件)
+
+查看数据库名
+select name from v$database; 
+show parameter database_name
+查看实例名
+select instance_name from v$instance;
+show parameter instance_name
+
+
+tnsname位置 $ORACLE_HOME/network/admin/tnsnames.ora
+NETVOUR =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.8)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVICE_NAME = netvour)
+    )
+  )
+
+lsnrctl start 启动监控， lsnrctl status
+tnsping netvour
+sqlplus isafe/isafe #连接本机
+sqlplus isafe/isafe@netvour #
+sqlplus / as sysdba 
+startup  启动实例
+
+查看用户和默认表空间的关系
+select username,default_tablespace from dba_users;
+
+查看表结构
+desc 表名
+
+查看当前用户的表
+select table_name from user_tables;
+
+查看表空间
+select tablespace_name from  dba_tablespaces;
+
+查看表空间的名称及大小 
+SELECT t.tablespace_name, round(SUM(bytes / (1024 * 1024)), 0) ts_size 
+FROM dba_tablespaces t, dba_data_files d 
+WHERE t.tablespace_name = d.tablespace_name 
+GROUP BY t.tablespace_name; 
+
+查看表空间的使用情况 
+SELECT SUM(bytes) / (1024 * 1024) AS free_space, tablespace_name 
+FROM dba_free_space 
+GROUP BY tablespace_name; 
+SELECT a.tablespace_name, 
+a.bytes total, 
+b.bytes used, 
+c.bytes free, 
+(b.bytes * 100) / a.bytes "% USED ", 
+(c.bytes * 100) / a.bytes "% FREE " 
+FROM sys.sm$ts_avail a, sys.sm$ts_used b, sys.sm$ts_free c 
+WHERE a.tablespace_name = b.tablespace_name 
+AND a.tablespace_name = c.tablespace_name; 
+
+导出
+	导出选定的表, 加rows=n则表明不导数据
+	exp userid=scott/tiger@myoral tables=emp,dept file=/opt/e1.dmp 
+	导出自己的schema
+	exp userid=scott/tiger@myorcl owner=scott file=/opt/scott.dmp 
+
+导入
+	导入自己的表
+	imp userid=scott/tiger@myorcl tables=emp file=/opt/xx.dmp 
+	导入表到其它用户 要求该用户具有dba的权限
+	imp userid=system/tiger@myorcl tables=emp file=/opt/xx.dmp touser=scott
+
+
+用户
+	create user user01 identified by u01;  
+	password 
+	drop user user01 cascade;
+	grant connect, resource,dba to user01;
+
+步骤一：  删除user
+drop user ×× cascade
+说明： 删除了user，只是删除了该user下的schema objects，是不会删除相应的tablespace的。
+步骤二： 删除tablespace
+DROP TABLESPACE tablespace_name INCLUDING CONTENTS AND DATAFILES;
+
+

@@ -1,0 +1,71 @@
+行为定向(Behaviour Targeting)
+9种重要的行为(由强到弱，是针对direct response,不是针对brand)：
+	transaction(交易), pre-transaction(购买前的行为,如浏览搜索), paid search click(搜索广告点击), ad click(广告点击，因为普通的display广告可能存在骗点击的行为，如突然让js显示一个广告导致误点，所以强度低于搜索广告), search click(搜索点击), search(搜索), share, page view, ad view
+	transaction和pre-tran是一个级别的，强度最高，所以淘宝的数据这么值钱
+	paid search click到search是一个级别的， ad click的强度虽然不低，但是量是最少的，很难根据ad click打标签
+	share, page view, ad view这3个是一个级别的，量虽然很大，但是强度很低，page view的量是所有行为中最大的，但意义不大，往往是被动行为。如看一个新闻网站，可以看的新闻是受限于网站本身的列表的，譬如看一个军事爱好者看军事新闻，这种标签离demand端太远， 越靠近demand的强度越高
+
+行为定向大致流程：
+	将行为数据表示成userid => pv=*, search=*, ad click=* ..
+	每一种行为都有它对应的tagger(打标签器)
+	如一个人浏览一个钓鱼岛网站，pv tagger把这个人打一个军事标签，强度=1
+	并且他搜索了搜索军事，search tagger把这个人打一个军事标签，强度=2，那么这个人在军事这个标签上的总强度就等于3
+	各个tagger为这个人打的标签加起来，就是这个人所有的标签。
+	为pv和search打标签是分类问题，需要用到机器学习，不同的数据模型使用的方法有所区别，这里不能探讨。
+	ad click的targeting就很简单，因为ad本身就有类型，只要查询ad的类型就能为其打tag
+
+行为定性的其他问题
+	1. 要以user_id作为key
+	2. targeting的时候不能仅仅以昨天的数据作为基础，有两种方式
+		1. 滑动窗口方式(需要保存窗口大小的数据量)
+			譬如定义时间窗口的大小为28天，那么每天targeting就要计算前面28天的数据，这种方式要求计算的量太大，不推荐。
+			f[28] = sum[i=1..28](t[i]) // t是一个用户在i这天的标签的强度,今天的强度等于前面28天的强度加起来。 f[28]是今天总得标签强度
+		2. 时间衰减方式(空间复杂度低，只需保存昨天的f和今天的t)
+			f[28] = t[28] + a*f[27] // a是衰减因子，t是今天的标签强度， f[27]是昨天的某个标签的强度= t[27] + a*f[26]
+		不同的标签，时间窗口和衰减因子的定义不一样，譬如买车的周期是比较长的，可能几个月都在关注车，而买鞋的周期是比较短的。所以定义窗长和decade因子的是不一样的
+
+DMP可以接入的第三方算法引擎，可以产出的算法结果包括：行业热度指数、人群属性分析、人群长期兴趣点分析、人群标签、活动效果地域分布、竞品价格模式分析...
+
+
+广告交易市场
+	关键特征：用实时竞价连接广告和(上下文，用户)
+	按照展示上的竞价收取广告费用(ADN通常按click收费)
+	代表：rightmedia（最早的ADX,被yahoo收购，已与现在ADX形态不一样）, AdECN（微软的）, GoogleAdx（Doubleclick）
+	由于ADN就算数据再多，也没有demand自己更了解自己的客户，如京东自己才知道自己的忠实用户。所以催生了ADX，由DSP来估价
+
+实时竞价（readtime biding）
+	多方参与的过程，分为cooking maping和ad call两个阶段
+	主要技术点：
+		ADX与DSP之间的用户身份同步(cook mapping)
+		DSP数量较多时的服务和带宽成本优化
+	潜在问题
+		存在浏览数据的泄露风险(adx来询价的时候，就知道url和cookie，DSP就可以报一个很低的价或不报，肯定不能赢，然后记录行为)
+		多一次round trip,对latency有较大影响
+
+cookie mapping
+	谁发起，在哪发起，谁存mapping表 
+	//dsp发起，用户浏览demand网站，dsp保存(adx保存的话，量太大)，
+	dsp - adx的场景：dsp在demand的网站加一段cook mapping的逻辑，当用户浏览demand网站时，首先
+	1. 选择性加载iframe,src=htpp://map.dsp.com/m#aid=* // 用户浏览demand网站但访问dsp的mapping服务，dsp根据这个cookie决定是否需要mapping，可能1天mapping一次或者几天一次
+	2. 需要mapping的话，返回包括多个beacon(1*1或0*0的像素点)的动态html
+	3. 发送cook mapping请求(xid, did, dck) //adx的id，dsp的id, dsp的cookie。 dsp向adx的cook mapping服务发请求
+	4. 302重定向(xid, xck) //adx的id, adx的cookie.   adx返回xid, xck在dsp就能知道。并保存xck和dck的关系
+	5. 返回看不见的1*1的beacon
+	// 实际请求广告的时候，adx会传xck，dsp只要根据xck查出dck就能知道这个用户在自己平台的标示
+
+    媒体网站与dmp的场景
+    1. 请求ckmapping.js //用户浏览媒体网站
+    2. 返回ckmapping.js
+    3. 需要mapping的话，发起请求(did, mck) // dmp的id, 媒体的cookie
+    4. 返回看不见的1*1的beacon
+
+供应方平台(Supply Side Platform)
+	媒体变现的4种方式：
+		直接销售(大媒体，变现能力最高，cpd)
+		guaranteed delivy 按cpm卖流量
+		托管给广告联盟adn
+		实时竞价(做一个实时竞价接口，上面的方式都卖不出去的时候，往往使用这种方式)
+	ssp通常要支持上面的4种方式，帮助媒体决策接入哪种变现方式。 通常在中国首先要支持cpd,在没有被排期的时间里，决定使用2,3,4的方式变现
+	ssp代表：ADMeld（被google收购）, Pubicon, Pubmatic
+
+
