@@ -1,5 +1,5 @@
-actinoÅäÖÃ£º
-	<!--¿ÉÒÔÎªÒ»¸öActionĞ´¶à¸ö·½·¨½øĞĞ¶ÔÓ¦£¬ÕâÑù¿ÉÒÔ¼õÉÙActionÀàµÄÊıÁ¿£¬µ«ÊÇÎŞ·¨¼õÉÙÅäÖÃµÄÊıÁ¿ 
+actinoé…ç½®ï¼š
+	<!--å¯ä»¥ä¸ºä¸€ä¸ªActionå†™å¤šä¸ªæ–¹æ³•è¿›è¡Œå¯¹åº”ï¼Œè¿™æ ·å¯ä»¥å‡å°‘Actionç±»çš„æ•°é‡ï¼Œä½†æ˜¯æ— æ³•å‡å°‘é…ç½®çš„æ•°é‡ 
 	<action name="user_addInput" class="org.zttc.itat.action.UserAction" method="addInput">
 		<result name="success">/WEB-INF/user/addInput.jsp</result>
 	</action>
@@ -9,58 +9,58 @@ actinoÅäÖÃ£º
 	<action name="user_list" class="org.zttc.itat.action.UserAction" method="list">
 		<result name="success">/WEB-INF/user/list.jsp</result>
 	</action> -->
-	<!-- ÒÔÏÂ·½Ê½¿ÉÒÔ½ö½öĞ´Ò»¸öAction£¬Ö®ºóÍ¨¹ıÔÚµ÷ÓÃµÄÊ±ºòÈ·¶¨·½·¨ £¨µ÷ÓÃ£ºUserAction!add »ò UserAction?method:add£©
-		Õâ¸ö·½·¨ËäÈ»¼õÉÙÁËactionµÄÅäÖÃ£¬µ«ÊÇÒÀÈ»µÃÔö¼Ó´óÁ¿µÄ½á¹û¼¯½øĞĞÅäÖÃ
+	<!-- ä»¥ä¸‹æ–¹å¼å¯ä»¥ä»…ä»…å†™ä¸€ä¸ªActionï¼Œä¹‹åé€šè¿‡åœ¨è°ƒç”¨çš„æ—¶å€™ç¡®å®šæ–¹æ³• ï¼ˆè°ƒç”¨ï¼šUserAction!add æˆ– UserAction?method:addï¼‰
+		è¿™ä¸ªæ–¹æ³•è™½ç„¶å‡å°‘äº†actionçš„é…ç½®ï¼Œä½†æ˜¯ä¾ç„¶å¾—å¢åŠ å¤§é‡çš„ç»“æœé›†è¿›è¡Œé…ç½®
 	-->
 	<!-- <action name="user" class="org.zttc.itat.action.UserAction">
 		<result name="add">/WEB-INF/user/add.jsp</result>
 		<result name="addInput">/WEB-INF/user/addInput.jsp</result>
 		<result name="list">/WEB-INF/user/list.jsp</result>
 	</action> -->
-	<!-- »ùÓÚÍ¨Åä·ûµÄ·½Ê½ -->
+	<!-- åŸºäºé€šé…ç¬¦çš„æ–¹å¼ -->
 	<action name="*_*" class="org.zttc.itat.action.{1}Action" method="{2}">
-	<!-- ÔÚactionÖĞÒıÈëÏàÓ¦µÄÀ¹½ØÆ÷,Èç¹ûÔÚactionÖĞÒıÈëÁËÏàÓ¦µÄÀ¹½ØÆ÷Ö®ºó£¬
-	Ô­ÓĞµÄ¼Ì³ĞÓÚstruts-default.xmlµÄÀ¹½ØÆ÷¾Í²»Æğ×÷ÓÃÁË£¬´ËÊ±ĞèÒªÊÖ¶¯ÒıÈë -->
+	<!-- åœ¨actionä¸­å¼•å…¥ç›¸åº”çš„æ‹¦æˆªå™¨,å¦‚æœåœ¨actionä¸­å¼•å…¥äº†ç›¸åº”çš„æ‹¦æˆªå™¨ä¹‹åï¼Œ
+	åŸæœ‰çš„ç»§æ‰¿äºstruts-default.xmlçš„æ‹¦æˆªå™¨å°±ä¸èµ·ä½œç”¨äº†ï¼Œæ­¤æ—¶éœ€è¦æ‰‹åŠ¨å¼•å…¥ -->
 		<interceptor-ref name="helloStack"/>
 		<result>/WEB-INF/{1}/{2}.jsp</result>
 		<result name="input">/WEB-INF/{1}/{2}Input.jsp</result>
 		<result type="redirect" name="r_list">/{1}_list.action</result>
 	</action>
 
-²ÎÊı´«µİ£º
-	actinoÖĞÉèÖÃÖµ£º
-	//´«ÖµµÄµÚÒ»ÖÖ·½Ê½£¬Ö±½ÓÍ¨¹ıÔÚactionÖĞÉèÖÃÏàÓ¦µÄgetºÍset·½·¨
-	this.setUsername("ÕÅÈı");
+å‚æ•°ä¼ é€’ï¼š
+	actinoä¸­è®¾ç½®å€¼ï¼š
+	//ä¼ å€¼çš„ç¬¬ä¸€ç§æ–¹å¼ï¼Œç›´æ¥é€šè¿‡åœ¨actionä¸­è®¾ç½®ç›¸åº”çš„getå’Œsetæ–¹æ³•
+	this.setUsername("å¼ ä¸‰");
 	this.setPassword("123");
-	//µÚ¶şÖÖ·½Ê½Í¨¹ıActionContextÍê³ÉÖµµÄ´«µİ
+	//ç¬¬äºŒç§æ–¹å¼é€šè¿‡ActionContextå®Œæˆå€¼çš„ä¼ é€’
 	ActionContext.getContext().put("aaa", 12345);
 	ActionContext.getContext().put("bbb", 34567);
 	ActionContext.getContext().put("ccc","abc");
-	User u = new User(10,"laozhang","ÀÏÕÅ");
+	User u = new User(10,"laozhang","è€å¼ ");
 	ActionContext.getContext().getValueStack().push(u);
-	//µÚÈıÖÖ´«Öµ·½Ê½£¬¿ÉÒÔÖ±½ÓÍ¨¹ıServletµÄAPI´«Öµ
+	//ç¬¬ä¸‰ç§ä¼ å€¼æ–¹å¼ï¼Œå¯ä»¥ç›´æ¥é€šè¿‡Servletçš„APIä¼ å€¼
 	ServletActionContext.getRequest().setAttribute("hello","world");
 
-	Ò³Ãæ»ñÈ¡£º
+	é¡µé¢è·å–ï¼š
 	${username }----${password }<br/>
-	<s:property value="username"/>----<s:property value="password"/> --È¡actionÖĞµÄÖµ
+	<s:property value="username"/>----<s:property value="password"/> --å–actionä¸­çš„å€¼
 	<br/>
 	${aaa }----${bbb }
-	<!-- Ê¹ÓÃs:propertyÀ´·ÃÎÊactionContextÖĞµÄÊı¾İ¶¼ĞèÒª¼Ó#,ÔÚstruts2.3Ö®ºó£¬Èç¹ûActionContextÖĞµÄÊı¾İ
-	ÊÇStringµÄÀàĞÍ¾Í²»ÓÃ¼Ó#,µ«ÊÇÔÚ½«À´µÄ¿ª·¢ÖĞ£¬Ö»ÒªÊÇActionContextÖĞµÄÊı¾İÒ»¶¨¼Ó¸ö#·ÃÎÊ -->
-	<s:property value="#aaa"/>----<s:property value="#bbb"/>---<s:property value="#ccc"/> --È¡actionContextÖĞµÄÖµ
+	<!-- ä½¿ç”¨s:propertyæ¥è®¿é—®actionContextä¸­çš„æ•°æ®éƒ½éœ€è¦åŠ #,åœ¨struts2.3ä¹‹åï¼Œå¦‚æœActionContextä¸­çš„æ•°æ®
+	æ˜¯Stringçš„ç±»å‹å°±ä¸ç”¨åŠ #,ä½†æ˜¯åœ¨å°†æ¥çš„å¼€å‘ä¸­ï¼Œåªè¦æ˜¯ActionContextä¸­çš„æ•°æ®ä¸€å®šåŠ ä¸ª#è®¿é—® -->
+	<s:property value="#aaa"/>----<s:property value="#bbb"/>---<s:property value="#ccc"/> --å–actionContextä¸­çš„å€¼
 	<br/>
 	${hello}
-	<s:property value="#request.hello"/>  --È¡request·¶Î§µÄÖµ
+	<s:property value="#request.hello"/>  --å–requestèŒƒå›´çš„å€¼
 
 ognl:
 	@Test
 	public void test01() {
 		try {
-			User u = new User(1,"tangsheng","ÌÆÉ®");
-			Department dep = new Department("²ÆÎñ´¦");
+			User u = new User(1,"tangsheng","å”åƒ§");
+			Department dep = new Department("è´¢åŠ¡å¤„");
 			u.setDep(dep);
-			//µÚ¶ş¸ö²ÎÊıÊÇroot
+			//ç¬¬äºŒä¸ªå‚æ•°æ˜¯root
 			System.out.println(Ognl.getValue("nickname",u));
 			System.out.println(Ognl.getValue("dep.name",u));
 		} catch (OgnlException e) {
@@ -72,20 +72,20 @@ ognl:
 	public void test02() {
 		try {
 			Map<String,Object> ctx = new HashMap<String,Object>();
-			User u = new User(1,"tangsheng","ÌÆÉ®");
-			Department dep = new Department("²ÆÎñ´¦");
+			User u = new User(1,"tangsheng","å”åƒ§");
+			Department dep = new Department("è´¢åŠ¡å¤„");
 			u.setDep(dep);
-			Role r = new Role(1,"³¬¼¶¹ÜÀíÔ±");
+			Role r = new Role(1,"è¶…çº§ç®¡ç†å‘˜");
 			ctx.put("user",u);
 			ctx.put("role", r);
-			//ÒÔÏÂ±í´ïÊ½ÊÇÔÚrootÖĞÕÒ,uÊÇroot
+			//ä»¥ä¸‹è¡¨è¾¾å¼æ˜¯åœ¨rootä¸­æ‰¾,uæ˜¯root
 			System.out.println(Ognl.getValue("username",ctx,u));
-			//#user.usernameÊÇÔÚctxÕâ¸ömapÖĞÕÒ
+			//#user.usernameæ˜¯åœ¨ctxè¿™ä¸ªmapä¸­æ‰¾
 			System.out.println(Ognl.getValue("#user.username",ctx,u));
 			System.out.println(Ognl.getValue("#role.name",ctx,u));
-			//Ä¿Ç°rootÊÇctxËùÒÔ¿ÉÒÔÖ±½ÓÈ¡µÃµ½
+			//ç›®å‰rootæ˜¯ctxæ‰€ä»¥å¯ä»¥ç›´æ¥å–å¾—åˆ°
 			System.out.println(Ognl.getValue("role.name",ctx,ctx));
-			//OgnlÆäÊµ¾ÍÊÇÒ»¸ö´óµÄContext,¸ùµÄkey¾ÍÊÇroot£¬ËùÒÔ¿ÉÒÔÍ¨¹ı#root.xxÀ´È¡Öµ
+			//Ognlå…¶å®å°±æ˜¯ä¸€ä¸ªå¤§çš„Context,æ ¹çš„keyå°±æ˜¯rootï¼Œæ‰€ä»¥å¯ä»¥é€šè¿‡#root.xxæ¥å–å€¼
 			System.out.println(Ognl.getValue("#root.username",ctx,u));
 		} catch (OgnlException e) {
 			e.printStackTrace();
@@ -96,11 +96,11 @@ ognl:
 	public void test03() {
 		try {
 			List<User> users = new ArrayList<User>();
-			users.add(new User(1,"ts","ÌÆÉ®"));
-			users.add(new User(2,"ss","É³É®"));
-			users.add(new User(3,"bj","°Ë½ä"));
-			users.add(new User(4,"wk","Îò¿Õ"));
-			//Èç¹ûÒªÈ¡listÖĞµÄÔªËØ£¬ĞèÒªÍ¨¹ı#root[index]À´Íê³ÉÈ¡Öµ
+			users.add(new User(1,"ts","å”åƒ§"));
+			users.add(new User(2,"ss","æ²™åƒ§"));
+			users.add(new User(3,"bj","å…«æˆ’"));
+			users.add(new User(4,"wk","æ‚Ÿç©º"));
+			//å¦‚æœè¦å–listä¸­çš„å…ƒç´ ï¼Œéœ€è¦é€šè¿‡#root[index]æ¥å®Œæˆå–å€¼
 			System.out.println(Ognl.getValue("#root[1].nickname", users));
 		} catch (OgnlException e) {
 			e.printStackTrace();
@@ -111,60 +111,60 @@ ognl:
 	public void test04() {
 		try {
 			List<User> users = new ArrayList<User>();
-			users.add(new User(1,"ts","ÌÆÉ®"));
-			users.add(new User(2,"ss","É³É®"));
-			users.add(new User(3,"bj","°Ë½ä"));
-			users.add(new User(4,"wk","Îò¿Õ"));
-			//Èç¹ûÒªÈ¡listÖĞµÄÔªËØ£¬ĞèÒªÍ¨¹ı#root[index]À´Íê³ÉÈ¡Öµ
+			users.add(new User(1,"ts","å”åƒ§"));
+			users.add(new User(2,"ss","æ²™åƒ§"));
+			users.add(new User(3,"bj","å…«æˆ’"));
+			users.add(new User(4,"wk","æ‚Ÿç©º"));
+			//å¦‚æœè¦å–listä¸­çš„å…ƒç´ ï¼Œéœ€è¦é€šè¿‡#root[index]æ¥å®Œæˆå–å€¼
 			System.out.println(Ognl.getValue("#root[1].nickname", users));
-			//Ognl»¹¿ÉÒÔÍê³É·½·¨µÄµ÷ÓÃ
+			//Ognlè¿˜å¯ä»¥å®Œæˆæ–¹æ³•çš„è°ƒç”¨
 			System.out.println(Ognl.getValue("#root[0].sum(1,3)", users));
 			
 			User u  = new User();
 			System.out.println(Ognl.getValue("hello('world')", u));
-			//¿ÉÒÔÍ¨¹ıµ÷ÓÃlistÖĞµÄget()·½·¨»ñÈ¡Ä³¸öÏÂ±êµÄ¶ÔÏó£¬È»ºóÍê³Éµ¼º½
+			//å¯ä»¥é€šè¿‡è°ƒç”¨listä¸­çš„get()æ–¹æ³•è·å–æŸä¸ªä¸‹æ ‡çš„å¯¹è±¡ï¼Œç„¶åå®Œæˆå¯¼èˆª
 			System.out.println(Ognl.getValue("get(0).username", users));
 		} catch (OgnlException e) {
 			e.printStackTrace();
 		}
 	}
-	×¢£º¼Ó#¾Í´ÓmapÖĞÕÒ£¬²»¼Ó¾Í´ÓrootÖĞÕÒ¡£
+	æ³¨ï¼šåŠ #å°±ä»mapä¸­æ‰¾ï¼Œä¸åŠ å°±ä»rootä¸­æ‰¾ã€‚
 
 ValueStack:
-	ActionContext:   ÊÇÒ»¸ömap½á¹¹
+	ActionContext:   æ˜¯ä¸€ä¸ªmapç»“æ„
 		request
 		session
 		application
-		xx_valueStack   ¾ßÌåÃû³Æ¼Ç²»Çå£¬¶ÔÓ¦compoundRoot
+		xx_valueStack   å…·ä½“åç§°è®°ä¸æ¸…ï¼Œå¯¹åº”compoundRoot
 		...
-	CompoundRoot:   Õ»½á¹¹£¬Í¨¹ıpushÌí¼Ó£¬popµ¯³ö
-		Í¨¹ıActionContext.getActionContext().getValueStack()È¡µÃ
-		Õ»µ×´æ·ÅµÄÊÇUserAction£¬Ê¹ÓÃActionContext.getActionContext().getValueStack().push(new User())»áÔÚÕ»¶¥Ìí¼ÓUser
-		<s:property value="username"/>£¬»á´ÓCompoundRoot£¨¼´ValueStack£©µÄÕ»¶¥µÄÔªËØ¿ªÊ¼ÕÒ£¬ÕÒ²»µ½¾ÍÏòÏÂÒÆ
-		¼ÙÉèvalueStackÖ»Ìí¼ÓÁËÒ»¸öUser, <s:property value="#root[0]"/> ´ú±íÕ»¶¥µÄUser£¬<s:property value="#root[1]"/> ´ú±íÕ»µ×µÄUserAction
+	CompoundRoot:   æ ˆç»“æ„ï¼Œé€šè¿‡pushæ·»åŠ ï¼Œpopå¼¹å‡º
+		é€šè¿‡ActionContext.getActionContext().getValueStack()å–å¾—
+		æ ˆåº•å­˜æ”¾çš„æ˜¯UserActionï¼Œä½¿ç”¨ActionContext.getActionContext().getValueStack().push(new User())ä¼šåœ¨æ ˆé¡¶æ·»åŠ User
+		<s:property value="username"/>ï¼Œä¼šä»CompoundRootï¼ˆå³ValueStackï¼‰çš„æ ˆé¡¶çš„å…ƒç´ å¼€å§‹æ‰¾ï¼Œæ‰¾ä¸åˆ°å°±å‘ä¸‹ç§»
+		å‡è®¾valueStackåªæ·»åŠ äº†ä¸€ä¸ªUser, <s:property value="#root[0]"/> ä»£è¡¨æ ˆé¡¶çš„Userï¼Œ<s:property value="#root[1]"/> ä»£è¡¨æ ˆåº•çš„UserAction
 
-µü´úÓëÑ¡Ôñ±êÇ©£º
-	<!-- µ±Ê¹ÓÃÁËs:iteratorÖ®ºó£¬»á½«ÏàÓ¦µÄµü´ú¶ÔÏó·ÅÖÃµ½CompoundRootÖĞ -->
-	<!-- µ±¶¨ÒåÁËvar="u"Ö®ºó£¬»á½«Õâ¸öµü´úµÄ¶ÔÏóÔÙÔÚactionContextÖĞ´æÒ»·İ£¬ActionContextÖĞµÄkey¾ÍÊÇu -->
+è¿­ä»£ä¸é€‰æ‹©æ ‡ç­¾ï¼š
+	<!-- å½“ä½¿ç”¨äº†s:iteratorä¹‹åï¼Œä¼šå°†ç›¸åº”çš„è¿­ä»£å¯¹è±¡æ”¾ç½®åˆ°CompoundRootä¸­ -->
+	<!-- å½“å®šä¹‰äº†var="u"ä¹‹åï¼Œä¼šå°†è¿™ä¸ªè¿­ä»£çš„å¯¹è±¡å†åœ¨actionContextä¸­å­˜ä¸€ä»½ï¼ŒActionContextä¸­çš„keyå°±æ˜¯u -->
 	<s:iterator value="#users" var="u" status="st">
 	<s:if test="#st.odd">style="background:#ff0"</s:if>
 
-ModelDriven£¨ÊµÏÖ½Ó¿Úºó»á°ÑmodelÑ¹ÈëÕ»¶¥£©:
-	Èç¹ûÎÒÃÇÔÚUserActionÖĞÌí¼ÓÒ»¸öUser¶ÔÏó£¬ÄÇÔÚÒ³ÃæÖĞ¾ÍÒªÒÔ<input name="user.username">ÕâÖÖ·½Ê½À´´«µİÊı¾İ£¬ÒÔÕâÖÖ·½Ê½À´<s:property value="user.username"/>ÏÔÊ¾
-	ÊµÏÖModelDriven½Ó¿Úºó£¬ÖØĞ´getModel()·½·¨£¬ÕâÑùÔÚÀ¹½ØÆ÷ÖĞ¾Í»á½«model·ÅÈëµ½compoundRootÖĞ£¨Õ»¶¥£©,¾Í¿ÉÒÔ<input name="username">ÕâÑù´«£¬ÏÔÊ¾µÄÊ±ºòÊ¹ÓÃ<s:property name="username">
-	ÎÊÌâ£ºÈç¹ûupdateInput·½·¨ÖĞÕâÑùĞ´£º user = userDao.load(1);ÔÚ¸üĞÂÒ³Ãæ <input name="usernmae" value="<s:property value='username'>">ÊÇÏÔÊ¾²»³öÀ´µÄ
-	ÒòÎªuserÔ­À´ÊÇÖ¸ÏòÖµÕ»µÄÕ»¶¥£¬ÕâÑùĞ´Ö»ÊÇÈÃuserÒıÓÃÖ¸ÏòÁËÒ»¸öĞÂµÄ¶ÔÏó£¬¶øÔ­À´¶ÔÏóµÄÄÚÈİ»¹ÊÇÃ»¸Ä±ä
-	½â¾ö£º
-	1. ÔÚupdateInputÒ³ÃæÖĞinput name="usernmae" value="<s:property value='user.username'>">ÕâÑùÏÔÊ¾£¬¾Í»áÕÒUserActionÖĞµÄuser¶ÔÏó
-	2. ÔÚupdateInput·½·¨ÖĞtuser = userDao.load(1); È»ºó BeanUtils.copyProperties(user, tuser);°ÑtuserµÄËùÓĞÊôĞÔ¿½±´µ½userÖĞ
-	3. ÔÚupdateInput·½·¨ÖĞActionContext.getActionContext.getValueStack().push(userDao.load(1))
+ModelDrivenï¼ˆå®ç°æ¥å£åä¼šæŠŠmodelå‹å…¥æ ˆé¡¶ï¼‰:
+	å¦‚æœæˆ‘ä»¬åœ¨UserActionä¸­æ·»åŠ ä¸€ä¸ªUserå¯¹è±¡ï¼Œé‚£åœ¨é¡µé¢ä¸­å°±è¦ä»¥<input name="user.username">è¿™ç§æ–¹å¼æ¥ä¼ é€’æ•°æ®ï¼Œä»¥è¿™ç§æ–¹å¼æ¥<s:property value="user.username"/>æ˜¾ç¤º
+	å®ç°ModelDrivenæ¥å£åï¼Œé‡å†™getModel()æ–¹æ³•ï¼Œè¿™æ ·åœ¨æ‹¦æˆªå™¨ä¸­å°±ä¼šå°†modelæ”¾å…¥åˆ°compoundRootä¸­ï¼ˆæ ˆé¡¶ï¼‰,å°±å¯ä»¥<input name="username">è¿™æ ·ä¼ ï¼Œæ˜¾ç¤ºçš„æ—¶å€™ä½¿ç”¨<s:property name="username">
+	é—®é¢˜ï¼šå¦‚æœupdateInputæ–¹æ³•ä¸­è¿™æ ·å†™ï¼š user = userDao.load(1);åœ¨æ›´æ–°é¡µé¢ <input name="usernmae" value="<s:property value='username'>">æ˜¯æ˜¾ç¤ºä¸å‡ºæ¥çš„
+	å› ä¸ºuseråŸæ¥æ˜¯æŒ‡å‘å€¼æ ˆçš„æ ˆé¡¶ï¼Œè¿™æ ·å†™åªæ˜¯è®©userå¼•ç”¨æŒ‡å‘äº†ä¸€ä¸ªæ–°çš„å¯¹è±¡ï¼Œè€ŒåŸæ¥å¯¹è±¡çš„å†…å®¹è¿˜æ˜¯æ²¡æ”¹å˜
+	è§£å†³ï¼š
+	1. åœ¨updateInputé¡µé¢ä¸­input name="usernmae" value="<s:property value='user.username'>">è¿™æ ·æ˜¾ç¤ºï¼Œå°±ä¼šæ‰¾UserActionä¸­çš„userå¯¹è±¡
+	2. åœ¨updateInputæ–¹æ³•ä¸­tuser = userDao.load(1); ç„¶å BeanUtils.copyProperties(user, tuser);æŠŠtuserçš„æ‰€æœ‰å±æ€§æ‹·è´åˆ°userä¸­
+	3. åœ¨updateInputæ–¹æ³•ä¸­ActionContext.getActionContext.getValueStack().push(userDao.load(1))
 
-×ª»»Æ÷£º
-	¼ÙÉèActionÖĞÓĞPointÊôĞÔ£¬ÒªÇóÒ³ÃæÖĞ<input name="point" />ÊäÈë"1,2"£¬ÔÚActionÖĞ¾Í×Ô¶¯×ª»»ÎªPoint£¬Õâ¾ÍÒªĞ´×ª»»Æ÷
-	Ê×ÏÈµÃ´´½¨Ò»¸öÀà¼Ì³ĞStrutsTypeConverter
+è½¬æ¢å™¨ï¼š
+	å‡è®¾Actionä¸­æœ‰Pointå±æ€§ï¼Œè¦æ±‚é¡µé¢ä¸­<input name="point" />è¾“å…¥"1,2"ï¼Œåœ¨Actionä¸­å°±è‡ªåŠ¨è½¬æ¢ä¸ºPointï¼Œè¿™å°±è¦å†™è½¬æ¢å™¨
+	é¦–å…ˆå¾—åˆ›å»ºä¸€ä¸ªç±»ç»§æ‰¿StrutsTypeConverter
 	public class PointConverter extends StrutsTypeConverter {
 		/**
-		 * Íê³É×Ö·û´®µ½¶ÔÏóµÄ×ª»»
+		 * å®Œæˆå­—ç¬¦ä¸²åˆ°å¯¹è±¡çš„è½¬æ¢
 		 */
 		@Override
 		public Object convertFromString(Map context, String[] values, Class toClass) {
@@ -181,7 +181,7 @@ ModelDriven£¨ÊµÏÖ½Ó¿Úºó»á°ÑmodelÑ¹ÈëÕ»¶¥£©:
 		}
 
 		/**
-		 * Íê³É¶ÔÏóµ½×Ö·û´®µÄ×ª»»
+		 * å®Œæˆå¯¹è±¡åˆ°å­—ç¬¦ä¸²çš„è½¬æ¢
 		 */
 		@Override
 		public String convertToString(Map context, Object o) {
@@ -189,20 +189,20 @@ ModelDriven£¨ÊµÏÖ½Ó¿Úºó»á°ÑmodelÑ¹ÈëÕ»¶¥£©:
 			return m.getX()+","+m.getY();
 		}
 	}
-	È»ºóÔÚsrcÖĞ´´½¨xwork-conversion.propertiesÀ´±àĞ´ÄÄĞ©ÀàÒªÊ¹ÓÃÊ²Ã´×ª»»Æ÷£¬ ÔÚ´ËÎÄ¼ş±àĞ´µÄÊÇÈ«¾ÖµÄ×ª»»Æ÷
+	ç„¶ååœ¨srcä¸­åˆ›å»ºxwork-conversion.propertiesæ¥ç¼–å†™å“ªäº›ç±»è¦ä½¿ç”¨ä»€ä¹ˆè½¬æ¢å™¨ï¼Œ åœ¨æ­¤æ–‡ä»¶ç¼–å†™çš„æ˜¯å…¨å±€çš„è½¬æ¢å™¨
 	org.zttc.itat.model.Point = org.zttc.itat.converter.PointConverter
 
-	Èç¹ûÒªĞ´¾Ö²¿µÄ×ª»»Æ÷£¬¾ÍÔÚxxAction¶ÔÓ¦µÄ°üÏÂ´´½¨xxAction-conversion.properties
-	msg.createDate=org.zttc.itat.converter.DateConverter01  --messageActionÖĞµÄmsgµÄcreateDateÊ¹ÓÃDateConverter01×ª»»Æ÷
+	å¦‚æœè¦å†™å±€éƒ¨çš„è½¬æ¢å™¨ï¼Œå°±åœ¨xxActionå¯¹åº”çš„åŒ…ä¸‹åˆ›å»ºxxAction-conversion.properties
+	msg.createDate=org.zttc.itat.converter.DateConverter01  --messageActionä¸­çš„msgçš„createDateä½¿ç”¨DateConverter01è½¬æ¢å™¨
 	endDate = org.zttc.itat.converter.DateConverter02
 
-ÎÄ¼şÉÏ´«£º
-	ÔÚactionÖĞÌí¼Ó£º
-		private File[] photo;   //¶àÎÄ¼şÉÏ´«Ê¹ÓÃÊı×é£¬Èç¹ûÊÇµ¥ÎÄ¼ş¿ÉÒÔprivate File photo;
+æ–‡ä»¶ä¸Šä¼ ï¼š
+	åœ¨actionä¸­æ·»åŠ ï¼š
+		private File[] photo;   //å¤šæ–‡ä»¶ä¸Šä¼ ä½¿ç”¨æ•°ç»„ï¼Œå¦‚æœæ˜¯å•æ–‡ä»¶å¯ä»¥private File photo;
 		private String[] photoFileName;
 		private String[] photoContentType;
 		//getter and settter
-	ÉÏ´«·½·¨£º
+	ä¸Šä¼ æ–¹æ³•ï¼š
 		System.out.println(photoFileName+","+photoContentType);
 		for(int i=0;i<photo.length;i++) {
 			File p = photo[i];
@@ -212,23 +212,23 @@ ModelDriven£¨ÊµÏÖ½Ó¿Úºó»á°ÑmodelÑ¹ÈëÕ»¶¥£©:
 			photo.rename("d:/test/"+name);
 		}
 
-	ĞŞ¸ÄÎÄ¼şÉÏ´«µÄÏà¹ØÅäÖÃ£¬ÈçÉÏ´«ÎÄ¼ş´óĞ¡£¬ÎÄ¼şºó×º£¬ÔÚstruts.xmlÖĞÌí¼Ó³£Á¿£¬³£Á¿¿ÉÒÔÔÚdefault.propertiesÖĞÕÒµ½
-	<constant name="struts.multipart.maxSize" value="10240000"></constant>  --×Ö½ÚÎªµ¥Î»
+	ä¿®æ”¹æ–‡ä»¶ä¸Šä¼ çš„ç›¸å…³é…ç½®ï¼Œå¦‚ä¸Šä¼ æ–‡ä»¶å¤§å°ï¼Œæ–‡ä»¶åç¼€ï¼Œåœ¨struts.xmlä¸­æ·»åŠ å¸¸é‡ï¼Œå¸¸é‡å¯ä»¥åœ¨default.propertiesä¸­æ‰¾åˆ°
+	<constant name="struts.multipart.maxSize" value="10240000"></constant>  --å­—èŠ‚ä¸ºå•ä½
 
-À¹½ØÆ÷£º
-	1. ±àĞ´À¹½ØÆ÷
+æ‹¦æˆªå™¨ï¼š
+	1. ç¼–å†™æ‹¦æˆªå™¨
 		public class HelloInterceptor extends AbstractInterceptor {
 			public String intercept(ActionInvocation invocation) throws Exception {
 				System.out.println("system interceptor");
 				return invocation.invoke();
 			}
 		}
-	2. ÔÚstruts.xmlÖĞÅäÖÃ
+	2. åœ¨struts.xmlä¸­é…ç½®
 	<interceptors>
-    	<!-- ´´½¨ÁËÒ»¸öÀ¹½ØÆ÷µÄÅäÖÃ£¬µ«ÊÇ´ËÊ±ÅäÖÃ²¢Ã»ÓĞÉúĞ§£¬ĞèÒªÔÚactionÖĞÅäÖÃÖ®ºó²ÅÄÜÉúĞ§ -->
+    	<!-- åˆ›å»ºäº†ä¸€ä¸ªæ‹¦æˆªå™¨çš„é…ç½®ï¼Œä½†æ˜¯æ­¤æ—¶é…ç½®å¹¶æ²¡æœ‰ç”Ÿæ•ˆï¼Œéœ€è¦åœ¨actionä¸­é…ç½®ä¹‹åæ‰èƒ½ç”Ÿæ•ˆ -->
     		<interceptor name="helloInterceptor" class="org.zttc.itat.interceptor.HelloInterceptor"/>
 			<interceptor name="authInterceptor" class="org.zttc.itat.interceptor.AuthInterceptor"/>
-		<!-- Ò»¸öÀ¹½ØÆ÷Õ»ÖĞ¿ÉÒÔ¼ÓÈë¶à¸öÀ¹½ØÆ÷ -->
+		<!-- ä¸€ä¸ªæ‹¦æˆªå™¨æ ˆä¸­å¯ä»¥åŠ å…¥å¤šä¸ªæ‹¦æˆªå™¨ -->
 			<interceptor-stack name="helloStack">
 				<interceptor-ref name="defaultStack"/>
 				<interceptor-ref name="helloInterceptor"/>
@@ -240,57 +240,57 @@ ModelDriven£¨ÊµÏÖ½Ó¿Úºó»á°ÑmodelÑ¹ÈëÕ»¶¥£©:
     	</interceptors>
 	
 	<action name="*_*" class="org.zttc.itat.action.{1}Action" method="{2}">
-    	<!-- ÔÚactionÖĞÒıÈëÏàÓ¦µÄÀ¹½ØÆ÷,Èç¹ûÔÚactionÖĞÒıÈëÁËÏàÓ¦µÄÀ¹½ØÆ÷Ö®ºó£¬
-    	Ô­ÓĞµÄ¼Ì³ĞÓÚstruts-default.xmlµÄÀ¹½ØÆ÷¾Í²»Æğ×÷ÓÃÁË£¬´ËÊ±ĞèÒªÊÖ¶¯ÒıÈë¡£»òÕß±àĞ´×Ô¼ºµÄÀ¹½ØÆ÷Õ» -->
+    	<!-- åœ¨actionä¸­å¼•å…¥ç›¸åº”çš„æ‹¦æˆªå™¨,å¦‚æœåœ¨actionä¸­å¼•å…¥äº†ç›¸åº”çš„æ‹¦æˆªå™¨ä¹‹åï¼Œ
+    	åŸæœ‰çš„ç»§æ‰¿äºstruts-default.xmlçš„æ‹¦æˆªå™¨å°±ä¸èµ·ä½œç”¨äº†ï¼Œæ­¤æ—¶éœ€è¦æ‰‹åŠ¨å¼•å…¥ã€‚æˆ–è€…ç¼–å†™è‡ªå·±çš„æ‹¦æˆªå™¨æ ˆ -->
     		<interceptor-ref name="helloStack"/>
     		<result>/WEB-INF/{1}/{2}.jsp</result>
     		<result name="input">/WEB-INF/{1}/{2}Input.jsp</result>
     		<result type="redirect" name="r_list">/{1}_list.action</result>
     	</action>
 
-µ±actionÖĞ¿ÉÄÜÒªÖØ¶¨Ïòµ½¶à¸öµØ·½Ê±£¬struts.xmlÖĞÒªÅäÖÃ¶à¸ö<result name=".." type="redirect" >xx</result>
-¿ÉÒÔÕâÑù¼ò»¯£¬Ö»ÅäÖÃÒ»¸ö<result name="redirect" type="redirect" >${url}</result>£¬actionÒªÖØ¶¨ÏòµÄÈ«²¿·µ»Ø"redirect"
-ĞèÒªÔÚreturnÖ®Ç°Ö´ĞĞActionContext.getContext().put("url","/xx.action"); Í¨¹ı${url}»ñÈ¡actionÖĞ´«µİ½øÀ´µÄÖµ
-ÕâÖÖ·½Ê½¼ò»¯ÁËÅäÖÃ£¬µ«Ê¹struts.xmlµÄÒ³ÃæÁ÷×ªÁ÷³ÌÃ»ÄÇÃ´ÇåÎú¡£
+å½“actionä¸­å¯èƒ½è¦é‡å®šå‘åˆ°å¤šä¸ªåœ°æ–¹æ—¶ï¼Œstruts.xmlä¸­è¦é…ç½®å¤šä¸ª<result name=".." type="redirect" >xx</result>
+å¯ä»¥è¿™æ ·ç®€åŒ–ï¼Œåªé…ç½®ä¸€ä¸ª<result name="redirect" type="redirect" >${url}</result>ï¼Œactionè¦é‡å®šå‘çš„å…¨éƒ¨è¿”å›"redirect"
+éœ€è¦åœ¨returnä¹‹å‰æ‰§è¡ŒActionContext.getContext().put("url","/xx.action"); é€šè¿‡${url}è·å–actionä¸­ä¼ é€’è¿›æ¥çš„å€¼
+è¿™ç§æ–¹å¼ç®€åŒ–äº†é…ç½®ï¼Œä½†ä½¿struts.xmlçš„é¡µé¢æµè½¬æµç¨‹æ²¡é‚£ä¹ˆæ¸…æ™°ã€‚
 
-¹ú¼Ê»¯
-	Ò»¡¢¹ú¼Ê»¯¾ÍÊÇÍ¨¹ıÊ¹ÓÃ²»Í¬µÄÅäÖÃÎÄ¼şÀ´Ö¸¶¨ÏàÓ¦µÄÏÔÊ¾½á¹û
-		Èç¹ûÒªÖ¸¶¨Ò»¸öÖĞÎÄÀàĞÍµÄÏÔÊ¾£¬Ò»°ãÒª´´½¨Message_zh_CN.propertiesÎÄ¼şÀ´ÊäÈëÖĞÎÄµÄÃû³Æ£¬zh±íÊ¾ÖĞÎÄ£¬CN¿ÉÒÔ²»¼Ó£¬±íÊ¾»ùÓÚÖĞÎÄÇøÓò
-		Èç¹ûÒªÏÔÊ¾Ó¢ÎÄ:Message_en_UK.propertiesÎÄ¼ş£¬Í¬ÑùUK¿ÉÒÔ²»¼Ó
-		ÌØ±ğ×¢Òâ:propertiesÎÄ¼şÖ»Ö§³ÖISO-8859-1µÄÀàĞÍ£¬Õâ¾ÍÒâÎ¶×ÅÎŞ·¨Ö±½Ó¼ÓÈëÖĞÎÄ
+å›½é™…åŒ–
+	ä¸€ã€å›½é™…åŒ–å°±æ˜¯é€šè¿‡ä½¿ç”¨ä¸åŒçš„é…ç½®æ–‡ä»¶æ¥æŒ‡å®šç›¸åº”çš„æ˜¾ç¤ºç»“æœ
+		å¦‚æœè¦æŒ‡å®šä¸€ä¸ªä¸­æ–‡ç±»å‹çš„æ˜¾ç¤ºï¼Œä¸€èˆ¬è¦åˆ›å»ºMessage_zh_CN.propertiesæ–‡ä»¶æ¥è¾“å…¥ä¸­æ–‡çš„åç§°ï¼Œzhè¡¨ç¤ºä¸­æ–‡ï¼ŒCNå¯ä»¥ä¸åŠ ï¼Œè¡¨ç¤ºåŸºäºä¸­æ–‡åŒºåŸŸ
+		å¦‚æœè¦æ˜¾ç¤ºè‹±æ–‡:Message_en_UK.propertiesæ–‡ä»¶ï¼ŒåŒæ ·UKå¯ä»¥ä¸åŠ 
+		ç‰¹åˆ«æ³¨æ„:propertiesæ–‡ä»¶åªæ”¯æŒISO-8859-1çš„ç±»å‹ï¼Œè¿™å°±æ„å‘³ç€æ— æ³•ç›´æ¥åŠ å…¥ä¸­æ–‡
 		Message_en_UK.properties
-		ÆäÖĞMessage±íÊ¾»ù´¡Ãû³Æ£¬en±íÊ¾Ó¢ÎÄ£¬UK±íÊ¾ÃÀ¹úÓ¢Óï
+		å…¶ä¸­Messageè¡¨ç¤ºåŸºç¡€åç§°ï¼Œenè¡¨ç¤ºè‹±æ–‡ï¼ŒUKè¡¨ç¤ºç¾å›½è‹±è¯­
 		ResourceBundle rb = ResourceBundle.getBundle("Message", Locale.CHINESE);
 		System.out.println(rb.getObject("hello")+","+rb.getObject("world"));
-	¶ş¡¢StrutsÈçºÎ½â¾ö¹ú¼Ê»¯µÄÎÊÌâ
-	    1¡¢¾Ö²¿µÄ·½°¸(»ù±¾²»ÓÃ):¾ÍÊÇÔÚActionËùÔÚµÄ°üÖĞ´´½¨ÏàÓ¦µÄActionËù¶ÔÓ¦µÄpropÎÄ¼ş£¬ÕâÑùĞèÒªÎª²»Í¬µÄAction´´½¨²»Í¬µÄÎÄ¼ş£¬¹¤×÷Á¿½Ï´ó£¬Ò»°ã²»ÓÃ
-	    2¡¢»ùÓÚ°üµÄ¹ú¼Ê»¯·½°¸£ºÔÚactionËùÔÚµÄ°üÂ·¾¶ÖĞ´´½¨ÏàÓ¦µÄpackage_cn.propertiesÎÄ¼ş
-	      2.1¡¢ÔÚ°üµÄÈÎÒâÂ·¾¶ÏÂ´´½¨ĞèÒª¹ú¼Ê»¯µÄpropÎÄ¼ş
-	      2.2¡¢ÈÃAction¼Ì³ĞActionSupport,ActionSupportÌá¹©ÁËÒ»Ğ©·Ç³£³£ÓÃµÄ·½·¨
-	      2.3¡¢ÔÚÒ³ÃæÖĞÍ¨¹ı<s:text name="message.id"/>À´ÒıÈëÃû³Æ
-	    3¡¢¿ÉÒÔ½«¹ú¼Ê»¯ÎÄ¼şĞ´ÔÚÀàÂ·¾¶ÏÂ£¬È»ºóÍ¨¹ıÅäÖÃ
-	    <constant name="struts.custom.i18n.resources" value="Message"></constant>Ö¸¶¨¹ú¼Ê»¯ÎÄ¼şµÄbaseName
+	äºŒã€Strutså¦‚ä½•è§£å†³å›½é™…åŒ–çš„é—®é¢˜
+	    1ã€å±€éƒ¨çš„æ–¹æ¡ˆ(åŸºæœ¬ä¸ç”¨):å°±æ˜¯åœ¨Actionæ‰€åœ¨çš„åŒ…ä¸­åˆ›å»ºç›¸åº”çš„Actionæ‰€å¯¹åº”çš„propæ–‡ä»¶ï¼Œè¿™æ ·éœ€è¦ä¸ºä¸åŒçš„Actionåˆ›å»ºä¸åŒçš„æ–‡ä»¶ï¼Œå·¥ä½œé‡è¾ƒå¤§ï¼Œä¸€èˆ¬ä¸ç”¨
+	    2ã€åŸºäºåŒ…çš„å›½é™…åŒ–æ–¹æ¡ˆï¼šåœ¨actionæ‰€åœ¨çš„åŒ…è·¯å¾„ä¸­åˆ›å»ºç›¸åº”çš„package_cn.propertiesæ–‡ä»¶
+	      2.1ã€åœ¨åŒ…çš„ä»»æ„è·¯å¾„ä¸‹åˆ›å»ºéœ€è¦å›½é™…åŒ–çš„propæ–‡ä»¶
+	      2.2ã€è®©Actionç»§æ‰¿ActionSupport,ActionSupportæä¾›äº†ä¸€äº›éå¸¸å¸¸ç”¨çš„æ–¹æ³•
+	      2.3ã€åœ¨é¡µé¢ä¸­é€šè¿‡<s:text name="message.id"/>æ¥å¼•å…¥åç§°
+	    3ã€å¯ä»¥å°†å›½é™…åŒ–æ–‡ä»¶å†™åœ¨ç±»è·¯å¾„ä¸‹ï¼Œç„¶åé€šè¿‡é…ç½®
+	    <constant name="struts.custom.i18n.resources" value="Message"></constant>æŒ‡å®šå›½é™…åŒ–æ–‡ä»¶çš„baseName
 
-³£ÓÃform±êÇ©
-	<s:form action="Group_add" method="post">  <!-- ²»Ğè¼Ó.action£¬×Ô¶¯¼Ó --¡·
-		<s:textfield label="×é±êÊ¶" name="id"/> <!--labelÊÇ,±íµ¥ÑùÊ½ÎªxhtmlÊ±²ÅÆğ×÷ÓÃ£¬Ò»°ãÊ¹ÓÃsimple,Í¨¹ı³£Á¿¸Ä±ä-->
-		<s:textfield label="×éÃû³Æ" name="name"/>  <!-- »á×Ô¶¯µ½valuestackÖĞÕÒname»ØÏÔ-->
-		<!-- ÔÚstruts2ÖĞÒªÔÚstruts2µÄ±êÇ©ÖĞÒıÈëÏàÓ¦µÄActionContextÖĞµÄÖµ£¬ÒªÊ¹ÓÃ%{xxx} -->
-		<s:textfield label="ÓÃ»§Ãû" name="useraname" value="%{username}"/>
-		<%-- ¶ÔÓÚÁĞ±í¶øÑÔ£¬ÔÚĞÂ°æ±¾ÖĞÒÑ¾­¿ÉÒÔÊ¹ÓÃ#..À´·ÃÎÊ£¬µ«ÊÇÒÀÈ»½¨ÒéÊ¹ÓÃ%{..}À´·ÃÎÊ --%>
-		<s:checkboxlist label="ĞËÈ¤" name="interest" list="#{'football':'×ãÇò','basketball':'ÀºÇò','ping':'Æ¹ÅÒÇò'}" 
+å¸¸ç”¨formæ ‡ç­¾
+	<s:form action="Group_add" method="post">  <!-- ä¸éœ€åŠ .actionï¼Œè‡ªåŠ¨åŠ  --ã€‹
+		<s:textfield label="ç»„æ ‡è¯†" name="id"/> <!--labelæ˜¯,è¡¨å•æ ·å¼ä¸ºxhtmlæ—¶æ‰èµ·ä½œç”¨ï¼Œä¸€èˆ¬ä½¿ç”¨simple,é€šè¿‡å¸¸é‡æ”¹å˜-->
+		<s:textfield label="ç»„åç§°" name="name"/>  <!-- ä¼šè‡ªåŠ¨åˆ°valuestackä¸­æ‰¾nameå›æ˜¾-->
+		<!-- åœ¨struts2ä¸­è¦åœ¨struts2çš„æ ‡ç­¾ä¸­å¼•å…¥ç›¸åº”çš„ActionContextä¸­çš„å€¼ï¼Œè¦ä½¿ç”¨%{xxx} -->
+		<s:textfield label="ç”¨æˆ·å" name="useraname" value="%{username}"/>
+		<%-- å¯¹äºåˆ—è¡¨è€Œè¨€ï¼Œåœ¨æ–°ç‰ˆæœ¬ä¸­å·²ç»å¯ä»¥ä½¿ç”¨#..æ¥è®¿é—®ï¼Œä½†æ˜¯ä¾ç„¶å»ºè®®ä½¿ç”¨%{..}æ¥è®¿é—® --%>
+		<s:checkboxlist label="å…´è¶£" name="interest" list="#{'football':'è¶³çƒ','basketball':'ç¯®çƒ','ping':'ä¹’ä¹“çƒ'}" 
 			listKey="key" listValue="value" value="%{interest}"/>
-		<s:radio list="#{'0':'ÄĞ','1':'Å®' }" name="gender" label="ĞÔ±ğ" value="0"></s:radio>
-		<s:select list="#groups" listKey="id" listValue="name" label="Ñ¡Ôñ×é" 
-		headerKey="-1" headerValue="Ñ¡ÔñÏàÓ¦µÄ¹¤×÷×é" value="2"></s:select>  <!-- ÕâÀïµÄlistkey="id"£¬idÊÇgroupsµÄÊôĞÔ£¬ÓëÉÏÃælistkey="key"²»Í¬ -->
-		<s:submit value="Ìí¼Ó"/>
+		<s:radio list="#{'0':'ç”·','1':'å¥³' }" name="gender" label="æ€§åˆ«" value="0"></s:radio>
+		<s:select list="#groups" listKey="id" listValue="name" label="é€‰æ‹©ç»„" 
+		headerKey="-1" headerValue="é€‰æ‹©ç›¸åº”çš„å·¥ä½œç»„" value="2"></s:select>  <!-- è¿™é‡Œçš„listkey="id"ï¼Œidæ˜¯groupsçš„å±æ€§ï¼Œä¸ä¸Šé¢listkey="key"ä¸åŒ -->
+		<s:submit value="æ·»åŠ "/>
 	</s:form>
 
-·şÎñÆ÷¶ËÑéÖ¤
-	1. ±àĞ´xxAction-validation.xml£¬ÔÚstruts.blank.warÖĞÓĞdemo
-	Ö´ĞĞxxActionÖĞµÄÄ³Ğ©·½·¨»á×Ô¶¯½øĞĞÑéÖ¤£¬³ö´í¾Í·µ»Øinput¶ÔÓ¦µÄÒ³Ãæ¡£ ×¢£ºactionÒª¼Ì³ĞActionSupport
-	2. ÁíÒ»ÖÖ·½Ê½ÊÇÖ±½ÓÔÚxxActionÖĞÌí¼Óvalidate..·½·¨£¬ÈçÒªÑéÖ¤add,¾ÍÌí¼ÓvalidateAdd·½·¨½øĞĞÑéÖ¤
-	ÑéÖ¤²»Í¬¹ı¾Íthis.addFieldError("xx") ×¢£ºactionÒª¼Ì³ĞActionSupport
+æœåŠ¡å™¨ç«¯éªŒè¯
+	1. ç¼–å†™xxAction-validation.xmlï¼Œåœ¨struts.blank.warä¸­æœ‰demo
+	æ‰§è¡ŒxxActionä¸­çš„æŸäº›æ–¹æ³•ä¼šè‡ªåŠ¨è¿›è¡ŒéªŒè¯ï¼Œå‡ºé”™å°±è¿”å›inputå¯¹åº”çš„é¡µé¢ã€‚ æ³¨ï¼šactionè¦ç»§æ‰¿ActionSupport
+	2. å¦ä¸€ç§æ–¹å¼æ˜¯ç›´æ¥åœ¨xxActionä¸­æ·»åŠ validate..æ–¹æ³•ï¼Œå¦‚è¦éªŒè¯add,å°±æ·»åŠ validateAddæ–¹æ³•è¿›è¡ŒéªŒè¯
+	éªŒè¯ä¸åŒè¿‡å°±this.addFieldError("xx") æ³¨ï¼šactionè¦ç»§æ‰¿ActionSupport
 
 
 
