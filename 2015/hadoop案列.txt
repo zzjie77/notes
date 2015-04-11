@@ -1,0 +1,127 @@
+巨型网站日志系统分析，提取KPI数据(Map-Reduce)
+电信运营商LBS应用，分析手机用户移动轨迹(Map-Reduce)
+电信运营商用户分析，通过通话指纹判断重入网用户(map-Reduce)
+电子商务推荐系统设计(Map-Reduce)
+更复杂的推荐系统场景(Mahout)
+社交网络，判断微博用户关系亲疏程度，发现社区(Pig)
+在社交网络中衡量节点的重要程度(Map-Reduce)
+聚类算法应用，分析优质客户(Map-Reduce,Mahout)
+金融数据分析，从历史数据中提取逆回购信息(Hive)
+通过数据分析制定股票策略(Map-Reduce,Hive)
+GPS应用，签到数据分析(Pig)
+Map-Reduce全排序实现和优化
+中间件开发，让多个Hadoop集群协作起来
+
+web日志分析：
+	日志样板：
+	222.68.172.190 - - [18/Sep/2013:06:49:57 +0000] "GET /images/my.jpg HTTP/1.1" 200 19939 "http://www.angularjs.cn/A00n" "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.66 Safari/537.36"
+	ip - - 时间 请求资源 返回状态码 资源大小 reference 浏览器信息
+	remote_addr, remote_user,  time_local,  request,status,body_bytes_sent,http_referer,http_user_agent
+
+	pv, uv, 独立ip数, 跳出率，平均访问时长
+	pv: 注意不能直接统计accesslog的行数，有一个页面包含多个元素的情况，如一个页面包含100个图片，则有101次请求，但只能算一次。
+	   还有爬虫的请求也要过滤(在浏览器信息会显示)。如果只是我们手动过滤图片，js，爬虫，算出来的往往也是偏大的。
+	   解决的办法是在页面上安装一个js的探针，每次请求页面js都会去请求探针指向的日志服务器(或者百度统计，google analysis)，然后去统计探针指向的服务器，这样就不会有页面其他元素的请求
+	uv: 不能直接统计ip，有可能一个ip分出了多个用户，也有可能ip是爬虫的。可以根据cookie来统计，一个ip出口的多个用户cookie也不相同，爬虫程序也不会保存cookie
+	平均访问时长：根据第一次请求时间和最后一次请求时间算出访问时长，注意要在一定范围内才行，时间间隔太长不算，譬如5分钟，然后把多个5分钟内的时长加起来就是总时长
+
+	对于机械人点击作弊的情况，可以在js里加判断鼠标移动的点击才激活探针的请求，对于爬虫也是没有鼠标移动的。当然这些也是可以破
+
+	对于量小的日志可以是用脚本统计awk, grep ... ， 也可以使用webtrends这种工具， 或者百度统计，谷歌分析
+	从nginx日志中得到访问量最高前5个IP，实现很简单
+	cat access.log.10 | awk '{a[$1]++} END {for(b in a) print b"\t"a[b]}' | sort -k2 -r | head -n 5
+
+	PV(PageView): 页面访问量统计
+	– Map: {key:$request,value:1}
+	– Reduce: {key:$request,value:求和(sum)}
+	IP: 页面独立IP的访问量统计
+	– Map: {key:$request,value:$remote_addr}
+	– Reduce: {key:$request,value:去重再求和(sum(unique))}
+	Time: 用户每小时PV的统计
+	– Map: {key:$time_local,value:1}
+	– Reduce: {key:$time_local,value:求和(sum)}
+	Source: 用户来源域名的统计
+	– Map: {key:$http_referer,value:1}
+	– Reduce: {key:$http_referer,value:求和(sum)}
+	Browser: 用户的访问设备统计
+	– Map: {key:$http_user_agent,value:1}
+	– Reduce: {key:$http_user_agent,value:求和(sum)}
+
+	源码：https://github.com/bsspirit/maven_hadoop_template/releases/tag/kpi_v1
+
+移动运营商LBS应用，分析手机用户移动轨迹(Map-Reduce):
+	移动基站的数据包括：呼叫数据，短信数据，位置更新/开关机(定时基站通信)，上网记录，其他
+	通过记录用户轨迹，可以做很多有用的决策：判断用户身份，推荐广告，预测用户以后相同的时间所在位置...
+	需求：将一天分为3个时间段0-9，9-17,17-24，计算3个时间每个人在这3个时间段的排名前3的位置数据
+	数据格式：只用到位置更新/开关机(文件名以POS开头)，上网记录（文件名以NET开头）
+	POS：IMSI	IMEI	UPDATETYPE	LOC	TIME   //UPDATETYPE表示开关机或定时通信，LOC基站id
+	A 001 0 X基站 2013-09-12 09:00:00
+	NET: IMSI	IMEI	LOC	TIME	URL
+	A 001 X基站 2013-09-12 09:15:00 www.baidu.com
+	POS和NET只有一列不同，UPDATEYPTE和URL
+	最终要的数据： 
+		IMSI, TimeFlag, LOC, STAY_TYME
+		A, 09-17, x基站, 15分钟
+		 		  y基站, 20分钟
+	算法流程：
+		1. 从POS文件和NET文件从提取IMSI，LOC， TIME。在mapper的setup函数根据(FileSplit)(context.getInputSplit()).getPath().getName()获取文件名,来区分提取字段
+		2. 将TIME提取出TimeFlag时段(0-9,9-17,17-24)，并转换为unix时间戳
+		3. mapper函数发射，以IMSI|TimeFlag为key,以LOC|unix时间戳为value。多发射一个该时间段的最后一秒的数据，LOC为OFF,为了计算最后一个基站的停留时间
+		4. 在reduce中，对unix时间戳进行排序(treemap)，后一个时间减前一个时间，得出每个基站的停留时间，过滤时间差大于60分钟的(认为关机). 
+		5. 汇总每个基站的时间
+
+移动运营商LBS应用2，分析手机用户移动轨迹(Map-Reduce):
+	数据：用户ID 时段 位置
+	001 2013-09-12 00-09 中山大学
+	001 2013-09-12 09-17 珠江新城
+	输出：时间段 地点 下一个地点 概率
+	00-09 中山大学 广州信息港 0.01  //凌晨时段在“中山大学”的人, 接下来可能去“广州信息港”的可能性是0.01
+	00-09 珠江新城 珠江帝景 0.005
+	09-17 华南理工大学 广州图书馆新馆 0.001
+	
+
+推荐系统：
+	按数据使用划分：
+	– 协同过滤算法： UserCF, ItemCF, ModelCF
+	– 基于内容的推荐: 用户内容属性和物品内容属性
+	– 社会化过滤：基于用户的社会网络关系
+	按模型划分：
+	– 最近邻模型:基于距离的协同过滤算法
+	– Latent Factor Mode(SVD)： 基于矩阵分解的模型
+	– Graph： 图模型，社会网络图模型
+
+基于用户的协同过滤算法UserCF：
+	基于用户的协同过滤，通过不同用户对物品的评分来评测用户之间的相似性，基于用户之间的相似性做出推荐。
+	简单来讲就是：给用户推荐和他兴趣相似的其他用户喜欢的物品。
+
+
+在windows提交mapreduce到linux会有权限问题，修改FileUtil的源码重新编译，替换hadoop-core.jar中的class，就可以在eclipse中提交作业
+
+
+
+
+数据挖掘的4大任务：分类，聚类，预测，关联
+每一大任务下都有很多算法，分类是首要任务，分类跟聚类的区别是：分类是有指导的学习（训练集），聚类则没有
+分类算法：
+	决策树
+	逻辑回归
+	神经网络
+	支持向量机
+	贝叶斯分类
+	KNN(K近邻)
+	随机森林
+典型应用：流失预测、精准营销、客户获取、个性偏好、信用分析、欺诈预警……
+数据挖掘领域十大经典算法：（06年IEEE评出）
+	1. C4.5 （决策树的一种实现）
+	2. The k-means algorithm 即K-Means算法
+	3. Support vector machines （SVM 支持向量机）
+	4. The Apriori algorithm
+	5. 最大期望(EM)算法
+	6. PageRank
+	7. AdaBoost
+	8. kNN: k-nearest neighbor classification
+	9. Naive Bayes
+	10. CART: 分类与回归树
+十大算法中有四个是分类的，可见分类的重要
+
+

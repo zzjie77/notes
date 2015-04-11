@@ -1,0 +1,807 @@
+HDFS的架构:
+主从结构
+	主节点，只有一个: namenode
+	从节点，有很多个: datanodes
+namenode负责：
+	接收用户操作请求
+	维护文件系统的目录结构
+	管理文件与block之间关系，block与datanode之间关系
+datanode负责：
+	存储文件
+	文件被分成block存储在磁盘上
+	为保证数据安全，文件会有多个副本
+
+MapReduce的架构:
+主从结构
+	主节点，只有一个: JobTracker
+	从节点，有很多个: TaskTrackers
+JobTracker负责：
+	接收客户提交的计算任务
+	把计算任务分给TaskTrackers执行
+	监控TaskTracker的执行情况 
+TaskTrackers负责：
+	执行JobTracker分配的计算任务
+
+1.hadoop的伪分布安装
+1.1 设置ip地址
+	执行命令	service network restart
+	验证:	ifconfig
+1.2 关闭防火墙
+	执行命令	service iptables stop
+	验证:		service iptables status
+1.3	关闭防火墙的自动运行
+	执行命令	chkconfig iptables off
+	验证:		chkconfig --list | grep iptables
+1.4 设置主机名
+	执行命令	(1)hostname chaoren
+				(2)vi /etc/sysconfig/network
+1.5 ip与hostname绑定
+	执行命令	vi /etc/hosts
+	验证:		ping chaoren
+1.6 设置ssh免密码登陆
+	执行命令	(1)ssh-keygen -t rsa
+				(2)cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+	验证：		ssh chaoren
+1.7 安装jdk
+	执行命令	(1)cd /usr/local
+				(2)chmod u+x jdk-6u24-linux-i586.bin
+				(3)./jdk-6u24-linux-i586.bin
+				(4)mv jdk-1.6.0_24  jdk
+				(5)vi /etc/profile 增加内容如下:
+								export JAVA_HOME=/usr/local/jdk
+								export PATH=.:$JAVA_HOME/bin:$PATH
+				(6)source /etc/profile
+	验证:	java -version
+1.8 安装hadoop
+	执行命令	(1)tar -zxvf hadoop-1.1.2.tar.gz
+				(2)mv hadoop-1.1.2 hadoop
+				(3)vi /etc/profile 增加内容如下:
+								export JAVA_HOME=/usr/local/jdk
+								export HADOOP_HOME=/usr/local/hadoop
+								export PATH=.:$HADOOP_HOME/bin:$JAVA_HOME/bin:$PATH
+				(4)source /etc/profile
+				(5)修改conf目录下的配置文件hadoop-env.sh、core-site.xml、hdfs-site.xml、mapred-site.xml
+				(6)hadoop namenode -format
+				(7)start-all.sh
+	验证:	(1)执行命令jps 如果看到5个新的java进程，分别是NameNode、SecondaryNameNode、DataNode、JobTracker、TaskTracker
+			(2)在浏览器查看，http://chaoren:50070  http://chaoren:50030  
+1.9 启动时没有NameNode的可能原因:
+	(1)没有格式化
+	(2)环境变量设置错误
+	(3)ip与hostname绑定失败
+
+修改hadoop配置文件
+	1.hadoop-env.sh
+	export JAVA_HOME=/usr/local/jdk/
+
+	2.core-site.xml
+	<configuration>
+	    <property>
+	        <name>fs.default.name</name>
+	        <value>hdfs://hadoop0:9000</value>
+	    </property>
+	    <property>
+	        <name>hadoop.tmp.dir</name>
+	        <value>/usr/local/hadoop/tmp</value>
+	    </property>  
+	</configuration>
+
+	3.hdfs-site.xml
+	<configuration>
+	    <property>
+	        <name>dfs.replication</name>
+	        <value>1</value>
+	    </property>
+	    <property>
+	        <name>dfs.permissions</name>
+	        <value>false</value>
+	    </property>
+	</configuration>
+
+	4.mapred-site.xml
+	<configuration>
+	    <property>
+	        <name>mapred.job.tracker</name>
+	        <value>hadoop0:9001</value>
+	    </property>
+	</configuration>
+
+集群环境搭建过程:
+1.确定集群环境
+2.在伪分布基础上搭建
+3.集群各节点之间必须ssh免密码登录
+   ssh-copy-id -i  slavenode
+4.删除hadoop中的tmp
+5.把jdk、hadoop复制到其他节点
+      scp -rq  source  destination
+6.修改主节点的slaves文件
+	
+HDFS:	
+1.对hdfs操作的命令格式是hadoop fs 
+	1.1 -ls		<path>	表示对hdfs下一级目录的查看
+	1.2 -lsr	<path>	表示对hdfs目录的递归查看
+	1.3	-mkdir	<path>	创建目录
+	1.4 -put	<src>	<des>	从linux上传文件到hdfs
+	1.5 -get	<src>	<des>	从hdfs下载文件到linux
+	1.6 -text	<path>	查看文件内容
+	1.7 -rm		<path>	表示删除文件
+	1.7 -rmr	<path>	表示递归删除文件
+2.hdfs在对数据存储进行block划分时，如果文件大小超过block，那么按照block大小进行划分；不如block size的，划分为一个块，是实际数据大小。
+
+Namenode
+	是整个文件系统的管理节点。它维护着整个文件系统的文件目录树，文件/目录的元信息和每个文件对应的数据块列表。接收用户的操作请求。
+	文件包括：
+		fsimage:元数据镜像文件。存储某一时段NameNode内存元数据信息。
+		edits:操作日志文件。
+		fstime:保存最近一次checkpoint的时间
+		以上这些文件是保存在linux的文件系统中。
+
+Datanode
+	提供真实文件数据的存储服务。
+	文件块（block）：最基本的存储单位。对于文件内容而言，一个文件的长度大小是size，那么从文件的０偏移开始，按照固定的大小，顺序对文件进行划分并编号，划分好的每一个块称一个Block。HDFS默认Block大小是64MB，以一个256MB文件，共有256/64=4个Block.
+	不同于普通文件系统的是，HDFS中，如果一个文件小于一个数据块的大小，并不占用整个数据块存储空间
+	Replication。多复本。默认是三个。
+
+SecondaryNameNode
+	HA的一个解决方案。但不支持热备。配置即可。
+	执行过程：从NameNode上下载元数据信息（fsimage,edits），然后把二者合并，生成新的fsimage，在本地保存，并将其推送到NameNode，同时重置NameNode的edits.
+	默认在安装在NameNode节点上，但这样...不安全！
+
+通过URL来访问hdfs:
+	public class App1 {
+		/**
+		 * 抛异常： unknown host: chaoren
+		 * 原因：是因为本机没有解析主机名chaoren
+		 */
+		static final String PATH = "hdfs://chaoren:9000/hello";
+		public static void main(String[] args) throws Exception {
+			// 要设置hadoop的FsUrlStreamHandlerFactory才能访问，URL默认只支持http
+			URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
+			
+			final URL url = new URL(PATH);
+			final InputStream in = url.openStream();
+			/**
+			 * @param in	表示输入流
+			 * @param out	表示输出流
+			 * @param buffSize	表示缓冲大小
+			 * @param close 表示在传输结束后是否关闭流
+			 */
+			IOUtils.copyBytes(in, System.out, 1024, true);
+		}
+	}
+
+通过hadoop的hdfs api访问hdfs
+	public class App2 {
+		static final String PATH = "hdfs://chaoren:9000/";
+		static final String DIR = "/d1";
+		static final String FILE = "/d1/hello";
+		public static void main(String[] args) throws Exception {
+			FileSystem fileSystem = getFileSystem();
+			//创建文件夹     hadoop fs -mkdir   /f1
+			mkdir(fileSystem);
+			//上传文件  -put  src  des
+			putData(fileSystem);
+			//下载文件   hadoop fs -get src des
+			//getData(fileSystem);
+			//浏览文件夹
+			list(fileSystem);
+			//删除文件夹
+			//remove(fileSystem);
+		}
+		private static void list(FileSystem fileSystem) throws IOException {
+			final FileStatus[] listStatus = fileSystem.listStatus(new Path("/"));
+			for (FileStatus fileStatus : listStatus) {
+				String isDir = fileStatus.isDir()?"文件夹":"文件";
+				final String permission = fileStatus.getPermission().toString();
+				final short replication = fileStatus.getReplication();
+				final long len = fileStatus.getLen();
+				final String path = fileStatus.getPath().toString();
+				System.out.println(isDir+"\t"+permission+"\t"+replication+"\t"+len+"\t"+path);
+			}
+		}
+		private static void getData(FileSystem fileSystem) throws IOException {
+			final FSDataInputStream in = fileSystem.open(new Path(FILE));
+			IOUtils.copyBytes(in, System.out, 1024, true);
+		}
+		private static void putData(FileSystem fileSystem) throws IOException,
+				FileNotFoundException {
+			final FSDataOutputStream out = fileSystem.create(new Path(FILE));
+			final FileInputStream in = new FileInputStream("H:/kuaipan/hadoop/classes/yy131009/day2/readme.txt");
+			IOUtils.copyBytes(in, out, 1024, true);
+		}
+		private static void remove(FileSystem fileSystem) throws IOException {
+			fileSystem.delete(new Path(DIR), true);
+		}
+		private static void mkdir(FileSystem fileSystem) throws IOException {
+			fileSystem.mkdirs(new Path(DIR));
+		}
+		private static FileSystem getFileSystem() throws IOException, URISyntaxException {
+			return FileSystem.get(new URI(PATH), new Configuration());
+		}
+	}
+
+
+RPC (remote procedure call)远程过程调用, 是hadoop构建的基础
+业务接口
+	public interface MyBizable extends VersionedProtocol{
+		long VERSION = 2345245L;
+		public abstract String hello(String name);
+	}
+业务类
+	public class MyBiz implements  MyBizable{
+		
+		public String hello(String name){
+			System.out.println("我被调用了");
+			return "hello "+name;
+		}
+
+		public long getProtocolVersion(String arg0, long arg1) throws IOException {
+			return VERSION;
+		}
+	}
+RPC server
+	public class MyServer {
+		static final String ADDRESS = "localhost";
+		static final int PORT = 12345;
+		public static void main(String[] args)throws Exception {
+			/** 
+			 * 构造一个RPC的服务端.
+		     * @param instance 这个实例中的方法会被调用
+		     * @param bindAddress 绑定的地址是用于监听连接的
+		     * @param port 绑定的端口是用于监听连接的
+		     * @param conf the configuration to use
+		     */
+			final Server server = RPC.getServer(new MyBiz(), ADDRESS, PORT, new Configuration());
+			server.start();
+		}
+
+	}
+RPC client
+	public class MyClient {
+		public static void main(String[] args) throws Exception{
+			// 构造一个客户端代理对象，该代理对象实现了命名的协议。代理对象会与指定地址的服务端通话
+			MyBizable proxy = (MyBizable)RPC.waitForProxy(
+						MyBizable.class,
+						MyBizable.VERSION,
+						new InetSocketAddress(MyServer.ADDRESS, MyServer.PORT),
+						new Configuration());
+			final String result = proxy.hello("world");
+			System.out.println("客户端结果："+result);
+			//关闭网络连接
+			RPC.stopProxy(proxy);
+		}
+	}
+
+fssystem调用create方法的流程：
+	DistributedFileSystem.create() -> DFSClient.create -> new DFSOutputStream() 
+															-> namenode.craete()
+															-> streamer向namenode申请block,向datanode写数据
+ClientProtocol是客户端(FileSystem)与NameNode通信的接口。
+DatanodeProtocol是DataNode与NameNode通信的接口
+NamenodeProtocol是SecondaryNameNode与NameNode通信的接口
+DFSClient是直接调用NameNode接口的对象。用户代码是通过DistributedFileSystem调用DFSClient对象，才能与NameNode打交道。
+
+
+
+MapReduce:
+8个执行步骤：
+	1. map任务处理
+	1.1 读取输入文件内容，解析成key、value对。对输入文件的每一行，解析成key、value对。每一个键值对调用一次map函数。
+	1.2 写自己的逻辑，对输入的key、value处理，转换成新的key、value输出。
+	1.3 对输出的key、value进行分区。
+	1.4 对不同分区的数据，按照key进行排序、分组。相同key的value放到一个集合中。
+	1.5 (可选)分组后的数据进行归约(combiner)。
+	2.reduce任务处理
+	2.1 对多个map任务的输出，按照不同的分区，通过网络copy到不同的reduce节点。
+	2.2 对多个map任务的输出进行合并、排序。写reduce函数自己的逻辑，对输入的key、value处理，转换成新的key、value输出。
+	2.3 把reduce的输出保存到文件中。
+
+map、reduce键值对格式	
+	函数		输入键值对	输出键值对
+	map()		<k1,v1>		<k2,v2>
+	reduce()	<k2,{v2}>	<k3,v3>
+
+JobSubmissionProtocol是JobClient与JobTracker通信的接口。
+InterTrackerProtocol是TaskTracker与JobTracker通信的接口。
+
+最小的MapReduce驱动:
+	Configuration configuration = new Configuration();
+	Job job = new Job(configuration, "HelloWorld");
+	job.setInputFormat(TextInputFormat.class);
+	job.setMapperClass(IdentityMapper.class); 
+	job.setMapOutputKeyClass(LongWritable.class);
+	job.setMapOutputValueClass(Text.class);
+	job.setPartitionerClass(HashPartitioner.class);
+	job.setNumReduceTasks(1);
+	job.setReducerClass(IdentityReducer.class);
+	job.setOutputKeyClass(LongWritable.class);
+	job.setOutputValueClass(Text.class);
+	job.setOutputFormat(TextOutputFormat.class);
+	job.waitForCompletion(true);
+
+MapReduce驱动默认的设置
+	InputFormat(输入)	TextInputFormat
+	MapperClass(map类)	IdentityMapper
+	MapOutputKeyClass	LongWritable
+	MapOutputValueClass	Text
+	PartitionerClass	HashPartitioner
+	ReduceClass	IdentityReduce
+	OutputKeyClass	LongWritable
+	OutputValueClass	Text
+	OutputFormatClass	TextOutputFormat
+
+InputFormat有三个作用:
+	验证作业的输入是否规范.
+	把输入文件切分成InputSplit. (每个block大小划分一个split)
+	提供RecordReader 的实现类，把InputSplit读到Mapper中进行处理.
+
+旧API写法：
+	/**
+	 * hadoop版本1.x的包一般是mapreduce
+	 * hadoop版本0.x的包一般是mapred
+	 */
+	public class OldAPP {
+		static final String INPUT_PATH = "hdfs://cloud4:9000/hello";
+		static final String OUT_PATH = "hdfs://cloud4:9000/out";
+		/**
+		 * 改动：
+		 * 1.不再使用Job，而是使用JobConf
+		 * 2.类的包名不再使用mapreduce，而是使用mapred
+		 * 3.不再使用job.waitForCompletion(true)提交作业，而是使用JobClient.runJob(job);
+		 * 
+		 */
+		public static void main(String[] args) throws Exception {
+			Configuration conf = new Configuration();
+			final FileSystem fileSystem = FileSystem.get(new URI(INPUT_PATH), conf);
+			final Path outPath = new Path(OUT_PATH);
+			if(fileSystem.exists(outPath)){
+				fileSystem.delete(outPath, true);
+			}
+			
+			final JobConf job = new JobConf(conf , WordCountApp.class);
+			//1.1指定读取的文件位于哪里
+			FileInputFormat.setInputPaths(job, INPUT_PATH);
+			//指定如何对输入文件进行格式化，把输入文件每一行解析成键值对
+			//job.setInputFormatClass(TextInputFormat.class);
+			
+			//1.2 指定自定义的map类
+			job.setMapperClass(MyMapper.class);
+			//map输出的<k,v>类型。如果<k3,v3>的类型与<k2,v2>类型一致，则可以省略
+			//job.setMapOutputKeyClass(Text.class);
+			//job.setMapOutputValueClass(LongWritable.class);
+			
+			//1.3 分区
+			
+			//1.4 TODO 排序、分组
+			
+			//1.5 TODO 规约
+			
+			//2.2 指定自定义reduce类
+			job.setReducerClass(MyReducer.class);
+			//指定reduce的输出类型
+			job.setOutputKeyClass(Text.class);
+			job.setOutputValueClass(LongWritable.class);
+			
+			//2.3 指定写出到哪里
+			FileOutputFormat.setOutputPath(job, outPath);
+			//指定输出文件的格式化类
+			//job.setOutputFormatClass(TextOutputFormat.class);
+			
+			//把job提交给JobTracker运行
+			JobClient.runJob(job);
+		}
+
+		
+		
+		/**
+		 * 新api:extends Mapper
+		 * 老api:extends MapRedcueBase implements Mapper
+		 */
+		static class MyMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, LongWritable>{
+			@Override
+			public void map(LongWritable k1, Text v1,
+					OutputCollector<Text, LongWritable> collector, Reporter reporter)
+					throws IOException {
+				final String[] splited = v1.toString().split("\t");
+				for (String word : splited) {
+					collector.collect(new Text(word), new LongWritable(1));
+				}
+			}
+		}
+		
+		static class MyReducer extends MapReduceBase implements Reducer<Text, LongWritable, Text, LongWritable>{
+			@Override
+			public void reduce(Text k2, Iterator<LongWritable> v2s,
+					OutputCollector<Text, LongWritable> collector, Reporter reporter)
+					throws IOException {
+				long times = 0L;
+				while (v2s.hasNext()) {
+					final long temp = v2s.next().get();
+					times += temp;
+				}
+				collector.collect(k2, new LongWritable(times));
+			}
+		}
+	}
+
+MapReduce获取命令行参数:
+	/**
+	 * 1. extends Configured implements Tool
+	 * 2. 原来在main的内容写到run中
+	 * 3. main中使用ToolRunner.run来运行
+	 */
+	public class CacheFileApp extends Configured implements Tool{
+		public static void main(String[] args) throws Exception {
+			ToolRunner.run(new Configuration(), new CacheFileApp(), args);  
+		}
+
+		@Override
+		public int run(String[] args) throws Exception {
+			//..............................
+
+	        Path in = new Path(args[0]);  
+			Path out = new Path(args[1]);  
+	          
+			//..............................
+		}
+	}
+
+计算器：可以让开发人员以全局的视角来审查程序的运行情况以及各项指标，及时做出错误诊断并进行相应处理。
+Hello you, hello me的计数器信息：（运行MR后输出）
+	Counters: 19
+	  File Output Format Counters 
+	    Bytes Written=19	//reduce输出到hdfs的字节数
+	  FileSystemCounters
+	    FILE_BYTES_READ=481
+	    HDFS_BYTES_READ=38
+	    FILE_BYTES_WRITTEN=81316
+	    HDFS_BYTES_WRITTEN=19
+	  File Input Format Counters 
+	    Bytes Read=19	//map从hdfs读取的字节数
+	  Map-Reduce Framework
+	    Map output materialized bytes=49
+	    Map input records=2  	//map读入的记录行数
+	    Reduce shuffle bytes=0
+	    Spilled Records=8
+	    Map output bytes=35
+	    Total committed heap usage (bytes)=266469376
+	    SPLIT_RAW_BYTES=105
+	    Combine input records=0
+	    Reduce input records=4	//reduce从map端接收的记录行数
+	    Reduce input groups=3	//reduce函数接收的key数量，即归并后的k2数量
+	    Combine output records=0
+	    Reduce output records=3	//reduce输出的记录行数
+	    Map output records=4	//map输出的记录行数
+	   Sensitive Words
+	   	hello=1
+
+自定义计算器例子：
+	protected void map(LongWritable k1, Text v1, Context context) throws java.io.IOException ,InterruptedException {
+		final Counter helloCounter = context.getCounter("Sensitive Words", "hello");  // groupName, counterName
+		
+		final String line = v1.toString();
+		if(line.contains("hello")){
+			helloCounter.increment(1L);
+		}
+		final String[] splited = line.split("\t");
+		for (String word : splited) {
+			context.write(new Text(word), new LongWritable(1));
+		}
+	};
+
+Combiner:
+/**
+ * 问：为什么使用Combiner？
+ * 答：Combiner发生在Map端，对数据进行规约处理，数据量变小了，传送到reduce端的数据量变小了，传输时间变短，作业的整体时间变短。
+ * 
+ * 问：为什么Combiner不作为MR运行的标配，而是可选步骤哪？
+ * 答：因为不是所有的算法都适合使用Combiner处理，例如求平均数。
+ *
+ * 问：Combiner本身已经执行了reduce操作，为什么在Reducer阶段还要执行reduce操作哪？
+ * 答：combiner操作发生在map端的，处理一个任务所接收的文件中的数据，不能跨map任务执行；只有reduce可以接收多个map任务处理的数据。
+ */	
+
+
+partition:
+	/**
+	 * 分区的例子必须打成jar运行
+	 * 用处：	
+	 * 1.根据业务需要，产生多个输出文件 (默认只输出一个part-r-00000, 多个分区则输出多个文件)
+	 * 2.多个reduce任务在运行，提高整体job的运行效率
+	 */
+	
+	job.setPartitionerClass(KpiPartitioner.class);
+	job.setNumReduceTasks(2);	
+
+	static class KpiPartitioner extends HashPartitioner<Text, KpiWritable>{
+		// 获取分区号， 不同的分区号送到不同的reducer中，并输出到不同的文件
+		public int getPartition(Text key, KpiWritable value, int numReduceTasks) {
+			// return (key.hashCode() & Integer.MAX_VALUE) % numReduceTasks; //reduce num=1, 余数一定为0
+			// 输出文件part-r-00000，是5位数字，不够则在前面补0
+			return (key.toString().length()==11)?0:1;
+		}
+	}
+
+排序：
+	#首先按照第一列升序排列，当第一列相同时，第二列升序排列
+	3	3
+	3	2
+	3	1
+	2	2
+	2	1
+	1	1
+	-------------
+	1	1
+	2	1
+	2	2
+	3	1
+	3	2
+	3	3
+---------------------------------
+	public class SortApp {
+		public static void main(String[] args) throws Exception{
+			..
+			//指定输出<k2,v2>的类型
+			job.setMapOutputKeyClass(NewK2.class); // 会对key进行排序，所以要把两列封装成一个新的key对象
+			job.setMapOutputValueClass(LongWritable.class);
+			..
+		}
+		
+		static class MyMapper extends Mapper<LongWritable, Text, NewK2, LongWritable>{
+			protected void map(LongWritable key, Text value, org.apache.hadoop.mapreduce.Mapper<LongWritable,Text,NewK2,LongWritable>.Context context) throws java.io.IOException ,InterruptedException {
+				final String[] splited = value.toString().split("\t");
+				final NewK2 k2 = new NewK2(Long.parseLong(splited[0]), Long.parseLong(splited[1]));
+				final LongWritable v2 = new LongWritable(Long.parseLong(splited[1]));
+				context.write(k2, v2);
+			};
+		}
+		
+		static class MyReducer extends Reducer<NewK2, LongWritable, LongWritable, LongWritable>{
+			protected void reduce(NewK2 k2, java.lang.Iterable<LongWritable> v2s, org.apache.hadoop.mapreduce.Reducer<NewK2,LongWritable,LongWritable,LongWritable>.Context context) throws java.io.IOException ,InterruptedException {
+				context.write(new LongWritable(k2.first), new LongWritable(k2.second));
+			};
+		}
+		
+		/**
+		 * 问：为什么实现该类？
+		 * 答：因为原来的v2不能参与排序，把原来的k2和v2封装到一个类中，作为新的k2
+		 *
+		 */
+		static class  NewK2 implements WritableComparable<NewK2>{
+			Long first;
+			Long second;
+			
+			public NewK2(){}
+			
+			public NewK2(long first, long second){
+				this.first = first;
+				this.second = second;
+			}
+			
+			
+			@Override
+			public void readFields(DataInput in) throws IOException {
+				this.first = in.readLong();
+				this.second = in.readLong();
+			}
+
+			@Override
+			public void write(DataOutput out) throws IOException {
+				out.writeLong(first);
+				out.writeLong(second);
+			}
+
+			/**
+			 * 当k2进行排序时，会调用该方法.
+			 * 当第一列不同时，升序；当第一列相同时，第二列升序
+			 */
+			@Override
+			public int compareTo(NewK2 o) {
+				final long minus = this.first - o.first;
+				if(minus !=0){
+					return (int)minus;
+				}
+				return (int)(this.second - o.second);
+			}
+			
+			@Override
+			public int hashCode() {
+				return this.first.hashCode()+this.second.hashCode();
+			}
+			
+			@Override
+			public boolean equals(Object obj) {
+				if(!(obj instanceof NewK2)){
+					return false;
+				}
+				NewK2 oK2 = (NewK2)obj;
+				return (this.first==oK2.first)&&(this.second==oK2.second);
+			}
+		}
+	}
+
+group:
+	#当第一列相同时，求出第二列的最小值
+	3	3
+	3	2
+	3	1
+	2	2
+	2	1
+	1	1
+	-------------------
+	3	1
+	2	1
+	1	1
+-------------------------------------------
+	public class GroupApp {
+		public static void main(String[] args) throws Exception{
+			//1.4 TODO 排序、分区
+			job.setGroupingComparatorClass(MyGroupingComparator.class);
+			..
+		}
+		
+		static class MyMapper extends Mapper<LongWritable, Text, NewK2, LongWritable>{
+			protected void map(LongWritable key, Text value, org.apache.hadoop.mapreduce.Mapper<LongWritable,Text,NewK2,LongWritable>.Context context) throws java.io.IOException ,InterruptedException {
+				final String[] splited = value.toString().split("\t");
+				final NewK2 k2 = new NewK2(Long.parseLong(splited[0]), Long.parseLong(splited[1]));
+				final LongWritable v2 = new LongWritable(Long.parseLong(splited[1]));
+				context.write(k2, v2);
+			};
+		}
+		
+		static class MyReducer extends Reducer<NewK2, LongWritable, LongWritable, LongWritable>{
+			protected void reduce(NewK2 k2, java.lang.Iterable<LongWritable> v2s, org.apache.hadoop.mapreduce.Reducer<NewK2,LongWritable,LongWritable,LongWritable>.Context context) throws java.io.IOException ,InterruptedException {
+				long min = Long.MAX_VALUE;
+				for (LongWritable v2 : v2s) {
+					if(v2.get()<min){
+						min = v2.get();
+					}
+				}
+				
+				context.write(new LongWritable(k2.first), new LongWritable(min));
+			};
+		}
+		
+		static class  NewK2 implements WritableComparable<NewK2>{.. }
+		
+		/**
+		 * 问：为什么自定义该类？
+		 * 答：业务要求分组是按照第一列分组，但是NewK2的比较规则决定了不能按照第一列分。只能自定义分组比较器。
+		 * 默认是相同的key才能放成一组，由于k2把第一，第二列都作为key, 已经不能把第一列单独作为key
+		 */
+		static class MyGroupingComparator implements RawComparator<NewK2>{
+
+			@Override
+			public int compare(NewK2 o1, NewK2 o2) {
+				return (int)(o1.first - o2.first);
+			}
+			/**
+			 * @param arg0 表示第一个参与比较的字节数组
+			 * @param arg1 表示第一个参与比较的字节数组的起始位置
+			 * @param arg2 表示第一个参与比较的字节数组的偏移量
+			 * 
+			 * @param arg3 表示第二个参与比较的字节数组
+			 * @param arg4 表示第二个参与比较的字节数组的起始位置
+			 * @param arg5 表示第二个参与比较的字节数组的偏移量
+			 */
+			@Override
+			public int compare(byte[] arg0, int arg1, int arg2, byte[] arg3,
+					int arg4, int arg5) {
+				return WritableComparator.compareBytes(arg0, arg1, 8, arg3, arg4, 8);  // long是8位
+			}
+		}
+	}
+
+Shuffle：
+	map阶段流程：
+		1. 每个map有一个环形内存缓冲区，用于存储任务的输出。默认大小100MB（io.sort.mb属性），一旦达到阀值0.8（io.sort.spill.percent）,一个后台线程把内容写到(spill)磁盘的指定目录（mapred.local.dir）下的新建的一个溢出写文件。
+		2. 写磁盘前，要partition,sort。如果有combiner，combine排序后数据。
+		3. 等最后记录写完，合并全部溢出写文件为一个分区且排序的文件。（在硬盘上合并）
+	reduce阶段流程：
+		1. Reducer通过Http方式得到输出文件的分区。
+		2. TaskTracker为分区文件运行Reduce任务。复制阶段把Map输出复制到Reducer的内存或磁盘。一个Map任务完成，Reduce就开始复制输出。
+		3. 排序阶段合并map输出。然后走Reduce阶段。
+
+MapReduce的输出进行压缩:
+	conf.setBoolean("mapred.compress.map.output", true); // map输出
+	conf.setBoolean("mapred.output.compress", true); // reduce输出
+	conf.setClass("mapred.output.compression.codec", GzipCodec.class, CompressionCodec.class);
+
+MapReduce常见算法:
+	单词计数, 数据去重, 排序, Top, K 选择, 投影, 分组, 多表连接, 单表关联
+
+面试题:
+	1. 给定a、b两个文件，各存放50亿个url，每个url各占64字节，内存限制是4G，让你找出a、b文件共同的url？
+	2. 现有1亿个整数均匀分布，求前1K个最大的数。内存限制为100MB。
+	3. 在2.5亿个整数中找出不重复的整数，注，内存2.5GB。
+	4. 有40亿个邮件地址，没排过序的，然后再给一个邮件，如何快速判断这个数是否在那40亿个邮件当中？
+	5. 海量数据分布在100台电脑中，想个办法高效统计出这批数据的TOP10。
+
+安全模式：
+	hadoop dfsadmin -safemode enter | leave | get |wait
+	安全模式下只能读， 不能增删改
+
+为什么使用Zookeeper？ hbase
+ZooKeeper：提供通用的分布式锁服务，用以协调分布式应用
+安装：
+	1. vi zoo.cfg
+	dataDir=/usr/local/zk/data
+	server.1=server1:2888:3888
+	server.2=server2:2888:3888
+	server.3=server3:2888:3888
+	2. 在dataDir创建myid文件，内容为zoo.cfg中的id
+	server1的myid为1，server2的myid为2.   // echo 1 > /usr/local/zk/data/myid
+启动： bin/zkServer.sh start | stop | status
+	   bin/zkCli.sh
+zookeeper是层次化的目录结构，每个节点在zookeeper中叫做znode
+Znode中的数据可以有多个版本，比如某一个路径下存有多个数据版本，那么查询这个路径下的数据就需要带上版本
+Znode有两种类型，短暂的（ephemeral）和持久的（persistent）
+短暂znode的客户端会话结束时，zookeeper会将该短暂znode删除，短暂znode不可以有子节点
+持久znode不依赖于客户端会话，只有当客户端明确要删除该持久znode时才会被删除
+
+Hbase:
+	1.HBase(NoSQL)的数据模型
+	1.1 表(table)，是存储管理数据的。
+	1.2 行键(row key)，类似于MySQL中的主键。
+	    行键是HBase表天然自带的。
+	1.3 列族(column family)，列的集合。
+	    HBase中列族是需要在定义表时指定的，列是在插入记录时动态增加的。
+		HBase表中的数据，每个列族单独一个文件。
+	1.4 时间戳(timestamp)，列(也称作标签、修饰符)的一个属性。
+	    行键和列确定的单元格，可以存储多个数据，每个数据含有时间戳属性，数据具有版本特性。	
+		如果不指定时间戳或者版本，默认取最新的数据。
+	1.5 存储的数据都是字节数组。
+	1.6 表中的数据是按照行键的顺序物理存储的。
+
+	2.HBase的物理模型
+	2.1 HBase是适合海量数据(如20PB)的秒级简单查询的数据库。
+	2.2 HBase表中的记录，按照行键进行拆分， 拆分成一个个的region。
+	    许多个region存储在region server(单独的物理机器)中的。
+		这样，对表的操作转化为对多台region server的并行查询。
+
+	3.HBase的体系结构
+	3.1 HBase是主从式结构，HMaster、HRegionServer
+
+	4.HBase伪分布安装
+	4.1 解压缩、重命名、设置环境变量
+	4.2 修改$HBASE_HOME/conf/hbase-env.sh，修改内容如下：
+	    export JAVA_HOME=/usr/local/jdk
+		export HBASE_MANAGES_ZK=true
+	4.2 修改$HBASE_HOME/conf/hbase-site.xml，修改内容如下：
+		<property>
+		  <name>hbase.rootdir</name>
+		  <value>hdfs://hadoop0:9000/hbase</value>
+		</property>
+		<property>
+		  <name>hbase.cluster.distributed</name>
+		  <value>true</value>
+		</property>
+		<property>
+		  <name>hbase.zookeeper.quorum</name>
+		  <value>hadoop0</value>
+		</property>
+		<property>
+		  <name>dfs.replication</name>
+		  <value>1</value>
+		</property>
+	4.3 (可选)文件regionservers的内容为hadoop0
+	4.4 启动hbase，执行命令start-hbase.sh
+		******启动hbase之前，确保hadoop是运行正常的，并且可以写入文件*******
+	4.5 验证：(1)执行jps，发现新增加了3个java进程，分别是HMaster、HRegionServer、HQuorumPeer
+	          (2)使用浏览器访问http://hadoop0:60010
+
+	1.hbase的机群搭建过程(在原来的hadoop0上的hbase伪分布基础上进行搭建)
+	1.1 集群结构，主节点(hmaster)是hadoop0，从节点(region server)是hadoop1和hadoop2
+	1.2 修改hadoop0上的hbase的几个文件
+	    (1)修改hbase-env.sh的最后一行export HBASE_MANAGES_ZK=false
+		(2)修改hbase-site.xml文件的hbase.zookeeper.quorum的值为hadoop0,hadoop1,hadoop2
+		(3)修改regionservers文件(存放的region server的hostname)，内容修改为hadoop1、hadoop2
+	1.3 复制hadoop0中的hbase文件夹到hadoop1、hadoop2中	
+	    复制hadoop0中的/etc/profile到hadoop1、hadoop2中，在hadoop1、hadoop2上执行source /etc/profile
+	1.4 首先启动hadoop，然后启动zookeeper集群。
+	    最后在hadoop0上启动hbase集群。
+
+	  
+
+
+

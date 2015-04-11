@@ -1,0 +1,344 @@
+广告的主体：出资人(sponsor)即广告主(advertiser)，媒体(medium)，受众(audience)
+
+品牌广告(Brand Awareness)：创造独特良好的品牌或产品形象，目的在于提升较长时期内的离线转化率
+效果广告(Direct Response)：有短期内明确用户转化行为诉求的广告。用户转化行为行为如：购买，注册，投票，捐款等
+
+广告有效性模型：
+	选择
+		曝光(exposure)
+		关注(attention)
+	解释
+		理解(comprehension)
+		信息接受(message acceptance)
+	态度
+		保持(retention)
+		购买(purchase)
+
+广告与销售的区别：
+	广告的目标人群是潜在用户，目的是通过没媒介传播企业形象或产品信息，效果是某特定人群的有效到达(reach),多渠道综合ROI
+	销售的目标用户是有较明确需求者，目的是提升产品销量，从而提高企业收益，效果是收入和利润
+以下渠道具有广告/销售特质：效果从左到右依次变好
+	硬广(banner)、SEM(搜索广告)、导航网站、淘宝直通车、返利网
+不能单纯的比较各种渠道的ROI，因为各种渠道在用户购买环节处于的角色不一样，越接近demand形态的渠道的ROI必然更高，越接近suply的形态的渠道，它的任务是获得更到的用户的reach，使得各个环节的可能性更高。
+例如microsoft的search ad的ROI必然高于display ad，但是通过display ad获得更多的用户reach，会促进更多的人点击搜索广告，所以不能看到display ad的ROI比search ad的低就把display ad取消，因为不能直接比较这些渠道的ROI
+
+在线广告的特点和问题：
+美国广告行业协会
+	IAB(Interactive Advertising Bureau)
+		目的是把线下广告都搬到线上，会员大都是supply方如google,yahoo,microsoft,facebook等
+	4A(American Association of Advertising Agencies)
+		4A协会规定4A代理公司规定收取17.65%以上的广告费用，避免恶意竞争。
+		相反，中国代理公司从不收取代理费，而是通过收取媒体的返点来存活，这样的问题是中国的代理公司接收supply的收入，就不代表demand的利益，而是代表supply方的利益，很可能出现哪个媒介的返点高就卖忽悠广告主买哪个媒介。 
+		典型的成员Ogilvy & Mather, JWT等，有些非4A成员的大公司也被列为4A公司
+	ANA(Association of National Advertisers)	
+		主要代表demand方的利益
+		会员： AT&T， P&G（宝洁）, NBA, microsoft(既是demand又是supply)
+
+
+ad network：非实时竞价，非premium流量变现的重要方式。百度联盟，淘宝客，ad cess
+ad exchange: 实时竞价方式
+medium buy platform/trading desk: 在ad network中代表demand方利益的产品形态，譬如一个trading desk接了多个ad network，帮advistiser自动购买哪几个adnetwork的流量，帮advertiser优化ROI，很多是4A公司演变而成
+dsp: 在ad exchange模式下，代表demand利益的产品形态，adx询价，多家dsp出价
+ssp: ssp可能会接入多个adn，流量具体给哪个adn，由ssp决定，目的是为了优化supply的营收
+adn会定义好人群，性别，职业等，买了流量后每次展示(impression)的价格都是一样的，而adx不会定义人群，由dsp自己定义人群，adx只会告诉dsp这个人的id,每次impression的价格都是不一样的
+
+媒体的3种技术变现方式：
+	1. 托管给ad network
+		media - adn - atd(auto trading desk)/agency
+		media - adn - ad exchange - dsp
+	2. 托管给ad exchange
+		media - adx - dsp/agency
+	3. 托管给ssp
+		medis - ssp - adn
+		medis - ssp - adx
+		medis - ssp - dsp
+
+在线广告的核心计算问题
+	find the best match between a given user u, in a given context c, and a suitable ad a
+	给定一个用户，一个上下文(媒介)，找到最合适的广告
+	max sum(ROI(ai, ui, ci))   i=1..T
+	从优化的角度来看
+		特征提取：受众定向
+		微观优化：CTR预测
+		宏观优化：竞价市场机制
+		受限优化：在线分配
+			对于品牌广告来说，在大部分情况下，量比质更重要，对于效果广告来说，在达到一定量的情况下，质往往比量重要
+			受限优化说的就是在达到一定量的情况下，如何去优化质的问题
+		强化学习：探索与利用（E & E, 对于新广告，不知道最优投放策略，去试的过程就是探索，探索的过程必然有成本，利用探索结果优化投放就是利用）
+		个性化重定向：推荐技术
+	从系统角度来看：
+		候选查询： 实时索引 realtime index
+		特征存储：No-sql技术
+		离线学习： hadoop
+		在线学习：流计算
+		交易市场：实时竞价
+
+在线广告计算的主要挑战
+	大规模(scale)
+		百万量级的页面，十亿量级的用户
+		高并发在线投放系统（例：Rightmedia每天处理百亿次广告交易，rightmedia是adx，每次请求会向4到5个dsp发起请求，也就是dsp和adx每天共同完成接近千亿次的处理）
+		latency的严格要求(例：adx要求竞价在100ms内返回，100毫秒dsp要做完复杂的targeting和ctr预测)
+	动态性(Dynamics)
+		用户的关注和购物兴趣非常迅速地变化，譬如买了某样商品后，很有可能就对该类商品的广告不感兴趣了
+	丰富的查询信息(Rich query)
+		根据用户和上下文来检索广告，有可能有几十个或上百个查询条件
+	探索与利用(Explore & Exploit)
+
+搜索，广告，推荐都是web scale chalenge，大规模web挑战
+	搜索首要准则是相关性(relevence)，广告是ROI,推荐是用户兴趣
+	索引规模：搜索 > 推荐 > 显示广告 > 搜索广告
+	广告与推荐的区别：推荐除了根据用户特征，还依赖多样性(diversity)，和新鲜度(freshness)，譬如当前的热点新闻可能并不是用户的兴趣，也会推荐。 除此之外，推荐其实是同质话的广告，即看的是商品，推荐的也应该是商品
+
+ROI分析：
+	优化ROI主要focus在优化return,也就是优化ecpm
+	return = sum(点击率(ai, ui, ci) * 点击价值(ai, ui))i=1..T = sum(ecpm(ai,ui,ci))i=1..T
+	ecpm是expect cpm，每次展示期望的收益 = 点击率 * 点击价值
+	点击率是跟a,u,c相关的，应该由adn来估计，譬如google，没有谁比google更清楚given auc，用户点击广告的概率
+	点击价值跟c无关，取决用户是否购买的是u和a，已经和媒介没关系了。点击价值由demand来估计，因为只有广告主自己最清楚点击价值
+
+	cpm市场：固定的ecpm，品牌广告往往使用这种方式付费，短期内无法评估价值
+	cpc市场：动态的ctr,固定的click value
+	cpa/cps/roi市场：动态的ctr,动态的click value
+		这种方式结算有两个难题
+		1. 广告网络无法估计点击价值，除非各个广告主都长一样，购物流程一致，这样adn才能估计譬如淘宝直通车使用cps结算
+		2. 广告主卖了多少订单只有广告主自己知道，虽然可以检测，但总有不认账。还有广告主骗展示，把一个商品价格弄得比较高，就不会有销售，然而却得到展示
+
+在线广告系统模块
+	1. ad server 广告引擎，接收用户的ad call或者是rtb的ad call
+		rtbd是demand向rtb要广告，rtbs是rtb向demand要广告
+	2. ad retrieval 广告检索，过滤出符合条件的一系列广告
+	3. ad ranking 根据ecpm做排序
+	4. sream computing 反作弊，计价，日志准实时挖掘与反馈(如用户广告搜索过的词)等
+	5. data highway 把数据输出到hadoop或流式计算平台，常用scribe,flume,chukwa
+	6. Session log generation 整理行为数据，譬如一个用户在昨天干了什么，包括view，search,click，share等
+		整理后的数据有3个用途：1. 存放在data warehouse中，供人定制化的查询报表，如使用hive来查询 2. 根据历史所有的行为做受众定向 3. 做点击率预测模型
+	7. Data warehourse 数据仓库，整理后的数据保存到数据仓库如hdfs中
+	8. Customized audience segmentation 定制化的人群划分，根据demand需求来划分人群，如为某母婴商品划分孩子0到1岁的母亲人群，如划分京东商城的忠实用户，这些需求是千奇百怪的，只能定制化的根据demand需求来划分
+	9. Page attributes system 把有广告的页面fetch下来，分析出页面的attribute，供retrieval使用
+	10. Audience targeting 受众定向，也就是给人打标签
+	11. Ad management system
+
+Thift跨语言的开发工具，使用idl文件定义语言无关的结构，可以生成各种语言的代码。 类似工具有ice, hadoop的avro, google的protobuf
+zookeeper用于解决分布式环境下的一致性问题，类似google的chubby，而chubby严格遵循pacxo算法，zk只是简化版并不能绝对保证一致性，但实际使用没什么问题
+
+
+合约广告简介（agreement base advertise）
+	直接媒体购买(譬如购买某个广告位的一段时期的展示，cpt)
+		供给方：广告排期系统
+			帮助媒体自动执行多个合同的排期
+			不提供受众定向，可以直接将广告素材直接插入页面
+		需求方：代理商
+			帮助广告商策划和执行排期
+			用经验和人工满足广告商质和量的需求
+			代表：4A公司
+	担保式投送(Guaranteed Delivery,GD)   
+		// 譬如广告商与媒介签订合同，购买该广告位的男性的量，合同还是要求要达到一定的量
+		// 上面的购买方式是买广告位，GD已经变成买量。直接媒体购买和GD都是要求达到一定量，ADN和ADX是只保质
+		基于合约的广告机制，约定的量需要完成向广告商补偿
+		量(Quantity)优先于质(Quality)的销售方式
+		多才用cpm方式结算
+
+		广告投放机(ad server)
+			cpm方式必然要求投放由ad server来完成，不同于直接购买方式嵌入html,然后把广告可以放在cdn上
+			受众定向，CTR预测和流量预测是广告投放机的基础
+			ad server还要解决的问题是，在一个用户满足多个合约的时候，投哪个合约的广告能使总体最优
+
+在线分配(Online Allocation)问题
+	在线分配是一个求二部图的问题，把c和u(划分标签后的人群)合并成一个segment，把segment分配给某个合约的比例问题
+	转换为display ad problem
+	即求max sum[i,a](u[i,a]*x[i,a])    // 这里用[]标示数学表达式的下标， sum标示数学公式的求和符号
+		s.t. sum[i](x[i,a]) <= Ca  (对于任意a) // s.t. 条件。  Ca是a广告达到buget的最大展示次数   x是点击率
+		     sum[a](x[i,a]) <= 1   (对于任意i)  // 对任意i
+	上面要求的是对于i(mpression)和a(d),求最大的(u*x)的和，u是点击率，x是是否展示，1或0
+	s.t.是给定的条件，对于任意一个广告，所有展示的点击率的和小于等于Ca
+		对于任意一个展示，所有广告的点击率的和小于等于1。 如果小于1,剩余流量分配给NGD，即ADX
+	合约广告是担保量的，即限制量，所以是一个constraint optimize(受限优化)的问题
+	拉格朗日是解受限优化问题比较有效的方法，将模型转换为对偶函数，求解问题的最值
+	学术上的解决方法非常复杂，这里不探讨。
+	工程上的解决方法有两个步骤：
+		离线计划
+			利用历史数据计算每个广告a的serving rate出现概率
+		在线分配
+			每次广告请求到来，retrieval后，根据serving rate来随机选取广告展示
+	上述的公式，换上不同objective可用于很多地方，如adx中也会使用到
+
+yahoo GD业务介绍： 
+	GD无法分配的流浪转接到NGD(即ADX)进行变现
+	GD广告主数量仅为几千，年输入为Billon(十亿)量级
+	提供受众定向
+		地域、人口属性
+		行为(较为粗浅，常用的仅有几十个分类，因为太细的分类不利于预测点击率，上面的公式有点击率的预测u)
+			而ADX的行为分类是十分精细的，上千种的人群分类，如BlueKai
+	合约式销售中，品牌广告主对曝光要独占要求(即移动广告主购买广告位时，要求不能同时出现联通的，但ADX没这种限制)
+
+常用的统计模型
+指数族分布
+	举例：Gaussian(高斯分布，也是正态分布)，multinomial, maximum entropy(最大熵)
+	最大似然(Maximum likeihood,ML)估计可以通过充分统计量链接到数据。 (这就是为什么工程上是使用指数分布最多的原因，只有指数分布族分布有这个特性)
+		(ln g(θ))的导数 = u(x)  // u(x)是变化函数的均值，对于高斯来说u就是平均值和方差
+指数族混合分布
+	例：Mixture of Gaussian(混合高斯)，Hidden Markov Models（隐马可夫模型），Probabilistic Latent Semantic Analysis（PLSI）
+	ML估计可以通过EM算法迭代得到。每个迭代中，我们使用上一个迭代的统计量更新模型
+
+	单锋分布可以使用高斯，多峰可以使用多个高斯叠加，点击模型只有1和0，可以使用multinomal分布，或bionomal。文本分类和topic model也使用multinomal, topic model也会使用PLSI
+
+对于指数族的分布，可以在mapper阶段收集充分统计量，对高斯来说就是收集样本的均值和方差，在reducer阶段求出θ
+对指数族混合分布来说，由于不是充分统计量，ml过程与指数族一致，在reducer求出θ后，再把θ带入原式，使用下一组数据再次求解θ，一直迭代
+如果不是指数分布也不是混合分布，就要使用梯度下降的方法，在mapper阶段求样本的梯度，在reduce阶段把梯度向加
+
+最大似然
+最小二乘
+求导，求导就是求函数的切线的斜率
+
+受众定向(Audience Targeting)
+	受众定向即为AUC大标签的过程
+		上下文可以认为是即时的受众定向（但分开的原因是对系统的解决方案是不一样的）
+	标签的两大主要作用
+		建立面向广告主的流量售卖体系
+		为各估计模块(如CTR预测)提供原始特征
+
+	常见受众定向方式  f(a,u)  f(u)  f(c)
+	f(u): 地域，人口属性，行为，look-alike(譬如银行或汽车等网站流量是很小的，没法根据demand数据来做挖掘，此时可以让银行提供一部分样例客户，使用ADN或是supply根据它们所知道的数据和样例数据  找到与样例数据相识的数据)
+		hyper-local(对应地域定向，是精细的地域，如某个咖啡馆附近。移动端)
+	f(c): 上下文定向
+	f(a,u): 重定向(retargeting):用户曾经访问过哪些广告主的网站就给他打上某一类标签。 如一个用户上过京东就给他推一个京东的商品。retargeting的效果是最好的
+
+	Audience Science这家公司是主要面向publisher的数据加工服务，还运营ADN，是专门做audience targeting的公司，例如为纽约时报
+	的用户打标签，之后还会使用这些标签在自己的ADN来完成投放，收取一定比例的分成。
+	与Bluekai公司(DMP)不同的是，Bluekai是公开出售数据的
+
+行为定向
+
+上下文定向（Contextual targeting）
+	Near-line(半在线)上下文定向系统
+	用在线cache系统存储url -> 特征表提供实时访问
+	不预先加载任何cache内容，对cache中不存在的url,立刻返回特征，同时触发相应的页面的爬虫和特征提取
+	设置cache系统合适的失效时间(如一天)以完成特征自动更新
+	cache保存格式：url, keywords, topics
+
+Topic Model 页面主题分析
+
+数据加工和交易
+
+竞价广告
+	竞价广告与合约广告明显的不同是，竞价广告已经不保量了，量只有上限(不超过budget)，没有下限，价格有上限
+
+位置拍卖(Position auctions)
+	将对象a={1,2,..A}排放到位置s={1,2,..,S} //对于显示广告S=1，搜索广告则有多个
+	对象a的出价(bid)为b[a],而对位置s的收益为u[as]=v[a] * x[s] 
+	将v[a]视为点击价值,x[s]视为点击率，该模型近似描述广告系统竞价问题
+定价机制
+	VCG(3个人名)机制
+		某个对象的收费应该等于给他人带来的价值损害 
+		// 如某个广告排在竞价第二，实际对它收取的费用是它对其他广告造成的损害，而不是它的竞价
+		// 它造成的损害是让原来排在第二的排在了第三，第三的排到了第四..
+	广义第二高价(Generalized second pricing)机制
+		每一个位置的收价，为下一个位置的竞价加一分钱
+		简单易行，在线广告系统广泛采用
+		一个显示广告，a出3块，b出5块获得第一，如果收取b5块，则b有向下调价的动力，一直往下调到3.1，
+		当c想出7块时也会有向下调的动力，一直调到3.2,这样局部收益是高了，但不利于整体市场收益
+		使用广义第二高价的话，收取b的价钱为3.01,b就没有往下调的动力，因为即使下调到3.1还是收取3.01
+		当c出价要排第一时，也一定要高于b的出价5元才行，收取5.01。 微观上看是亏了，宏观上看是使整个市场收取的广告费用更高
+
+广告网络(Ad Network)
+	非常庞杂，可能有cpd, GD, rtb
+	主要特征
+		竞价系统(Auction System) // 不是一定要有
+		淡化广告位概念 // 卖人群，不区分广告位，所以广告位有好有坏，广告主没法根据每次impression出价，有可能每次impression的广告位可能不一样，广告主只能对每次点击出价。adn估计点击率，demand估计点击价值。而在adx中正好相反，要对每次impression出价
+		最合适的计价方式为cpc
+		不足：不易支持定制化用户划分。 // 用户都是adn划分好的
+	流式计算：反作弊 -> 计费 -> realtime index
+
+广告检索 
+	布尔检索
+		Doc DNF: (age属于{3} and state属于{NY}) 或 (state属于{CA} and gender不属于{M})  // 先与再或
+		Conjunction: age属于{3} and state属于{NY}, state属于{CA} and gender不属于{M}   //各个之间或，同一属性在一个conjunction只出现一次
+		Assigment:  age属于{3} , state属于{NY} , state属于{CA} , gender不属于{M}
+		sizeof[Conjunction]: conjunction包含非属于的Assignment的个数
+
+		某查询满足conjunction,也就满足包含此conjunction的doc
+		两层索引： conjunction -> docid，assignment -> conjunctionId
+		如果sizeof(Conjunction)大于sizeof(query)，则无需考虑
+	长条件query // 每个条件的关系不是与也不是或，是should。广告中的搜索条件往往很多，可能有几十个
+		传统搜索引擎需要将搜有出现过以上Term的文档都取出来，然后计算相关性并找Top-N，在长Query和大文档集时查询速度被巨大计算量限制。
+		一个可行的思路：在查找候选DOC的过程中做一个近似的评估，切掉那些理论上不需要再考虑的文档
+		什么是不需要考虑的文档？准则是什么？ 参考weight-and(WAND)算法
+
+流量预测
+	根据a索引出(u,c) 。 但u,c的联合空间量太大，值检索一个，如根据a倒排检索出c
+	在给定的a和c，该页面的ecpm分布中，求出a在这个c胜出的概率。然后用该页面的流量*胜出概率 = a在这个c的流量
+
+点击率预测
+	
+
+行为定向(Behaviour Targeting)
+9种重要的行为(由强到弱，是针对direct response,不是针对brand)：
+	transaction(交易), pre-transaction(购买前的行为,如浏览搜索), paid search click(搜索广告点击), ad click(广告点击，因为普通的display广告可能存在骗点击的行为，如突然让js显示一个广告导致误点，所以强度低于搜索广告), search click(搜索点击), search(搜索), share, page view, ad view
+	transaction和pre-tran是一个级别的，强度最高，所以淘宝的数据这么值钱
+	paid search click到search是一个级别的， ad click的强度虽然不低，但是量是最少的，很难根据ad click打标签
+	share, page view, ad view这3个是一个级别的，量虽然很大，但是强度很低，page view的量是所有行为中最大的，但意义不大，往往是被动行为。如看一个新闻网站，可以看的新闻是受限于网站本身的列表的，譬如看一个军事爱好者看军事新闻，这种标签离demand端太远， 越靠近demand的强度越高
+
+行为定向大致流程：
+	将行为数据表示成userid => pv=*, search=*, ad click=* ..
+	每一种行为都有它对应的tagger(打标签器)
+	如一个人浏览一个钓鱼岛网站，pv tagger把这个人打一个军事标签，强度=1
+	并且他搜索了搜索军事，search tagger把这个人打一个军事标签，强度=2，那么这个人在军事这个标签上的总强度就等于3
+	各个tagger为这个人打的标签加起来，就是这个人所有的标签。
+	为pv和search打标签是分类问题，需要用到机器学习，不同的数据模型使用的方法有所区别，这里不能探讨。
+	ad click的targeting就很简单，因为ad本身就有类型，只要查询ad的类型就能为其打tag
+
+行为定性的其他问题
+	1. 要以user_id作为key
+	2. targeting的时候不能仅仅以昨天的数据作为基础，有两种方式
+		1. 滑动窗口方式(需要保存窗口大小的数据量)
+			譬如定义时间窗口的大小为28天，那么每天targeting就要计算前面28天的数据，这种方式要求计算的量太大，不推荐。
+			f[28] = sum[i=1..28](t[i]) // t是一个用户在i这天的标签的强度,今天的强度等于前面28天的强度加起来。 f[28]是今天总得标签强度
+		2. 时间衰减方式(空间复杂度低，只需保存昨天的f和今天的t)
+			f[28] = t[28] + a*f[27] // a是衰减因子，t是今天的标签强度， f[27]是昨天的某个标签的强度= t[27] + a*f[26]
+		不同的标签，时间窗口和衰减因子的定义不一样，譬如买车的周期是比较长的，可能几个月都在关注车，而买鞋的周期是比较短的。所以定义窗长和decade因子的是不一样的
+
+DMP可以接入的第三方算法引擎，可以产出的算法结果包括：行业热度指数、人群属性分析、人群长期兴趣点分析、人群标签、活动效果地域分布、竞品价格模式分析...
+
+
+广告交易市场
+	关键特征：用实时竞价连接广告和(上下文，用户)
+	按照展示上的竞价收取广告费用(ADN通常按click收费)
+	代表：rightmedia（最早的ADX,被yahoo收购，已与现在ADX形态不一样）, AdECN（微软的）, GoogleAdx（Doubleclick）
+	由于ADN就算数据再多，也没有demand自己更了解自己的客户，如京东自己才知道自己的忠实用户。所以催生了ADX，由DSP来估价
+
+实时竞价（readtime biding）
+	多方参与的过程，分为cooking maping和ad call两个阶段
+	主要技术点：
+		ADX与DSP之间的用户身份同步(cook mapping)
+		DSP数量较多时的服务和带宽成本优化
+	潜在问题
+		存在浏览数据的泄露风险(adx来询价的时候，就知道url和cookie，DSP就可以报一个很低的价或不报，肯定不能赢，然后记录行为)
+		多一次round trip,对latency有较大影响
+
+cookie mapping
+	谁发起，在哪发起，谁存mapping表 
+	//dsp发起，用户浏览demand网站，dsp保存(adx保存的话，量太大)，
+	dsp - adx的场景：dsp在demand的网站加一段cook mapping的逻辑，当用户浏览demand网站时，首先
+	1. 选择性加载iframe,src=htpp://map.dsp.com/m#aid=* // 用户浏览demand网站但访问dsp的mapping服务，dsp根据这个cookie决定是否需要mapping，可能1天mapping一次或者几天一次
+	2. 需要mapping的话，返回包括多个beacon(1*1或0*0的像素点)的动态html
+	3. 发送cook mapping请求(xid, did, dck) //adx的id，dsp的id, dsp的cookie。 dsp向adx的cook mapping服务发请求
+	4. 302重定向(xid, xck) //adx的id, adx的cookie.   adx返回xid, xck在dsp就能知道。并保存xck和dck的关系
+	5. 返回看不见的1*1的beacon
+	// 实际请求广告的时候，adx会传xck，dsp只要根据xck查出dck就能知道这个用户在自己平台的标示
+
+    媒体网站与dmp的场景
+    1. 请求ckmapping.js //用户浏览媒体网站
+    2. 返回ckmapping.js
+    3. 需要mapping的话，发起请求(did, mck) // dmp的id, 媒体的cookie
+    4. 返回看不见的1*1的beacon
+
+供应方平台(Supply Side Platform)
+	媒体变现的4种方式：
+		直接销售(大媒体，变现能力最高，cpd)
+		guaranteed delivy 按cpm卖流量
+		托管给广告联盟adn
+		实时竞价(做一个实时竞价接口，上面的方式都卖不出去的时候，往往使用这种方式)
+	ssp通常要支持上面的4种方式，帮助媒体决策接入哪种变现方式。 通常在中国首先要支持cpd,在没有被排期的时间里，决定使用2,3,4的方式变现
+	ssp代表：ADMeld（被google收购）, Pubicon, Pubmatic
+
+

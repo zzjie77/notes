@@ -1,0 +1,968 @@
+ssh免密码过程： 有两台服务器a,b.  a连接b
+1. 在a使用ssh-keygen生成公钥，私钥
+2. 将a的公钥拷贝到b的~/.ssh/authorized_keys
+3. a连接b, b使用a的公钥加密challenge串，challenge是随机生成的数字串
+4. a收到后私钥解密后，再使用私钥加密，发送给b
+5. b收到后使用公钥解密，解密后的字符串与之前发的challenge串比较，如果相等则验证成功
+这样就能确定a本身是拥有a的私钥的
+
+
+hdfs:
+java api:
+	添加classpath，修改hadoop.env文件
+	export HADOOP_CLASSPATH=/home/zzjie/hadoop/myclass
+	在myclass目录新建一个类文件URLCat.java(通过url来读hdfs)
+	public class URLCat {
+		static {
+			URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
+		}
+
+		public static void main(String[] args) throws Exception {
+			InputStream in = null;
+			try {
+				in = new URL(args[0]).openStream();
+				IOUtils.copyBytes(in, System.out, 4096, false);
+			} finally {
+				IOUtils.closeStream(in);
+			}
+		}
+	}
+	编译： javac -classpath ../hadoop-core.jar URLCat.java
+		 如果引用了多个jar，保险的办法要在classpath中添加HADOOP_HOME和HADOOP_HOME/lib下的所有jar，使用冒号分割
+		 但手动写会很麻烦，可以使用ant来设置classpath的路径，使用ant来编译或者打印classpath
+	运行： ../bin/hadoop URLCat hdfs://backup01:9000/user/zzjie/in/test.txt
+
+ant编译:
+HDFSJavaAPIDemo:  新建src/HDFSJavaAPIDemo.java
+	public class HDFSJavaAPIDemo {
+		public static void main(String[] args) throws IOException {
+			Configuration conf = new Configuration();
+			FileSystem fs = FileSystem.get(conf);
+			System.out.println(fs.getUri());
+			Path file = new Path("demo.txt");
+			if (fs.exists(file)) {
+				System.out.println("File exists.");
+			} else {
+				// Writing to file
+				FSDataOutputStream outStream = fs.create(file);
+				outStream.writeUTF("Welcome to HDFS Java API!!!");
+				outStream.close();
+			}
+			// Reading from file
+			FSDataInputStream inStream = fs.open(file);
+			String data = inStream.readUTF();
+			System.out.println(data);
+			inStream.close();
+			fs.close();
+		}
+	}
+
+build.xml:
+	<project name="HDFSJavaAPI" default="compile" basedir=".">
+		<property name="build" location="build" />
+		<property environment="env"/>
+		<path id="hadoop-classpath">
+			<fileset dir="${env.HADOOP_HOME}/lib">
+				<include name="**/*.jar" />
+			</fileset>
+			<fileset dir="${env.HADOOP_HOME}">
+				<include name="**/*.jar" />
+			</fileset>
+		</path>
+
+		<target name="compile">
+			<mkdir dir="${build}" />
+			<javac includeantruntime="false" srcdir="src" destdir="${build}">
+				<classpath refid="hadoop-classpath"/>
+			</javac>
+			<jar jarfile="HDFSJavaAPI.jar" basedir="${build}" />
+		</target>
+		<target name="clean">
+			<delete dir="${build}" />
+		</target>
+		<target name="print-cp"> <!-- 通过这个target可以打印出所有的cp，可用于c调用hdfs -->
+			<property name="classpath" refid="hadoop-classpath"/>
+			<echo message="classpath= ${classpath}"/>
+		</target>
+	</project>
+
+编译： 执行ant命令， 得到build/HDFSJavaAPIDemo.class和HDFSJavaAPI.jar
+运行： ../bin/hadoop jar HDFSJavaAPI.jar HDFSJavaAPIDemo
+
+
+c接口hdfs：
+
+安装gcc编译器：
+	yum -y install gcc gcc-c++ autoconf make // -y对所有都回答yes
+新建hdfs_cpp_demo.c:  
+	// Following is a libhdfs sample adapted from the src/c++/libhdfs/hdfs_write.c of the Hadoop distribution.
+	#include "hdfs.h"
+	int main(int argc, char **argv) {
+		hdfsFS fs = hdfsConnect("backup01",9000);
+		if (!fs) {
+			fprintf(stderr, "Cannot connect to HDFS.\n");
+			exit(-1);
+		}
+		char* fileName = "demo_c.txt";
+		char* message = "Welcome to HDFS C API!!!";
+		int size = strlen(message);
+		int exists = hdfsExists(fs, fileName);
+		if (exists > -1) {
+			fprintf(stdout, "File %s exists!\n", fileName);
+		}else{
+			// Create and open file for writing
+			hdfsFile outFile = hdfsOpenFile(fs, fileName, O_WRONLY|O_CREAT, 0, 0, 0);
+			if (!outFile) {
+				fprintf(stderr, "Failed to open %s for writing!\n", fileName);
+				exit(-2);
+			}
+			// write to file
+			hdfsWrite(fs, outFile, (void*)message, size);
+			hdfsCloseFile(fs, outFile);
+		}
+		// Open file for reading
+		hdfsFile inFile = hdfsOpenFile(fs, fileName, O_RDONLY, 0, 0, 0);
+		if (!inFile) {
+			fprintf(stderr, "Failed to open %s for reading!\n", fileName);
+			exit(-2);
+		}
+		char* data = malloc(sizeof(char) * size);
+		// Read from file.
+		tSize readSize = hdfsRead(fs, inFile, (void*)data, size);
+		fprintf(stdout, "%s\n", data);
+		free(data);
+		hdfsCloseFile(fs, inFile);
+		hdfsDisconnect(fs);
+		return 0;
+	}
+	注意：要引入hdfs.h，这个头文件是hadoop源码才有，所以二进制安装hadoop是没办法编译通过的，要把源码下载下来加到HADOOP_HOME/src中
+编译：
+	gcc hdfs_cpp_demo.c \
+	-I $HADOOP_HOME/src/c++/libhdfs \
+	-I $JAVA_HOME/include \
+	-I $JAVA_HOME/include/linux/ \
+	-L $HADOOP_HOME/c++/Linux-amd64-64/lib/ -lhdfs \  # 注意Linux-amd64-64可能不同，根据平台而定
+	-L $JAVA_HOME/jre/lib/amd64/server -ljvm \
+	-o hdfs_cpp_demo	
+	# L 链接库， I include , o 输出
+设置CLASSPATH：
+	通过上面的build.xml，运行ant print-cp打印，然后执行export CLASSPATH=...设置
+运行：
+	LD_LIBRARY_PATH=$HADOOP_HOME/c++/Linux-amd64-64/lib:$JAVA_HOME/jre/lib/amd64/server ./hdfs_cpp_demo
+
+hadoop 2.x在hdfs的改进：
+	hdfs federation联邦
+	HA高可用  (需要zookeeper)
+	snatshop 快照
+
+hdfs federation: 
+	单个namenode存储的信息有限，当集群的datanode节点大于3000时，namanode的内存也装不下这么多的文件块信息。而且namenode的负载很大也处理不过来
+	不采用文件名Hash这一在分布式系统里常用的手段，因为同一目录下的文件可能散布于各个命名空间，性能很差。 即同一目录下的文件都存储在一个namenode中，防止读取一个目录中的文件多次网络传输，同时在某个namenode出问题时，只影响某些目录，而不会全部影响
+	hdfs-site.xml
+		<configuration>
+			<property>
+				<name>dfs.nameservices</name>
+				<value>ns1,ns2</value>
+			</property>
+			<property>
+				<name>dfs.namenode.rpc-address.ns1</name>
+				<value>nn-host1:rpc-port</value>
+			</property>
+			<property>
+				<name>dfs.namenode.http-address.ns1</name>
+				<value>nn-host1:http-port</value>
+			</property>
+			<property>
+				<name>dfs.namenode.secondaryhttp-address.ns1</name>
+				<value>snn-host1:http-port</value>
+			</property>
+			<property>
+				<name>dfs.namenode.rpc-address.ns2</name>
+				<value>nn-host2:rpc-port</value>
+			</property>
+			<property>
+				<name>dfs.namenode.http-address.ns2</name>
+				<value>nn-host2:http-port</value>
+			</property>
+			<property>
+				<name>dfs.namenode.secondaryhttp-address.ns2</name>
+				<value>snn-host2:http-port</value>
+			</property>
+		</configuration>
+
+	格式化名称节点:
+		Step 1: 格式化其中一个节点，不指定clusterId则自劢产生
+		./bin/hdfs namenode -format [-clusterId < cluster_id>]
+		Step 2: 格式化另外一个节点，注意clusterId要和之前的节点一样
+		./bin/hdfs namenode -format -clusterId <cluster_id>  #必须指定clusterId，与step1一致
+
+
+HDFS快照:
+	设置一个目录为可快照：
+	hdfs dfsadmin -allowSnapshot <path>
+	取消目录可快照：
+	hdfs dfsadmin -disallowSnapshot <path>
+	生成快照：
+	hdfs dfs -createSnapshot <path> [<snapshotName>]
+	删除快照：
+	hdfs dfs -deleteSnapshot <path> <snapshotName>
+
+	快照位置:
+		hdfs dfs -ls /foo/.snatshot  #在foo生成了快照之后，就会有.snatshot目录
+		hdfs dfs -ls /foo/.snatshot/s0
+		hdfs dfs -cp /foo/.snatshot/s0/bar /tmp #从快照中恢复文件，s0目录中的文件与foo创建快照时的文件一致
+
+	列出所有可快照目录：
+	hdfs lsSnapshottableDir
+	比较快照之间的差异：
+	hdfs snapshotDiff <path> <fromSnapshot> <toSnapshot>
+
+
+map reduce
+	去重
+	排序
+	单表连接
+	多表连接
+
+
+
+pig 
+	pig latin是面向数据流的语言，Pig latin可以迚行排序、过滤、求和、分组、关联等常用操作，还可以自定义函数，这
+是一种面向数据分析处理的轻量级脚本语言
+	安装：解压，加入环境变量
+	pig -x local 进入grunt shell, 本地模式
+
+	Pig基本数据类型：int、long、float、double、chararry、bytearray
+    复合数据类型：Map、Tuple记录、Bag表、Field属性
+    Pig不要求同一个bag里面的各个tuple有相同数量或相同类型的field
+
+    hdfs没有当前目录的概念，所以不能cd，而pig可以。
+    pig常用命令：ls、cd、cat、copyToLocal、sh(在grunt中运行bash的命令)、
+    pig常用语句：
+		LOAD：指出载入数据的方法
+		FOREACH：逐行扫描迚行某种处理
+		FILTER：过滤行
+		DUMP：把结果显示到屏幕
+		STORE：把结果保存到文件
+	例子：
+		1. 抽取文件中的email，数据格式：id#password#email
+			> A = LOAD '/home/grid/csdn.txt'
+			>> USING PigStorage('#') //可以不写，默认适用tab分割
+			>> AS (id, pw, em);
+			> B = FOREACH A
+			>> GENERATE em;   // 相当于select某个字段
+			> STORE B INTO '/home/grid/email.txt'
+			>> USING PigStorage();
+		2. 根据wlan上网日志，统计上网流量
+			1 把待处理的数据上传到HDFS中
+			2 把HDFS中的数据转换为pig可以处理的模式
+			    A = LOAD '/wlan' AS (t0:long, msisdn:chararray, t2:chararray, t3:chararray, t4:chararray, t5:chararray, t6:long, t7:long, t8:long, t9:long, t10:chararray);
+			3 把里面的有用的字段抽取出来
+			    B = FOREACH A GENERATE msisdn, t6, t7, t8, t9;	
+			4 分组数据
+			    C = GROUP B BY msisdn; // group之后生成的数据形式是group, {B}。 msisdn命名为group,一个数组包含多个B
+			5 流量汇总
+			    D = FOREACH C GENERATE 	group, SUM(B.t6), SUM(B.t7), SUM(B.t8), SUM(B.t9);
+			6 存储到HDFS中
+			    STORE D INTO '/wlan_result';	
+		3. 计算每个学生被多少老师教过。 数据格式：student,course,teacher,score
+			A = LOAD 'score.txt' USING PigStorage(',') AS (student, course, teacher, score:int);
+			DESCRIBE A; // A: {student: bytearray, course: bytearray, teacher:bytearray, score:int}
+			B = FOREACH A GENERATE student, teacher;
+			DESCRIBE B; // B: {student: bytearray, teacher: bytearray}
+			C = DISTINCT B; //去重
+			D = FOREACH ( GROUP C BY student ) GENERATE group AS student, count(C); 
+			# group C生成的数据是student, 一个或多个C。student会被命名为group
+			# FOREACH再将group命名会student，然后对C计数
+			DUMP D; // 执行MapReduce， 并查看数据
+			# 上面是第一种方法先DISTINCT, 再计数，下面是第二种方法先分组，使用FOREACH 嵌套，再使用DISTINCT
+			E = GROUP B BY student;
+			DESCRIBE　E; // E: {group: bytearray, B: {student: bytearray, teacher, bytearray}}
+			F = FOREACH E 
+			{ // 大括号中的内容相当于一次reduce
+				T = B.teacher;
+				uniq = DISTINCT T; //去重老师的名字
+				GENERATE group AS student, COUNT(uniq) as cnt;
+			}
+			DUMP F; 
+			# 要想知道哪种方式运行快，EXPLAIN D; EXPLAIN F查看执行计划。
+		4. 使用3的数据，查找每门学科成绩最好的两名学生
+			A = LOAD 'score.txt' USING PigStorage(',') AS (student, course, teacher, score:int);
+			B = FOREACH A GENERATE student, course, score;
+			C = GROUP B BY course; 
+			D = FOREACH C
+			{
+				sorted = ORDER B BY score DESC; // 对score进行倒序排序
+				top = LIMIT sorted 2; // 取前两个	
+				GENERATE group as course, top as top;
+			}
+			DUMP D;
+			// (Database, {(James,Database,99)})
+			// (Network, {(James,Network,99), (Vincent,Network, 95)} 
+			// 如Network，数据可能有多个，可以使用FLATTEN将大括号中的两个拆成独立的两个
+			DESCRIBE D; // D: {course: bytearray, top: {student, bytearray, course: bytearray, score:int}}
+			E = FOREACH D GENERATE course, FLATTEN(top);
+			DUMP E;
+			//(Network, James,Network,99)
+			//(Network, Vincent,Network,95)
+
+
+
+	UDF(用户自定义函数)： 支持使用Java、 Python、 Javascript三种语言编写
+
+hive 
+	适用于随机性的请求，可能只有一次，如业务部门随机提了个请求，写程序太慢，尽管写mr运行快，hive运行慢，但hive编写快
+	适用于数据仓库工程师，数据分析师
+
+	hive的元数据是保存在关系数据库的，如表名，列名这些。可以保存在Derby和mysql中，derby只允许一个用户连接，一般用于测试
+
+1.2 hive在hdfs中的默认位置是/user/hive/warehouse，是由配置文件hive-conf.xml中属性hive.metastore.warehouse.dir决定的。
+2.hive的安装
+  (1)解压缩、重命名、设置环境变量
+  (2)在目录$HIVE_HOME/conf/下，执行命令mv hive-default.xml.template  hive-site.xml重命名
+     在目录$HIVE_HOME/conf/下，执行命令mv hive-env.sh.template  hive-env.sh重命名
+  (3)修改hadoop的配置文件hadoop-env.sh，修改内容如下：
+     export HADOOP_CLASSPATH=.:$CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_HOME/bin
+  (4)在目录$HIVE_HOME/bin下面，修改文件hive-config.sh，增加以下内容：
+     export JAVA_HOME=/usr/local/jdk
+     export HIVE_HOME=/usr/local/hive
+     export HADOOP_HOME=/usr/local/hadoop
+3.安装mysql
+  (1)删除linux上已经安装的mysql相关库信息。rpm  -e  xxxxxxx   --nodeps
+     执行命令rpm -qa |grep mysql 检查是否删除干净
+  (2)执行命令 rpm -i   mysql-server-********  安装mysql服务端	 
+  (3)启动mysql 服务端，执行命令  mysqld_safe &
+  (4)执行命令 rpm -i   mysql-client-********  安装mysql客户端
+  (5)执行命令mysql_secure_installation设置root用户密码
+4. 使用mysql作为hive的metastore
+  (1)把mysql的jdbc驱动放置到hive的lib目录下
+  (2)修改hive-site.xml文件，修改内容如下：  
+	<property>
+		<name>javax.jdo.option.ConnectionURL</name>
+		<value>jdbc:mysql://hadoop0:3306/hive?createDatabaseIfNotExist=true</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionDriverName</name>
+		<value>com.mysql.jdbc.Driver</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionUserName</name>
+		<value>root</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionPassword</name>
+		<value>admin</value>
+	</property>
+5. 内部表 (在hdfs的warehouse目录中，一个表对应一个目录)
+   CREATE TABLE t1(id int);  
+   LOAD DATA LOCAL INPATH '/root/id' INTO TABLE t1;
+   
+   CREATE TABLE t2(id int, name string) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+6. 分区表
+   CREATE TABLE t3(id int) PARTITIONED BY (day int);  
+   LOAD DATA LOCAL INPATH '/root/id' INTO TABLE t1 PARTITION (day=22); // 目录结构是t3/day=22/数据文件  
+   注意：如果分区字段是(day int, hour int),则(day=22,hour=1)的目录结构是/h3/day=22/hour=1/数据文件
+   在strict模式下查询分区表必须在where中指定分区条件，否则会报错。切换严格模式：set hive.mapred.mode=strict; //nostrict
+   分区字段可以不是表中的字段，只是目录名的一部分，这点与传统的数据库不同
+7. 桶表 (在一个表目录再分多个目录，多个桶对应多个目录，几个桶就代表有几个reducer)
+   create table t4(id int) clustered by(id) into 4 buckets; 
+   set hive.enforce.bucketing = true;
+   insert into table t4 select id from t3;
+8. 外部表 (外部表的意义是可以多个程序共用数据，譬如pig,marreduce)
+   create external table t5(id int) location '/external';   
+
+jdbc接口：
+	1.使用jdbc的方式连接Hive，首先做的事情就是需要启劢hive的Thrift Server,否则连接hive的时候会报connection refused的错误。
+	启动命令如下：
+	hive --service hiveserver
+	2.新建java项目，然后将hive/lib下的所有jar包和hadoop的核心jar包hadoop-0.20.2-core.jar添加到项目的类路径上。
+	样板代码：
+		Class.forName("org.apache.hadoop.hive.jdbc.HiveDriver");
+		String dropSql = "drop table pokes";
+		String createSql = "create table pokes (foo int, bar string)";
+		String insertSql = "load data local inpath '/home/zzjie/hive/1.txt' overwrite into table pokes";
+		String querySql = "select bar from pokes limit 5";
+		Connection conn = DriverManager.getConncetion("jdbc:hive://localhost:10000/default", "", "");
+		Statement stmt = conn.createStatement();
+		stmt.execute(dropSql);
+		stmt.execute(createSql);
+		stmt.execute(insertSql);
+		ResultSet rs = stmt.query(querySql);
+		while(rs.next()) {
+			System.out.println(rs.getString("bar"));
+		}
+
+web接口：
+	http://localhost:9999/hwi/ 默认
+
+数据类型：
+	基本数据类型与一般的数据库差不多，出此之外还包括struct，map，array
+	create table employees (
+		name	STRING,
+		salary	FLOAT,
+		subordinates	ARRAY<STRING>,
+		deductions	MAP<STRING, FLOAT>,
+		address	STRUCT<street:STRING, city:STRING, state:STRING, zip:INT>
+	)
+	ROW FORMAT DELIMITED
+	FIELDS TERMINATED BY '\001'  //默认使用^A(ctrl a)\001分隔字段
+	COLLECTION ITEMS TERMINATED BY '\002'  //^B \002分割array和struct
+	MAP KEYS TERMINATED BY '\003'     //map的key-val之间用^C分隔，多个元素之间用^B分隔
+	LINES TERMINATED BY '\n'   //行分隔
+	STORED AS TEXTFILE;
+	// 默认的分割符有\n, \001, \002, \003
+
+DDL操作:
+	CREATE DATABASE IF NOT EXISTS financials;
+	SHOW DATABASES; //默认有default数据库
+	SHOW DATABASES LIKE 'f.*';  //注意，这里不是使用%,而是正则。.*就相当于%
+	CREATE DATABASE financials LOCATION '/my/dir'; //缺省放在hive.metastore.warehouse.dir
+	USE financials;
+	set hive.cli.print.current.db=true; //在hive shell显示当前数据的名字
+	DROP DATABASE IF EXISTS financials CASCADE; //删除表
+	SHOW PARTITIONS t3 PARTITION(day=22); //列出day=22的所有分区
+
+DML操作：
+	传统意义的DML包括Insert， delete， update操作
+	Hive不支持行级别的insert、 delete、 update，将数据放入表中的唯一办法是批量载如（ bulk load），戒使用Hive以外的其它方法。作为数据仓库平台，这种操作逻辑尚可接受。
+	LOAD DATA语句：
+		LOAD DATA LOCAL INPATH '${env:HOME}/california-employees'
+		OVERWRITE INTO TABLE employees
+		PARTITION (country = 'US', state = 'CA');
+	Insert overwrite语句：
+		INSERT OVERWRITE TABLE employees
+		PARTITION (country = 'US', state = 'OR')
+		SELECT * FROM staged_employees se
+		WHERE se.cnty = 'US' AND se.st = 'OR';  //从分区表加载到分区表
+
+		FROM staged_employees se
+		INSERT OVERWRITE TABLE employees
+			PARTITION(country = 'US', state = 'OR')
+			SELECT * WHERE se.cnty = 'US' AND se.st = 'OR'
+		INSERT OVERWRITE TABLE employees
+			PARTITION(country = 'US', state = 'CA')
+			SELECT * WHERE se.cnty = 'US' AND se.st = 'CA'
+		INSERT OVERWRITE TABLE employees
+			PARTITION(country = 'US', state = 'IL')
+			SELECT * WHERE se.cnty = 'US' AND se.st = 'IL';  //从非分区表加载到分区表
+		可以看出从非分区表加载到分区表非常不智能，插入的时候还需要手动指定分区
+	Dynamic Partition Inserts： 设置了下面3个参数就可以动态插入分区表
+		set hive.exec.dynamic.partition=true;
+		set hive.exec.dynamic.partition.mode=nonstrict;
+		set hive.exec.max.dynamic.partitions.pernode=1000;
+
+		INSERT OVERWRITE TABLE employees
+		PARTITION(country, state)
+		SELECT ..., se.cty, se.st
+		FROM staged_employees se;
+
+	导出数据
+		由于数据文件本身是文本明文，所以可以直接使用hdfs的拷贝文件导出
+		如果需要改劢数据格式，可以使用insert overwrite，如下例：
+		INSERT OVERWRITE LOCAL DIRECTORY '/tmp/ca_employees'
+		SELECT name, salary, address
+		FROM employees
+		WHERE se.state = 'CA';
+
+连接：支持大部分关系代数连接方式（各种内连接，外连接，半连接等）
+连接是缓慢的操作，在分布式系统中的连接操作支持都不好
+使用map-site joins优化连接
+本来连接操作应该是在reduce阶段做的，map-site join的算法是当一个大表和一个小表连接的时候，大表比较大，会保存在多个节点上
+而小表足够小，可以复制到所有大表存在的节点上，这样就可以在map端来完成连接，然后再输出到reducer汇总。
+set hive.auto.convert.join=true;
+hive.mapjoin.smalltable.filesize=25000000;   //小表的大小，25m
+
+排序：
+	order by：全局排序，只能有一个reducer，如果在strict模式使用order by必须同时使用limit
+	sort by: 不是全局排序，多个reducer,每个reducer的输出有顺序的，但不能保证全局顺序. 与是否strict模式无关
+	distribute by：指定distribute一个字段，则能确保这个字段相同的值能发送到同一个reducer中。否则会随机分发到多个reducer中的一个
+	cluster by：在同一个字段同时使用sort by和distributed by可以简化成cluster by
+
+bucket 相当于hash,用于抽样统计
+关系型数据库的索引是用B+数算法实现的，Hive的索引只是简单的把排序的数据放到另一个表中
+位图索引适用于列有大量重复数据的情况，如13亿人的省份信息，使用了位图索引能压缩存储，也能加快速度
+
+zookeeper:
+	短暂znode和持久znode，短暂znode是只存在于客户端的一次连接
+	每个znode存储数据的上限是1M，getData来获取数据，传znode的路径，获取数据
+	顺序号：在/a/b下创建子节点，可以设定要创建的子节点是带顺序号的，如/a/b/c-1和/a/b/c-2这个顺序是从小到大递增并且唯一的
+		    顺序号可以区分连接的先后顺序，在实现分布式锁的时候很有用
+	观察：观察某个znode是否改变(数据改变或者子节点改变)，改变后会触发所有观察的客户端
+	通常部署奇数个节点。因为只允许少于50%的节点失败，5个节点允许2个节点失败，6个节点也值允许2个节点失败。所以通常之部署奇数
+	应用：
+		分布式网络的集群配置
+			将配置写在znode上，集群中的每个节点watch某个znode，一旦集群的某个节点修改了znode上的配置值，就会触发所有观察者，观察者重新获取配置数据
+		分布式锁
+			每个来请求资源的客户端在znode上创建一个顺序号的子节点，先来的请求的顺序号小，一旦某个客户端使用完资源就把自己创建的znode删除掉，从而触发其他所有竞争者，每个节点读取那个znode上的所有子节点，看当前最小的节点与自己的节点是否一致，如果一致就说明轮到自己使用资源，否则继续等待下一次watch的触发
+		分布式事务、判断集群的节点是否存活等
+	配置：
+		tickTime=2000 #每隔2秒发送一次心跳
+		dataDir=D:/devtools/zookeeper-3.2.2/build #数据存放目录
+		clientPort=2181 #客户端连接端口
+
+		initLimit=5 #follower与leader连接初始化最长忍受多少个心跳时间间隔，即5*2=10秒
+		syncLimit=2 #发送信息到应答，最长忍受的多少个心跳时间间隔
+		server.1=192.168.211.1:2888:3888 #server.a=b:c:d   a第几个服务器，b服务器ip，c通讯端口，d选举端口
+		server.2=192.168.211.2:2888:3888
+		#注意要在dataDir中创建一个myid的文件，文件内容就是server.a中的数字a
+
+HBASE:
+	hbase的版本与hadoop的版本是匹配的，如果不知道hbase适用于哪些hadoop版本，可以下载下来查看lib目录下的hadoop-core是什么版本的，该版本的hadoop就是与这个hbase完美匹配的，使用其他也兼容的hadoop时需要替换jar包。当然还有很多不兼容的hadoop版本就没办法使用这个版本的hbase
+
+	hbase是真正意义上的分布式集群，是share launghing(sharding分片)的。而oracle rac是share disk，并不是真正意义上的分布式集群
+	mysql的集群是高可用集群，通过硬盘复制来完成，所有节点的数据都一样，只允许一个节点写，多个节点读，读写分离从而分散负荷
+
+	hbase的行要有一个行键，而且要先定义列族，在列族中可以定义任意个列，列名前要加上列族的限定符。
+	hbase是构建在hdfs之上的，所以也是不能修改文件里面的内容的，追加可以很困难的。hdfs使用办法是修改内存，每个一段时间或者修改到达一定的量后把内存的修改合并到hdfs中。
+	hbase的更新和删除操作都是将通过插入来完成的，修改即是插入一个新的时间戳，删除则是插入一个带删除标记的行
+	hbase中的列的值是有版本的，默认保留3个版本，默认只会读取最新的版本
+	版本回收策略：1.保留几个版本   2.保留几天的版本
+	元素以字节码方式存储，没有类型之分
+	hbase的数据文件是以列族来存储的，一个列族一个文件，这种方式更符合数据分析的场景，而且数据类型相似，压缩率更大，意味着IO更小
+
+Region和Region服务器
+	 Zookeeper负责调度
+	 Hmaster作为总控节点，只有一个
+	 一个Hregionserver可以管理多个Region实例
+	 一台物理节点只能跑一个HRegionServer
+	 每个表最初只有一个region，当记录数增加到超过某个阈值时，开始分裂成两个region
+	 表在行方向上，按照行键范围划分成若干的Region
+	 物理上所有数据存放在HDFS，由Region服务器提供region的管理
+	 一个Region实例包括Hlog日志和存放数据的Store （Hlog用于灾难恢复，记录更新操作）
+
+-ROOT- 和 .META. 表
+	 HBase中有两张特殊的Table， -ROOT-和.META.
+	 .META.：记录了用户表的Region信息， .META.可以有多个regoin
+	 -ROOT-：记录了.META.表的Region信息， -ROOT-只有一个region
+	 Zookeeper中记录了-ROOT-表的location	
+
+Memstore不storefile
+	* 一个region由多个store组成，每个store包含一个列族的所有数据
+	* Store包括位于把内存的memstore和位于硬盘的storefile
+	* 写操作先写入memstore，当memstore中的数据量达到某个阈值， Hregionserver会启动flashcache迚程写入storefile，每次写入形成单独一个storefile(因为hdfs追加很困难所以单独写一个文件)
+	* 当storefile文件的数量增长到一定阈值后，系统会进行合并，在合并过程中会进行版本合并和删除工作，形成更大的storefile
+	* 当storefile大小超过一定阈值后，会把当前的region分割为两个，并由Hmaster分配到相应的region服务器，实现负载均衡
+	* 客户端检索数据时，先在memstore找，找不到再找storefile
+
+hbase使用于大量插入，但又有读的情况。百万级数据的妙级查询。不适用于复杂查询如group,join等，适用于简单的key-value查询
+
+Hbase vs Oracle
+	索引不同造成行为的差异（hbase只能根据行键快速定位）
+	Hbase适合大量入同时又有读的情况（oracle即使可以使用sqlloader来入库，单机的瓶颈也是显而易见的）
+	Hbase的瓶颈是硬盘传输速度， Oracle的瓶颈是硬盘寻道时间(oracle是随机读写，寻道时间取决于硬盘转速，转速已经很久没提升了)
+	  (hbase都是插入操作，隔一段时间新增一个文件，所以速度取决于节点之间的硬盘传输速度，这个速度还在不断提高)
+	Hbase很适合寻找按照时间排序top n的场景
+
+	oracle的索引是使用b+数来实现的，找到叶子节点后保存的就是ROWID，拿到ROWID后就可以直接访问了，rowid包含了数据文件，块以及偏移信息
+	hbase也是使用类似b+数的算法实现的，叫LSM索引（log struct merge日志结构合并）。hbase的修改操作都是其实都是插入，就像写日志一样。在memstore和storefile中除了保存数据，还保存了b+树，在memstore中的树找不到就在storefile中的树中找
+
+hbase安装：
+	伪分布安装
+	1 解压缩、重命名、设置环境变量
+	2 修改$HBASE_HOME/conf/hbase-env.sh，修改内容如下：
+	    export JAVA_HOME=/usr/local/jdk
+		export HBASE_MANAGES_ZK=true
+	3 修改$HBASE_HOME/conf/hbase-site.xml，修改内容如下：
+		<property>
+		  <name>hbase.rootdir</name>
+		  <value>hdfs://hadoop0:9000/hbase</value>
+		</property>
+		<property>
+		  <name>hbase.cluster.distributed</name>
+		  <value>true</value>
+		</property>
+		<property>
+		  <name>hbase.zookeeper.quorum</name>
+		  <value>hadoop0</value>
+		</property>
+		<property>
+		  <name>dfs.replication</name>
+		  <value>1</value>
+		</property>
+	4 (可选)文件regionservers的内容为hadoop0
+	5 启动hbase，执行命令start-hbase.sh
+		******启动hbase之前，确保hadoop是运行正常的，并且可以写入文件*******
+	6 验证：(1)执行jps，发现新增加了3个java进程，分别是HMaster、HRegionServer、HQuorumPeer
+	          (2)使用浏览器访问http://hadoop0:60010
+
+	集群安装：(在原来的hadoop0上的hbase伪分布基础上进行搭建)
+	1 集群结构，主节点(hmaster)是hadoop0，从节点(region server)是hadoop1和hadoop2
+	2 修改hadoop0上的hbase的几个文件
+	    (1)修改hbase-env.sh的最后一行export HBASE_MANAGES_ZK=false
+		(2)修改hbase-site.xml文件的hbase.zookeeper.quorum的值为hadoop0,hadoop1,hadoop2
+		(3)修改regionservers文件(存放的region server的hostname)，内容修改为hadoop1、hadoop2
+	3 复制hadoop0中的hbase文件夹到hadoop1、hadoop2中	
+	    复制hadoop0中的/etc/profile到hadoop1、hadoop2中，在hadoop1、hadoop2上执行source /etc/profile
+	4 首先启动hadoop，然后启动zookeeper集群。
+	    最后在hadoop0上启动hbase集群。
+
+hbase shell 进入命令行
+DDL操作：
+	craete 'users', 'user_id', 'address', 'info' #hbase没有其他的对象，create直接就是建表，users表有3个列族user_id...
+	list #列出所有表
+	describe 'users' #得到表描述
+	disable 'users'  # is_enabled/is_disabled 'users'
+	drop 'users' #删除表要先disable
+
+DML操作：
+	添加记录
+		put 'users','xiaoming','info:age','24';
+		put 'users','xiaoming','info:birthday','1987-06-17';
+		put 'users','xiaoming','info:company','alibaba';
+		put 'users','xiaoming','address:contry','china';
+		put 'users','xiaoming','address:province','zhejiang';
+		put 'users','xiaoming','address:city','hangzhou';
+		put 'users','zhangyifei','info:birthday','1987-4-17';
+		put 'users','zhangyifei','info:favorite','movie';
+		put 'users','zhangyifei','info:company','alibaba';
+		put 'users','zhangyifei','address:contry','china';
+		put 'users','zhangyifei','address:province','guangdong';
+		put 'users','zhangyifei','address:city','jieyang';
+		put 'users','zhangyifei','address:town','xianqiao';
+	获取一条记录
+		1.取得一个id的所有数据
+		get 'users','xiaoming'
+		2.获取一个id，一个列族的所有数据
+		get 'users','xiaoming','info'
+		3.获取一个id，一个列族中一个列的所有数据
+		get 'users','xiaoming','info:age'
+	更新记录 (插入，更新都是put)
+		put 'users','xiaoming','info:age','29'
+		get 'users','xiaoming','info:age'
+	获取单元格数据的版本数据
+		get 'users','xiaoming',{COLUMN=>'info:age',VERSIONS=>1}
+	获取单元格数据的版本数据，根据时间戳获取
+		get 'users','xiaoming',{COLUMN=>'info:age',TIMESTAMP=>1364874937056}
+	全表扫描
+		scan 'users'
+	删除xiaoming值的'info:age'字段
+		delete 'users','xiaoming','info:age'
+	删除整行
+		delete 'users', 'xiaoming'
+	统计表的行数
+		count 'users'
+	清空表
+		truncate 'users'
+
+HBASE JAVA API:
+	public class HBaseTestCase {
+		
+		public static void main(String[] args) throws IOException {
+			String tableName="hbase_tb";
+			String columnFamily="cf";
+			
+			HBaseTestCase.create(tableName, columnFamily);
+			HBaseTestCase.put(tableName, "row1", columnFamily, "cl1", "data");
+			HBaseTestCase.get(tableName, "row1");
+			HBaseTestCase.scan(tableName);
+			HBaseTestCase.delete(tableName);
+		}
+
+		//hbase操作必备
+	    private static Configuration getConfiguration() {
+			Configuration conf = HBaseConfiguration.create();
+			conf.set("hbase.rootdir", "hdfs://hadoop0:9000/hbase");
+			//使用eclipse时必须添加这个，否则无法定位
+			conf.set("hbase.zookeeper.quorum", "hadoop0");
+			return conf;
+		}
+
+		//创建一张表
+		public static void create(String tableName, String columnFamily) throws IOException{
+			HBaseAdmin admin = new HBaseAdmin(getConfiguration());
+			if (admin.tableExists(tableName)) {
+				System.out.println("table exists!");
+			}else{
+				HTableDescriptor tableDesc = new HTableDescriptor(tableName);
+				tableDesc.addFamily(new HColumnDescriptor(columnFamily));
+				admin.createTable(tableDesc);
+				System.out.println("create table success!");
+			}
+		}
+
+		//添加一条记录
+		public static void put(String tableName, String row, String columnFamily, String column, String data) throws IOException{
+			HTable table = new HTable(getConfiguration(), tableName);
+			Put p1 = new Put(Bytes.toBytes(row));
+			p1.add(Bytes.toBytes(columnFamily), Bytes.toBytes(column), 	Bytes.toBytes(data));
+			table.put(p1);
+			System.out.println("put'"+row+"',"+columnFamily+":"+column+"','"+data+"'");
+		}
+
+		//读取一条记录
+		public static void get(String tableName, String row) throws IOException{
+			HTable table = new HTable(getConfiguration(), tableName);
+			Get get = new Get(Bytes.toBytes(row));
+			Result result = table.get(get);
+			System.out.println("Get: "+result);
+		}
+
+		//显示所有数据
+		public static void scan(String tableName) throws IOException{
+			HTable table = new HTable(getConfiguration(), tableName);
+			Scan scan = new Scan();
+			ResultScanner scanner = table.getScanner(scan);
+			for (Result result : scanner) {
+				System.out.println("Scan: "+result);
+			}
+		}
+
+		//删除表
+		public static void delete(String tableName) throws IOException{
+			HBaseAdmin admin = new HBaseAdmin(getConfiguration());
+			if(admin.tableExists(tableName)){
+				try {
+				  admin.disableTable(tableName);
+				  admin.deleteTable(tableName);
+				} catch (IOException e) {
+				  e.printStackTrace();
+				  System.out.println("Delete "+tableName+" 失败");
+				}
+			}
+			System.out.println("Delete "+tableName+" 成功");
+		}
+	}
+
+HBASE结合MapReduce批量导入:
+	public class HbaseBatchImport {
+
+		static class BatchImportMapper extends Mapper<LongWritable, Text, LongWritable, Text>{
+			SimpleDateFormat dateformat1=new SimpleDateFormat("yyyyMMddHHmmss");
+			Text v2 = new Text();
+			
+			protected void map(LongWritable key, Text value, Context context) throws java.io.IOException ,InterruptedException {
+				final String[] splited = value.toString().split("\t");
+				try {
+					final Date date = new Date(Long.parseLong(splited[0].trim()));
+					final String dateFormat = dateformat1.format(date);
+					String rowKey = splited[1]+":"+dateFormat;  // rowkey是手机号码+时间(年月日时分秒)
+					v2.set(rowKey+"\t"+value.toString());
+					context.write(key, v2);
+				} catch (NumberFormatException e) {
+					final Counter counter = context.getCounter("BatchImport", "ErrorFormat");
+					counter.increment(1L);
+					System.out.println("出错了"+splited[0]+" "+e.getMessage());
+				}
+			};
+		}
+
+		// 注意：实现的是TableReducer
+		static class BatchImportReducer extends TableReducer<LongWritable, Text, NullWritable>{
+			protected void reduce(LongWritable key, java.lang.Iterable<Text> values, 	Context context) throws java.io.IOException ,InterruptedException {
+				for (Text text : values) {
+					final String[] splited = text.toString().split("\t");
+					
+					final Put put = new Put(Bytes.toBytes(splited[0]));
+					put.add(Bytes.toBytes("cf"), Bytes.toBytes("date"), Bytes.toBytes(splited[1]));
+					//省略其他字段，调用put.add(....)即可
+					context.write(NullWritable.get(), put);
+				}
+			};
+		}
+
+		public static void main(String[] args) throws Exception {
+			final Configuration configuration = new Configuration();
+			//设置zookeeper
+			configuration.set("hbase.zookeeper.quorum", "hadoop0");
+			//设置hbase表名称
+			configuration.set(TableOutputFormat.OUTPUT_TABLE, "wlan_log");
+			//将该值改大，防止hbase超时退出
+			configuration.set("dfs.socket.timeout", "180000");
+			
+			final Job job = new Job(configuration, "HBaseBatchImport");
+			
+			job.setMapperClass(BatchImportMapper.class);
+			job.setReducerClass(BatchImportReducer.class);
+			//设置map的输出，不设置reduce的输出类型
+			job.setMapOutputKeyClass(LongWritable.class);
+			job.setMapOutputValueClass(Text.class);
+			
+			job.setInputFormatClass(TextInputFormat.class);
+			//不再设置输出路径，而是设置输出格式类型
+			job.setOutputFormatClass(TableOutputFormat.class);
+			
+			FileInputFormat.setInputPaths(job, "hdfs://hadoop0:9000/input"); //wlan上网日志
+			
+			job.waitForCompletion(true);
+		}
+		/**
+		 * 与普通mr的几点不同
+		 * 1. reducer实现的是TableReducer
+		 * 2. Configuration需要设置zk, hbase输出表和超时
+		 * 3. 不再设置输出路径，而是设置输出格式类型 TableOutputFormat
+		 */
+		
+		查询134号段的所有上网记录
+		public static void scanPeriod(String tableName) throws IOException{
+			HTable table = new HTable(getConfiguration(), tableName);
+			Scan scan = new Scan();
+			scan.setStartRow(Bytes.toBytes("134/"));
+			scan.setStopRow( Bytes.toBytes("134:"));
+			scan.setMaxVersions(1);
+			ResultScanner scanner = table.getScanner(scan);
+			int i=0;
+			for (Result result : scanner) {
+				System.out.println("Scan: " + (i++) + " " + result);
+			}
+		}
+	}
+
+CAP定律：
+	CAP（ Consistency,Availability,Patition tolerance）理论论述的是在任何分布式系统 中，只可能满足一致性，可用性及分区容忍性三者中的两者，不可能全部都满足。所以不用花时间精力在如何满足所有三者上面。
+	CAP理论无疑是导致技术趋势由关系数据库系统向NoSQL系统转变的最重要原因。
+	关系型数据库主要满足CA，NOSQL主要有两类CP和AP，NOSQL舍弃C的更为多。 C是一致性 ACID
+
+hbase使用案例：
+	1. 当当网浏览历史
+		关系数据库面临的难题：order by耗费很多性能，无法使用分布式，实时查看不能缓存
+		hbase对这问题的优势：天生面向时间戳查询，最近数据放在memsotre中，几乎没有IO开销，分布式化解负荷
+		模式设计：行键:userid  列族和列：book:bookid
+		为了充分利用分布式，可以使用reverse key,hash等改造行键(hbase会根据行键来划分region,数据量小的时候，数据会集中保存在少量的一两个region中，所以可以行键进行hash来让数据分布开)
+	2. 	当当网商品推荐，应用在itpub的文章阅读，看了某篇文章的人，有百分之几还看了其他文章
+		表设计： threadid 文章id, userid, time
+		mysql实现：（mysql在千万级数据，小型机的基础上执行该语句已经要大概9秒的时间）
+			select A.threadid,count(distinct A.userid) from testtj A,testtj B 
+			where A.userid=B.userid and B.threadid=1111
+			group by A.threadid order by 2 desc limit 10;
+		hbase实现：
+			两个表，一个是u-t，另一个是t-u
+			u-t表的结构：行键为userid，列族和列为thread:threadid
+			t-u表结构：行键为threadid，列族和列为user:userid
+			查询：先从t-u表从threadid->userid，再在u-t表从userid->threadid，在计算程序中实现去重和统计功能
+			从t-u可能查出多个userid，然后每个userid再去查u-t表，因为是简单k-v查询，即便多次查询也比mysql快
+	辅助索引：
+		学生表（学号，身份证号，姓名，性别，系，年龄），有时在学号上查询，有时在身份证号上查询
+		主表：行键为学号，列族为学生，下面的列是身份证号，姓名，性别，系，年龄
+		辅助（索引）表：行键为身份证号，列族和列为学号
+		要根据身份证查的时候，先查辅助索引表查到对应的学号，再根据学号来查。因为hbase没有多个索引，要自己维护索引表
+	复合行键：
+		假如有个表结构userid, msgid, email_content， 行键为userid
+		查询会根据userid查询邮件内容，或者根据userid和msgid查询某个邮件的内容
+		如果在hbase使用这个数据库设计，则查询后一种情况的时候需要加载用户所有邮件，在程序中进行判断msgid
+		可以将表结构设计成userid-msgid, email_content ， 行健为userid-msgid
+		这样查询后一中只需简单拼接条件，查第一种情况的时候，可以使用范围查询，scan行键在12345至123456之间的所有数据
+	
+sqoop:
+安装： 
+	1.解压、设置环境变量
+	2.把mysql-connector.jar拷贝到$SQOOP_HOME/lib中
+	3.如果没安装hbase,可能要修改$SQOOP_HOME/conf/sqoop-confiure，注释掉hbase和zookeeper的检测
+SQOOP是用于对数据进行导入导出的。
+    (1)把MySQL、Oracle等数据库中的数据导入到HDFS、Hive、HBase中 import
+	(2)把HDFS、Hive、HBase中的数据导出到MySQL、Oracle等数据库中 export
+
+1.把数据从mysql导入到hdfs(默认是/user/<username>)中
+  sqoop import --connect jdbc:mysql://hadoop0:3306/hive  --username root --password admin --table TBLS --fields-terminated-by '\t'  --null-string '**'  -m 1 --append  --hive-import
+  # -m mapper个数，--hive-import 导入到hive空间，默认导入到hdfs:/user/<username>中
+  sqoop import --connect jdbc:mysql://hadoop0:3306/hive  --username root --password admin --table TBLS --fields-terminated-by '\t'  --null-string '**'  -m 1 --append  --hive-import  --check-column 'TBL_ID' --incremental append --last-value 6
+  #加了--check-column 'TBL_ID' --incremental append --last-value 6表示增量导入，检查TBL_ID的值是否增加来决定是否执行，上次导入的最大值是6
+  
+2.把数据从hdfs导出到mysql中  
+  sqoop export --connect jdbc:mysql://hadoop0:3306/hive  --username root --password admin --table ids --fields-terminated-by '\t' --export-dir '/ids'
+  
+3.设置为作业，运行作业
+  sqoop job --create myjob -- import --connect jdbc:mysql://hadoop0:3306/hive  --username root --password admin --table TBLS --fields-terminated-by '\t'  --null-string '**'  -m 1 --append  --hive-import  
+  sqoop job --list 
+  sqoop job --exec myjob #为了安全，默认create job是不会保存密码，所以每次执行要输入
+  #可以修改conf/sqoop-site.xml中的sqoop.metastore.client.record.password为true，删了job重新建就能保存密码了
+  
+4. 导入导出的事务是以Mapper任务为单位。	
+
+
+flume:
+	1.flume是分布式的日志收集系统，把收集来的数据传送到目的地去。
+	2.flume里面有个核心概念，叫做agent。agent是一个java进程，运行在日志收集节点。
+	3.agent里面包含3个核心组件：source、channel、sink。
+	3.1 source组件是专用于收集日志的，可以处理各种类型各种格式的日志数据,包括avro、thrift、exec、jms、spooling directory、netcat、sequence generator、syslog、http、legacy、自定义。
+	    source组件把数据收集来以后，临时存放在channel中。
+	3.2 channel组件是在agent中专用于临时存储数据的，可以存放在memory、jdbc、file、自定义。
+	    channel中的数据只有在sink发送成功之后才会被删除。
+	3.3 sink组件是用于把数据发送到目的地的组件，目的地包括hdfs、logger、avro、thrift、ipc、file、null、hbase、solr、自定义。
+	4.在整个数据传输过程中，流动的是event。事务保证是在event级别。
+	5.flume可以支持多级flume的agent，支持扇入(fan-in)、扇出(fan-out)。
+
+	6.书写配置文件example
+	#agent1表示代理名称
+	agent1.sources=source1
+	agent1.sinks=sink1
+	agent1.channels=channel1
+
+	#Spooling Directory是监控指定文件夹中新文件的变化，一旦新文件出现，就解析该文件内容，然后写入到channle。写入完成后，标记该文件已完成或者删除该文件。
+	#配置source1
+	agent1.sources.source1.type=spooldir
+	agent1.sources.source1.spoolDir=/root/hmbbs
+	agent1.sources.source1.channels=channel1
+	agent1.sources.source1.fileHeader = false
+	agent1.sources.source1.interceptors = i1
+	agent1.sources.source1.interceptors.i1.type = timestamp
+
+	#配置sink1
+	agent1.sinks.sink1.type=hdfs
+	agent1.sinks.sink1.hdfs.path=hdfs://hadoop0:9000/hmbbs
+	agent1.sinks.sink1.hdfs.fileType=DataStream
+	agent1.sinks.sink1.hdfs.writeFormat=TEXT
+	agent1.sinks.sink1.hdfs.rollInterval=1
+	agent1.sinks.sink1.channel=channel1
+	agent1.sinks.sink1.hdfs.filePrefix=%Y-%m-%d
+
+	#配置channel1
+	agent1.channels.channel1.type=file
+	agent1.channels.channel1.checkpointDir=/root/hmbbs_tmp/123
+	agent1.channels.channel1.dataDirs=/root/hmbbs_tmp/
+
+	7.执行命令bin/flume-ng agent -n agent1 -c conf -f conf/example -Dflume.root.logger=DEBUG,console
+
+远程调试hadoop：
+	1. 调试模式下启动hadoop
+		JVM本身就支持远程调试，只需要在各模块的JVM启动时加载以下参数。
+			Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=y
+		# 上面参数加载bin/hadoop或者bin/hdfs的各个启动模块中，如
+		# if [ "$COMMAND" = "namenode" ] ; then
+		# CLASS='org.apache.hadoop.hdfs.server.namenode.NameNode'
+		# HADOOP_OPTS="$HADOOP_OPTS $HADOOP_NAMENODE_OPTS Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=y"
+		各参数的含义：
+		-Xdebug 启用调试特性
+		-Xrunjdwp 启用JDWP实现，包含若干子选项：
+		transport=dt_socket JPDA front-end和back-end之间的传输方法。 dt_socket表示使用套接字传输。
+		address=8000 JVM在8000端口上监听请求，这个设定为一个不冲突的端口即可。
+		server=y y表示启动的JVM是被调试者。如果为n，则表示启动的JVM是调试器。
+		suspend=y y表示启动的JVM会暂停等待，直到调试器连接上才继续执行。
+		suspend=n，则JVM不会暂停等待。
+
+	2. 在eclipse设置断点
+	3. 在eclipse->debug configuration中选择Standard(Socket Attach),Host填hadoop运行的IP，port填8000
+	如果出现Failed to connect to remote VM. Connection refused. 关闭防火墙
+
+	配置mapreduce远程调试，bin/hadoop中没有map task的启动参数，此时需要修改mapred-site.xml
+	<property>
+		<name>mapred.child.java.opts</name> 
+		<value>-Xmx800m -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8000</value>
+	</property>
+	在一个TaskTracker上，只能启动一个Map Task或一个Reduce Task
+	<property>
+		<name>mapred.tasktracker.map.tasks.maximum</name>
+		<value>1</value>
+	</property>
+	<property>
+		<name>mapred.tasktracker.reduce.tasks.maximum</name>
+		<value>0</value>
+	</property>
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

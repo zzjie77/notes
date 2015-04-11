@@ -1,0 +1,78 @@
+# centos
+vim /etc/sysconfig/network 修改主机名
+vim /etc/sysconfig/network-script/ifcfg-eth0 
+	BOOTPROTO="static"
+	IPADDR="192.168.3.250"
+	NETMASK="255.255.255.0"
+	GATEWAY="192.168.3.1"
+	DNS1="8.8.8.8"
+	DNS2="8.8.4.4"
+vim /etc/hosts 添加ip主机映射
+	192.168.3.250 master
+	192.168.3.251 slave1
+	192.168.3.252 slave2
+service iptables stop
+chkconfig iptables off 
+reboot 
+
+vmware共享win到linux: vm - settings(always ..) - share folders - add，回到虚拟机ls /mnt/hgfs
+
+安装jdk：
+./jdk.xx.bin
+mkdir -p /usr/java
+mv jdk.xx/ /usr/java/
+vim /etc/profile
+	export JAVA_HOME=/usr/java/jdkxx
+	export CLASSPATH=$JAVA_HOME/lib
+	export PATH=$PATH:$JAVA_HOME/bin
+source /etc/profile
+
+zeromq是c++实现的最快的消息队列，要想在jvm使用zeromq还要安装jzmq
+
+安装zeromq:
+	mkdir /cloud 
+	tar -zxvf zeromq-2.1.7.tar.gz -C /cloud
+	./configure #此处很可能出错，有很多依赖需要安装
+	make
+	make install 
+
+安装jzmq:
+	unzip jzmq-master.zip -d /cloud
+	./autogen.sh
+	./configure
+	make &&　make instatll
+
+安装python: 用自带的
+
+安装zookeeper:
+	tar -zxvf zookeeper -C /cloud
+	cd /cloud/zookeeper
+	cp conf/zoo.sample.cfg conf/zoo.cfg
+	bin/zkServer.sh start
+	bin/zkServer.sh status #查看是否启动成功，再查看jps有QuorumPeerMain
+
+安装storm:
+	unzip storm.zip -d /cloud
+	cd /cloud/stormxx
+	vim conf/storm.yaml
+		storm.zookeeper.servers
+			- "master"
+		#   - "slave"   #zookeeper集群的时候添加所有节点
+		nimbus.host: "master" 
+	nohup bin/storm nimbus & #storm这个脚本是用python写的
+	nohup bin/storm supervisor & #在从节点运行
+	bin/storm ui >/dev/null 2>&1 & # jps发现有core，默认使用8080，通过ui.port修改
+	bin/storm logviewer >/dev/null 2>&1 &
+
+在VMWARE中clone master为slave1
+ifconfig 查看，使用的eth-1而不是0，因为fully clone会产生新网卡mac地址，而ifcfg-eth0的HWADDR还是master的
+要想使用eth-0，有2步：
+1. vim /etc/sysconfig/network-script/ifcfg-eth0， 修改HWADDR为ifconfig中显示的值
+2. find /etc/ -name "*net.rules"
+   vim /etc/udev/rules.d/*.net.rules
+   	将eth1的mac地址拷贝到eth0那行，删除eth1那行
+
+
+
+
+

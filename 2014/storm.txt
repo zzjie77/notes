@@ -85,6 +85,19 @@ ifconfig 查看，使用的eth-1而不是0，因为fully clone会产生新网卡
    	将eth1的mac地址拷贝到eth0那行，删除eth1那行
 
 
+生命周期：
+spout方法调用顺序：
+	1. declareOutputFields()
+	2. open()
+	3. activate()
+	4. nextTuple() 循环调用
+	5. deactivate() 
+bolt方法调用顺序
+	1. declareOutputFields();
+	2. prepare()
+	3. excuate() 循环调用
+
+	
 
 
 
