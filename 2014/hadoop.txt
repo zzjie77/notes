@@ -172,7 +172,7 @@ streaming是如何完成partition和shuffing的。分区是在reducer中完成�
 	index = int(sys.argv[1])
 	for line in sys.stdin:
 		fields = line.split(",")
-		print "LongValueSum:"" + fields[index] + "\t" + "1"
+		print "LongValueSum:" + fields[index] + "\t" + "1"
 	----------------------------
 	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
 	  -input input/apat63_99.txt
