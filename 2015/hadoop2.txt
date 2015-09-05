@@ -24,6 +24,7 @@ java api:
 				IOUtils.copyBytes(in, System.out, 4096, false);
 			} finally {
 				IOUtils.closeStream(in);
+			}
 		}
 	}
 	编译： javac -classpath ../hadoop-core.jar URLCat.java
@@ -190,7 +191,7 @@ hdfs federation:
 		</configuration>
 
 	格式化名称节点:
-		Step 1: 格式化其中一个节点，不指定clusterId则自动产生
+		Step 1: 格式化其中一个节点，不指定clusterId则自劢产生
 		./bin/hdfs namenode -format [-clusterId < cluster_id>]
 		Step 2: 格式化另外一个节点，注意clusterId要和之前的节点一样
 		./bin/hdfs namenode -format -clusterId <cluster_id>  #必须指定clusterId，与step1一致
@@ -226,7 +227,7 @@ map reduce
 
 
 pig 
-	pig latin是面向数据流的语言，Pig latin可以进行排序、过滤、求和、分组、关联等常用操作，还可以自定义函数，这
+	pig latin是面向数据流的语言，Pig latin可以迚行排序、过滤、求和、分组、关联等常用操作，还可以自定义函数，这
 是一种面向数据分析处理的轻量级脚本语言
 	安装：解压，加入环境变量
 	pig -x local 进入grunt shell, 本地模式
@@ -371,7 +372,7 @@ hive
    create external table t5(id int) location '/external';   
 
 jdbc接口：
-	1.使用jdbc的方式连接Hive，首先做的事情就是需要启动hive的Thrift Server,否则连接hive的时候会报connection refused的错误。
+	1.使用jdbc的方式连接Hive，首先做的事情就是需要启劢hive的Thrift Server,否则连接hive的时候会报connection refused的错误。
 	启动命令如下：
 	hive --service hiveserver
 	2.新建java项目，然后将hive/lib下的所有jar包和hadoop的核心jar包hadoop-0.20.2-core.jar添加到项目的类路径上。
@@ -948,6 +949,7 @@ flume:
 	</property>
 
 	
+
 
 
 
