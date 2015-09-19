@@ -646,6 +646,7 @@ group:
 				final NewK2 k2 = new NewK2(Long.parseLong(splited[0]), Long.parseLong(splited[1]));
 				final LongWritable v2 = new LongWritable(Long.parseLong(splited[1]));
 				context.write(k2, v2);
+				
 			};
 		}
 		

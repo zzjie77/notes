@@ -17,14 +17,36 @@ bahs:
   如果自己又服务器，可以创建一个自己的仓库(要与ubuntu具有相同的目录结构)，然后在/etc/apt/source.list添加自己的仓库地址
   
 软件安装：
+	$ cat hello.c
+	#include <stdio.h>
+
+	int main(int argc, const char *argv[])
+	{
+	        printf("hello\n");
+	        return 0;
+	}
+
+	cc hello.c -o hello # cc是c compiler， 编译
+	./hello #执行
+	locate stdio.h # 然后mv stdio.h 到另一个文件
+	此时编译找不到stdio.h就会报错, 类似我们源码安装找不到头文件。 此时google xxx.h no such file or directory加系统ubuntu
+  	lld hello #查看hello这个二进制文件运行需要的依赖
+  	dpkg -S xx.h #这个头文件是哪个dpkg提供的(Supply)
+  	make # 调用Makefile文件， 对于大型程序，编译顺序，步骤有很多要求，所以需要Makefile
+  	make install # 安装。 手动安装的方式，要想删除所有安装文件基本是不可能的，包管理可以使用apt-get purge来删除
+  	dpkg -L tig # 查看tig包所有安装文件分散在系统的路径
+  	dpkg -l #查看系统所有安装的包
+
+
+
+
   比如我们的代码里调用的一个 C 的库函数，那我们知道它来自一个叫做 xxx 的 C 库，我们有两步要做
-  sudo apt-get install libxxx-dev   #make安装时缺少xx.h，通常可以通过安装libxxx-dev来解决
-  去安装编译这个程序的时候所需要的头文件。还需要
+  sudo apt-get install libxxx-dev   #make安装时缺少xx.h，通常可以通过安装libxxx-dev来解决  去安装编译这个程序的时候所需要的头文件。还需要
   sudo apt-get install libxxx
   去安装实际的包含此接口具体实现的 binary 的库。
   
-  lld hello #查看hello这个二进制文件运行需要的依赖
   
+  apt-get只是在dpkg上封装了一层，加上了一些功能，如下载
   apt-get 和 homebrew 还有 rubygems 很不一样
   apt-get 直接从仓库里下载编译好的二进制来安装。
   homebrew 和 rubygems 一般下载源码，在本地编译，这就要求本地的编译环境要完好。
@@ -46,11 +68,13 @@ shell:
     echo $i
   done
     
-  echo hello >file1 #重定向
+  # 0标准输入， 1标准输出，2错误输出
+  echo hello >file1 #重定向，也等于1>
   echo hello 2>file1 #错误信息重定向
   >file1 #file1存在则清空，不存在则创建
-  ls >>output.txt 2>>&1 #同时重定向标准输出与错误输出
-  ls &>>output.txt #等价上一条
+  ls >>output.txt 2>&1 #同时重定向标准输出与错误输出
+  ls &>>output.txt #等价上一条, &> 标准输出与错误输出都指定到一个文件
+  
   
   echo "world" > test
   read A <test # 输入重定向
