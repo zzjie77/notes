@@ -191,7 +191,7 @@ hdfs federation:
 		</configuration>
 
 	格式化名称节点:
-		Step 1: 格式化其中一个节点，不指定clusterId则自劢产生
+		Step 1: 格式化其中一个节点，不指定clusterId则自动产生
 		./bin/hdfs namenode -format [-clusterId < cluster_id>]
 		Step 2: 格式化另外一个节点，注意clusterId要和之前的节点一样
 		./bin/hdfs namenode -format -clusterId <cluster_id>  #必须指定clusterId，与step1一致
@@ -227,7 +227,7 @@ map reduce
 
 
 pig 
-	pig latin是面向数据流的语言，Pig latin可以迚行排序、过滤、求和、分组、关联等常用操作，还可以自定义函数，这
+	pig latin是面向数据流的语言，Pig latin可以进行排序、过滤、求和、分组、关联等常用操作，还可以自定义函数，这
 是一种面向数据分析处理的轻量级脚本语言
 	安装：解压，加入环境变量
 	pig -x local 进入grunt shell, 本地模式
@@ -240,14 +240,14 @@ pig
     pig常用命令：ls、cd、cat、copyToLocal、sh(在grunt中运行bash的命令)、
     pig常用语句：
 		LOAD：指出载入数据的方法
-		FOREACH：逐行扫描迚行某种处理
+		FOREACH：逐行扫描进行某种处理
 		FILTER：过滤行
 		DUMP：把结果显示到屏幕
 		STORE：把结果保存到文件
 	例子：
 		1. 抽取文件中的email，数据格式：id#password#email
 			> A = LOAD '/home/grid/csdn.txt'
-			>> USING PigStorage('#') //可以不写，默认适用tab分割
+			>> USING PigStorage('#') //可以不写，默认使用tab分割
 			>> AS (id, pw, em);
 			> B = FOREACH A
 			>> GENERATE em;   // 相当于select某个字段
@@ -277,7 +277,7 @@ pig
 			DUMP D; // 执行MapReduce， 并查看数据
 			# 上面是第一种方法先DISTINCT, 再计数，下面是第二种方法先分组，使用FOREACH 嵌套，再使用DISTINCT
 			E = GROUP B BY student;
-			DESCRIBE　E; // E: {group: bytearray, B: {student: bytearray, teacher, bytearray}}
+			DESCRIBE　E; // E: {group: bytearray, B: {student: bytearray, teacher: bytearray}}
 			F = FOREACH E 
 			{ // 大括号中的内容相当于一次reduce
 				T = B.teacher;
@@ -424,7 +424,7 @@ DDL操作:
 
 DML操作：
 	传统意义的DML包括Insert， delete， update操作
-	Hive不支持行级别的insert、 delete、 update，将数据放入表中的唯一办法是批量载如（ bulk load），戒使用Hive以外的其它方法。作为数据仓库平台，这种操作逻辑尚可接受。
+	Hive不支持行级别的insert、 delete、 update，将数据放入表中的唯一办法是批量载如（ bulk load），使用Hive以外的其它方法。作为数据仓库平台，这种操作逻辑尚可接受。
 	LOAD DATA语句：
 		LOAD DATA LOCAL INPATH '${env:HOME}/california-employees'
 		OVERWRITE INTO TABLE employees
@@ -458,7 +458,7 @@ DML操作：
 
 	导出数据
 		由于数据文件本身是文本明文，所以可以直接使用hdfs的拷贝文件导出
-		如果需要改劢数据格式，可以使用insert overwrite，如下例：
+		如果需要改动数据格式，可以使用insert overwrite，如下例：
 		INSERT OVERWRITE LOCAL DIRECTORY '/tmp/ca_employees'
 		SELECT name, salary, address
 		FROM employees

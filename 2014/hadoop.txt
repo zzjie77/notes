@@ -23,7 +23,7 @@ TaskTracker：负责执行由JobTracker分配的单项任务。每个从节点�
 	DataNode和TaskTracker一定是在同一一台机的
 	SNN通常也独占一台服务器，不运行DataNode和TaskTracker，集群很小的时候可以合并SNN到从节点
 	NameNode一般和JobTracker一台机，大集群中可以各自占一台
-h
+
 技巧：建立多个配置目录conf.cluster、conf.pseudo、conf.standalone，使用ln -s conf.cluster conf来切换
 
 web管理界面：
@@ -37,7 +37,7 @@ Partitioner：重定向Mapper输出，即完成partitioning和shuffing
 
 
 常用InputFormat：
-	1. TextInputFormat 在文本文件的每一行为一个记录。键为一行的字节变异，而值为一行的内容
+	1. TextInputFormat 在文本文件的每一行为一个记录。键为一行的行号，而值为一行的内容
 	2. KeyValueTextInputFormat 在文本文件中的每一行均为一个记录。以key.value.separator.in.input.line为分割，默认\t
 	3. SequenceFileInputFormat<K, V> 用于读取序列文件的InputFormat。键和值由用户定义。专用于一个MapReduce作业和其他MapReduce作业之间传送数据
 	4. NLineInputFormat 与TextInputFormat相同，但每个分片一定有N行。N在属性mapred.line.input.format.linespermap中设定，默认1
@@ -75,20 +75,20 @@ hadoop streaming
  bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
 	-input input/cite75_99.txt
 	-output output
-	-mapper ‘cut -f 2 -d ,’ #以逗号分隔，去第二列
-	-reducer ‘uniq’
+	-mapper 'cut -f 2 -d ,' #以逗号分隔，去第二列
+	-reducer 'uniq'
 	# -D mapred.reduce.tasks=0 #也支持GenericOptionsParser
 2. 通过脚本使用streaming
 	RandomSample.py  #随机取10%的行
 		#!/usr/bin/env python
 		import sys, random
 		for line in sys.stdin:
-		if (random.randint(1,100) <= int(sys.argv[1])):
-		print line.strip()
+			if (random.randint(1,100) <= int(sys.argv[1])):
+				print line.strip()
 	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
 		-input input/cite75_99.txt
 		-output output
-		-mapper ‘RandomSample.py 10’
+		-mapper 'RandomSample.py 10'
 		-file RandomSample.py   #需要指定脚本文件，才能拷贝到各个节点使用
 		-D mapred.reduce.tasks=1
 	默认使用IdentityReducer，即直接把输入进行输出
@@ -112,8 +112,8 @@ hadoop streaming
 	bin/hadoop jar contrib/streaming/hadoop-0.18.1-streaming.jar
 		-input input/apat63_99.txt
 		-output output
-		-mapper ‘AttributeMax.py 8’ #先求出每个mapper第9列的最大值
-		-reducer ‘AttributeMax.py 0’ #求出各个mapper中的最大值
+		-mapper 'AttributeMax.py 8' #先求出每个mapper第9列的最大值
+		-reducer 'AttributeMax.py 0' #求出各个mapper中的最大值
 		-file AttributeMax.py    
 		-D mapred.reduce.tasks=1
 
@@ -156,8 +156,8 @@ streaming是如何完成partition和shuffing的。分区是在reducer中完成�
 	bin/hadoop jar contrib/streaming/hadoop-0.19.1-streaming.jar
  	  -input input/apat63_99.txt
  	  -output output
- 	  -fi le playground/AverageByAttributeMapper.py
- 	  -mapper ‘AverageByAttributeMapper.py’
+ 	  -file playground/AverageByAttributeMapper.py
+ 	  -mapper 'AverageByAttributeMapper.py'
  	  -D mapred.reduce.tasks=0
 
 3. 使用Aggregate使用streaming

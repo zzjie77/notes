@@ -1,76 +1,76 @@
-HDFSµÄ¼Ü¹¹:
-Ö÷´Ó½á¹¹
-	Ö÷½Úµã£¬Ö»ÓĞÒ»¸ö: namenode
-	´Ó½Úµã£¬ÓĞºÜ¶à¸ö: datanodes
-namenode¸ºÔğ£º
-	½ÓÊÕÓÃ»§²Ù×÷ÇëÇó
-	Î¬»¤ÎÄ¼şÏµÍ³µÄÄ¿Â¼½á¹¹
-	¹ÜÀíÎÄ¼şÓëblockÖ®¼ä¹ØÏµ£¬blockÓëdatanodeÖ®¼ä¹ØÏµ
-datanode¸ºÔğ£º
-	´æ´¢ÎÄ¼ş
-	ÎÄ¼ş±»·Ö³Éblock´æ´¢ÔÚ´ÅÅÌÉÏ
-	Îª±£Ö¤Êı¾İ°²È«£¬ÎÄ¼ş»áÓĞ¶à¸ö¸±±¾
+HDFSçš„æ¶æ„:
+ä¸»ä»ç»“æ„
+	ä¸»èŠ‚ç‚¹ï¼Œåªæœ‰ä¸€ä¸ª: namenode
+	ä»èŠ‚ç‚¹ï¼Œæœ‰å¾ˆå¤šä¸ª: datanodes
+namenodeè´Ÿè´£ï¼š
+	æ¥æ”¶ç”¨æˆ·æ“ä½œè¯·æ±‚
+	ç»´æŠ¤æ–‡ä»¶ç³»ç»Ÿçš„ç›®å½•ç»“æ„
+	ç®¡ç†æ–‡ä»¶ä¸blockä¹‹é—´å…³ç³»ï¼Œblockä¸datanodeä¹‹é—´å…³ç³»
+datanodeè´Ÿè´£ï¼š
+	å­˜å‚¨æ–‡ä»¶
+	æ–‡ä»¶è¢«åˆ†æˆblockå­˜å‚¨åœ¨ç£ç›˜ä¸Š
+	ä¸ºä¿è¯æ•°æ®å®‰å…¨ï¼Œæ–‡ä»¶ä¼šæœ‰å¤šä¸ªå‰¯æœ¬
 
-MapReduceµÄ¼Ü¹¹:
-Ö÷´Ó½á¹¹
-	Ö÷½Úµã£¬Ö»ÓĞÒ»¸ö: JobTracker
-	´Ó½Úµã£¬ÓĞºÜ¶à¸ö: TaskTrackers
-JobTracker¸ºÔğ£º
-	½ÓÊÕ¿Í»§Ìá½»µÄ¼ÆËãÈÎÎñ
-	°Ñ¼ÆËãÈÎÎñ·Ö¸øTaskTrackersÖ´ĞĞ
-	¼à¿ØTaskTrackerµÄÖ´ĞĞÇé¿ö 
-TaskTrackers¸ºÔğ£º
-	Ö´ĞĞJobTracker·ÖÅäµÄ¼ÆËãÈÎÎñ
+MapReduceçš„æ¶æ„:
+ä¸»ä»ç»“æ„
+	ä¸»èŠ‚ç‚¹ï¼Œåªæœ‰ä¸€ä¸ª: JobTracker
+	ä»èŠ‚ç‚¹ï¼Œæœ‰å¾ˆå¤šä¸ª: TaskTrackers
+JobTrackerè´Ÿè´£ï¼š
+	æ¥æ”¶å®¢æˆ·æäº¤çš„è®¡ç®—ä»»åŠ¡
+	æŠŠè®¡ç®—ä»»åŠ¡åˆ†ç»™TaskTrackersæ‰§è¡Œ
+	ç›‘æ§TaskTrackerçš„æ‰§è¡Œæƒ…å†µ 
+TaskTrackersè´Ÿè´£ï¼š
+	æ‰§è¡ŒJobTrackeråˆ†é…çš„è®¡ç®—ä»»åŠ¡
 
-1.hadoopµÄÎ±·Ö²¼°²×°
-1.1 ÉèÖÃipµØÖ·
-	Ö´ĞĞÃüÁî	service network restart
-	ÑéÖ¤:	ifconfig
-1.2 ¹Ø±Õ·À»ğÇ½
-	Ö´ĞĞÃüÁî	service iptables stop
-	ÑéÖ¤:		service iptables status
-1.3	¹Ø±Õ·À»ğÇ½µÄ×Ô¶¯ÔËĞĞ
-	Ö´ĞĞÃüÁî	chkconfig iptables off
-	ÑéÖ¤:		chkconfig --list | grep iptables
-1.4 ÉèÖÃÖ÷»úÃû
-	Ö´ĞĞÃüÁî	(1)hostname chaoren
+1.hadoopçš„ä¼ªåˆ†å¸ƒå®‰è£…
+1.1 è®¾ç½®ipåœ°å€
+	æ‰§è¡Œå‘½ä»¤	service network restart
+	éªŒè¯:	ifconfig
+1.2 å…³é—­é˜²ç«å¢™
+	æ‰§è¡Œå‘½ä»¤	service iptables stop
+	éªŒè¯:		service iptables status
+1.3	å…³é—­é˜²ç«å¢™çš„è‡ªåŠ¨è¿è¡Œ
+	æ‰§è¡Œå‘½ä»¤	chkconfig iptables off
+	éªŒè¯:		chkconfig --list | grep iptables
+1.4 è®¾ç½®ä¸»æœºå
+	æ‰§è¡Œå‘½ä»¤	(1)hostname chaoren
 				(2)vi /etc/sysconfig/network
-1.5 ipÓëhostname°ó¶¨
-	Ö´ĞĞÃüÁî	vi /etc/hosts
-	ÑéÖ¤:		ping chaoren
-1.6 ÉèÖÃsshÃâÃÜÂëµÇÂ½
-	Ö´ĞĞÃüÁî	(1)ssh-keygen -t rsa
+1.5 ipä¸hostnameç»‘å®š
+	æ‰§è¡Œå‘½ä»¤	vi /etc/hosts
+	éªŒè¯:		ping chaoren
+1.6 è®¾ç½®sshå…å¯†ç ç™»é™†
+	æ‰§è¡Œå‘½ä»¤	(1)ssh-keygen -t rsa
 				(2)cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
-	ÑéÖ¤£º		ssh chaoren
-1.7 °²×°jdk
-	Ö´ĞĞÃüÁî	(1)cd /usr/local
+	éªŒè¯ï¼š		ssh chaoren
+1.7 å®‰è£…jdk
+	æ‰§è¡Œå‘½ä»¤	(1)cd /usr/local
 				(2)chmod u+x jdk-6u24-linux-i586.bin
 				(3)./jdk-6u24-linux-i586.bin
 				(4)mv jdk-1.6.0_24  jdk
-				(5)vi /etc/profile Ôö¼ÓÄÚÈİÈçÏÂ:
+				(5)vi /etc/profile å¢åŠ å†…å®¹å¦‚ä¸‹:
 								export JAVA_HOME=/usr/local/jdk
 								export PATH=.:$JAVA_HOME/bin:$PATH
 				(6)source /etc/profile
-	ÑéÖ¤:	java -version
-1.8 °²×°hadoop
-	Ö´ĞĞÃüÁî	(1)tar -zxvf hadoop-1.1.2.tar.gz
+	éªŒè¯:	java -version
+1.8 å®‰è£…hadoop
+	æ‰§è¡Œå‘½ä»¤	(1)tar -zxvf hadoop-1.1.2.tar.gz
 				(2)mv hadoop-1.1.2 hadoop
-				(3)vi /etc/profile Ôö¼ÓÄÚÈİÈçÏÂ:
+				(3)vi /etc/profile å¢åŠ å†…å®¹å¦‚ä¸‹:
 								export JAVA_HOME=/usr/local/jdk
 								export HADOOP_HOME=/usr/local/hadoop
 								export PATH=.:$HADOOP_HOME/bin:$JAVA_HOME/bin:$PATH
 				(4)source /etc/profile
-				(5)ĞŞ¸ÄconfÄ¿Â¼ÏÂµÄÅäÖÃÎÄ¼şhadoop-env.sh¡¢core-site.xml¡¢hdfs-site.xml¡¢mapred-site.xml
+				(5)ä¿®æ”¹confç›®å½•ä¸‹çš„é…ç½®æ–‡ä»¶hadoop-env.shã€core-site.xmlã€hdfs-site.xmlã€mapred-site.xml
 				(6)hadoop namenode -format
 				(7)start-all.sh
-	ÑéÖ¤:	(1)Ö´ĞĞÃüÁîjps Èç¹û¿´µ½5¸öĞÂµÄjava½ø³Ì£¬·Ö±ğÊÇNameNode¡¢SecondaryNameNode¡¢DataNode¡¢JobTracker¡¢TaskTracker
-			(2)ÔÚä¯ÀÀÆ÷²é¿´£¬http://chaoren:50070  http://chaoren:50030  
-1.9 Æô¶¯Ê±Ã»ÓĞNameNodeµÄ¿ÉÄÜÔ­Òò:
-	(1)Ã»ÓĞ¸ñÊ½»¯
-	(2)»·¾³±äÁ¿ÉèÖÃ´íÎó
-	(3)ipÓëhostname°ó¶¨Ê§°Ü
+	éªŒè¯:	(1)æ‰§è¡Œå‘½ä»¤jps å¦‚æœçœ‹åˆ°5ä¸ªæ–°çš„javaè¿›ç¨‹ï¼Œåˆ†åˆ«æ˜¯NameNodeã€SecondaryNameNodeã€DataNodeã€JobTrackerã€TaskTracker
+			(2)åœ¨æµè§ˆå™¨æŸ¥çœ‹ï¼Œhttp://chaoren:50070  http://chaoren:50030  
+1.9 å¯åŠ¨æ—¶æ²¡æœ‰NameNodeçš„å¯èƒ½åŸå› :
+	(1)æ²¡æœ‰æ ¼å¼åŒ–
+	(2)ç¯å¢ƒå˜é‡è®¾ç½®é”™è¯¯
+	(3)ipä¸hostnameç»‘å®šå¤±è´¥
 
-ĞŞ¸ÄhadoopÅäÖÃÎÄ¼ş
+ä¿®æ”¹hadoopé…ç½®æ–‡ä»¶
 	1.hadoop-env.sh
 	export JAVA_HOME=/usr/local/jdk/
 
@@ -106,92 +106,92 @@ TaskTrackers¸ºÔğ£º
 	    </property>
 	</configuration>
 
-¼¯Èº»·¾³´î½¨¹ı³Ì:
-1.È·¶¨¼¯Èº»·¾³
-2.ÔÚÎ±·Ö²¼»ù´¡ÉÏ´î½¨
-3.¼¯Èº¸÷½ÚµãÖ®¼ä±ØĞësshÃâÃÜÂëµÇÂ¼
+é›†ç¾¤ç¯å¢ƒæ­å»ºè¿‡ç¨‹:
+1.ç¡®å®šé›†ç¾¤ç¯å¢ƒ
+2.åœ¨ä¼ªåˆ†å¸ƒåŸºç¡€ä¸Šæ­å»º
+3.é›†ç¾¤å„èŠ‚ç‚¹ä¹‹é—´å¿…é¡»sshå…å¯†ç ç™»å½•
    ssh-copy-id -i  slavenode
-4.É¾³ıhadoopÖĞµÄtmp
-5.°Ñjdk¡¢hadoop¸´ÖÆµ½ÆäËû½Úµã
+4.åˆ é™¤hadoopä¸­çš„tmp
+5.æŠŠjdkã€hadoopå¤åˆ¶åˆ°å…¶ä»–èŠ‚ç‚¹
       scp -rq  source  destination
-6.ĞŞ¸ÄÖ÷½ÚµãµÄslavesÎÄ¼ş
+6.ä¿®æ”¹ä¸»èŠ‚ç‚¹çš„slavesæ–‡ä»¶
 	
 HDFS:	
-1.¶Ôhdfs²Ù×÷µÄÃüÁî¸ñÊ½ÊÇhadoop fs 
-	1.1 -ls		<path>	±íÊ¾¶ÔhdfsÏÂÒ»¼¶Ä¿Â¼µÄ²é¿´
-	1.2 -lsr	<path>	±íÊ¾¶ÔhdfsÄ¿Â¼µÄµİ¹é²é¿´
-	1.3	-mkdir	<path>	´´½¨Ä¿Â¼
-	1.4 -put	<src>	<des>	´ÓlinuxÉÏ´«ÎÄ¼şµ½hdfs
-	1.5 -get	<src>	<des>	´ÓhdfsÏÂÔØÎÄ¼şµ½linux
-	1.6 -text	<path>	²é¿´ÎÄ¼şÄÚÈİ
-	1.7 -rm		<path>	±íÊ¾É¾³ıÎÄ¼ş
-	1.7 -rmr	<path>	±íÊ¾µİ¹éÉ¾³ıÎÄ¼ş
-2.hdfsÔÚ¶ÔÊı¾İ´æ´¢½øĞĞblock»®·ÖÊ±£¬Èç¹ûÎÄ¼ş´óĞ¡³¬¹ıblock£¬ÄÇÃ´°´ÕÕblock´óĞ¡½øĞĞ»®·Ö£»²»Èçblock sizeµÄ£¬»®·ÖÎªÒ»¸ö¿é£¬ÊÇÊµ¼ÊÊı¾İ´óĞ¡¡£
+1.å¯¹hdfsæ“ä½œçš„å‘½ä»¤æ ¼å¼æ˜¯hadoop fs 
+	1.1 -ls		<path>	è¡¨ç¤ºå¯¹hdfsä¸‹ä¸€çº§ç›®å½•çš„æŸ¥çœ‹
+	1.2 -lsr	<path>	è¡¨ç¤ºå¯¹hdfsç›®å½•çš„é€’å½’æŸ¥çœ‹
+	1.3	-mkdir	<path>	åˆ›å»ºç›®å½•
+	1.4 -put	<src>	<des>	ä»linuxä¸Šä¼ æ–‡ä»¶åˆ°hdfs
+	1.5 -get	<src>	<des>	ä»hdfsä¸‹è½½æ–‡ä»¶åˆ°linux
+	1.6 -text	<path>	æŸ¥çœ‹æ–‡ä»¶å†…å®¹
+	1.7 -rm		<path>	è¡¨ç¤ºåˆ é™¤æ–‡ä»¶
+	1.7 -rmr	<path>	è¡¨ç¤ºé€’å½’åˆ é™¤æ–‡ä»¶
+2.hdfsåœ¨å¯¹æ•°æ®å­˜å‚¨è¿›è¡Œblockåˆ’åˆ†æ—¶ï¼Œå¦‚æœæ–‡ä»¶å¤§å°è¶…è¿‡blockï¼Œé‚£ä¹ˆæŒ‰ç…§blockå¤§å°è¿›è¡Œåˆ’åˆ†ï¼›ä¸å¦‚block sizeçš„ï¼Œåˆ’åˆ†ä¸ºä¸€ä¸ªå—ï¼Œæ˜¯å®é™…æ•°æ®å¤§å°ã€‚
 
 Namenode
-	ÊÇÕû¸öÎÄ¼şÏµÍ³µÄ¹ÜÀí½Úµã¡£ËüÎ¬»¤×ÅÕû¸öÎÄ¼şÏµÍ³µÄÎÄ¼şÄ¿Â¼Ê÷£¬ÎÄ¼ş/Ä¿Â¼µÄÔªĞÅÏ¢ºÍÃ¿¸öÎÄ¼ş¶ÔÓ¦µÄÊı¾İ¿éÁĞ±í¡£½ÓÊÕÓÃ»§µÄ²Ù×÷ÇëÇó¡£
-	ÎÄ¼ş°üÀ¨£º
-		fsimage:ÔªÊı¾İ¾µÏñÎÄ¼ş¡£´æ´¢Ä³Ò»Ê±¶ÎNameNodeÄÚ´æÔªÊı¾İĞÅÏ¢¡£
-		edits:²Ù×÷ÈÕÖ¾ÎÄ¼ş¡£
-		fstime:±£´æ×î½üÒ»´ÎcheckpointµÄÊ±¼ä
-		ÒÔÉÏÕâĞ©ÎÄ¼şÊÇ±£´æÔÚlinuxµÄÎÄ¼şÏµÍ³ÖĞ¡£
+	æ˜¯æ•´ä¸ªæ–‡ä»¶ç³»ç»Ÿçš„ç®¡ç†èŠ‚ç‚¹ã€‚å®ƒç»´æŠ¤ç€æ•´ä¸ªæ–‡ä»¶ç³»ç»Ÿçš„æ–‡ä»¶ç›®å½•æ ‘ï¼Œæ–‡ä»¶/ç›®å½•çš„å…ƒä¿¡æ¯å’Œæ¯ä¸ªæ–‡ä»¶å¯¹åº”çš„æ•°æ®å—åˆ—è¡¨ã€‚æ¥æ”¶ç”¨æˆ·çš„æ“ä½œè¯·æ±‚ã€‚
+	æ–‡ä»¶åŒ…æ‹¬ï¼š
+		fsimage:å…ƒæ•°æ®é•œåƒæ–‡ä»¶ã€‚å­˜å‚¨æŸä¸€æ—¶æ®µNameNodeå†…å­˜å…ƒæ•°æ®ä¿¡æ¯ã€‚
+		edits:æ“ä½œæ—¥å¿—æ–‡ä»¶ã€‚
+		fstime:ä¿å­˜æœ€è¿‘ä¸€æ¬¡checkpointçš„æ—¶é—´
+		ä»¥ä¸Šè¿™äº›æ–‡ä»¶æ˜¯ä¿å­˜åœ¨linuxçš„æ–‡ä»¶ç³»ç»Ÿä¸­ã€‚
 
 Datanode
-	Ìá¹©ÕæÊµÎÄ¼şÊı¾İµÄ´æ´¢·şÎñ¡£
-	ÎÄ¼ş¿é£¨block£©£º×î»ù±¾µÄ´æ´¢µ¥Î»¡£¶ÔÓÚÎÄ¼şÄÚÈİ¶øÑÔ£¬Ò»¸öÎÄ¼şµÄ³¤¶È´óĞ¡ÊÇsize£¬ÄÇÃ´´ÓÎÄ¼şµÄ£°Æ«ÒÆ¿ªÊ¼£¬°´ÕÕ¹Ì¶¨µÄ´óĞ¡£¬Ë³Ğò¶ÔÎÄ¼ş½øĞĞ»®·Ö²¢±àºÅ£¬»®·ÖºÃµÄÃ¿Ò»¸ö¿é³ÆÒ»¸öBlock¡£HDFSÄ¬ÈÏBlock´óĞ¡ÊÇ64MB£¬ÒÔÒ»¸ö256MBÎÄ¼ş£¬¹²ÓĞ256/64=4¸öBlock.
-	²»Í¬ÓÚÆÕÍ¨ÎÄ¼şÏµÍ³µÄÊÇ£¬HDFSÖĞ£¬Èç¹ûÒ»¸öÎÄ¼şĞ¡ÓÚÒ»¸öÊı¾İ¿éµÄ´óĞ¡£¬²¢²»Õ¼ÓÃÕû¸öÊı¾İ¿é´æ´¢¿Õ¼ä
-	Replication¡£¶à¸´±¾¡£Ä¬ÈÏÊÇÈı¸ö¡£
+	æä¾›çœŸå®æ–‡ä»¶æ•°æ®çš„å­˜å‚¨æœåŠ¡ã€‚
+	æ–‡ä»¶å—ï¼ˆblockï¼‰ï¼šæœ€åŸºæœ¬çš„å­˜å‚¨å•ä½ã€‚å¯¹äºæ–‡ä»¶å†…å®¹è€Œè¨€ï¼Œä¸€ä¸ªæ–‡ä»¶çš„é•¿åº¦å¤§å°æ˜¯sizeï¼Œé‚£ä¹ˆä»æ–‡ä»¶çš„ï¼åç§»å¼€å§‹ï¼ŒæŒ‰ç…§å›ºå®šçš„å¤§å°ï¼Œé¡ºåºå¯¹æ–‡ä»¶è¿›è¡Œåˆ’åˆ†å¹¶ç¼–å·ï¼Œåˆ’åˆ†å¥½çš„æ¯ä¸€ä¸ªå—ç§°ä¸€ä¸ªBlockã€‚HDFSé»˜è®¤Blockå¤§å°æ˜¯64MBï¼Œä»¥ä¸€ä¸ª256MBæ–‡ä»¶ï¼Œå…±æœ‰256/64=4ä¸ªBlock.
+	ä¸åŒäºæ™®é€šæ–‡ä»¶ç³»ç»Ÿçš„æ˜¯ï¼ŒHDFSä¸­ï¼Œå¦‚æœä¸€ä¸ªæ–‡ä»¶å°äºä¸€ä¸ªæ•°æ®å—çš„å¤§å°ï¼Œå¹¶ä¸å ç”¨æ•´ä¸ªæ•°æ®å—å­˜å‚¨ç©ºé—´
+	Replicationã€‚å¤šå¤æœ¬ã€‚é»˜è®¤æ˜¯ä¸‰ä¸ªã€‚
 
 SecondaryNameNode
-	HAµÄÒ»¸ö½â¾ö·½°¸¡£µ«²»Ö§³ÖÈÈ±¸¡£ÅäÖÃ¼´¿É¡£
-	Ö´ĞĞ¹ı³Ì£º´ÓNameNodeÉÏÏÂÔØÔªÊı¾İĞÅÏ¢£¨fsimage,edits£©£¬È»ºó°Ñ¶şÕßºÏ²¢£¬Éú³ÉĞÂµÄfsimage£¬ÔÚ±¾µØ±£´æ£¬²¢½«ÆäÍÆËÍµ½NameNode£¬Í¬Ê±ÖØÖÃNameNodeµÄedits.
-	Ä¬ÈÏÔÚ°²×°ÔÚNameNode½ÚµãÉÏ£¬µ«ÕâÑù...²»°²È«£¡
+	HAçš„ä¸€ä¸ªè§£å†³æ–¹æ¡ˆã€‚ä½†ä¸æ”¯æŒçƒ­å¤‡ã€‚é…ç½®å³å¯ã€‚
+	æ‰§è¡Œè¿‡ç¨‹ï¼šä»NameNodeä¸Šä¸‹è½½å…ƒæ•°æ®ä¿¡æ¯ï¼ˆfsimage,editsï¼‰ï¼Œç„¶åæŠŠäºŒè€…åˆå¹¶ï¼Œç”Ÿæˆæ–°çš„fsimageï¼Œåœ¨æœ¬åœ°ä¿å­˜ï¼Œå¹¶å°†å…¶æ¨é€åˆ°NameNodeï¼ŒåŒæ—¶é‡ç½®NameNodeçš„edits.
+	é»˜è®¤åœ¨å®‰è£…åœ¨NameNodeèŠ‚ç‚¹ä¸Šï¼Œä½†è¿™æ ·...ä¸å®‰å…¨ï¼
 
-Í¨¹ıURLÀ´·ÃÎÊhdfs:
+é€šè¿‡URLæ¥è®¿é—®hdfs:
 	public class App1 {
 		/**
-		 * Å×Òì³££º unknown host: chaoren
-		 * Ô­Òò£ºÊÇÒòÎª±¾»úÃ»ÓĞ½âÎöÖ÷»úÃûchaoren
+		 * æŠ›å¼‚å¸¸ï¼š unknown host: chaoren
+		 * åŸå› ï¼šæ˜¯å› ä¸ºæœ¬æœºæ²¡æœ‰è§£æä¸»æœºåchaoren
 		 */
 		static final String PATH = "hdfs://chaoren:9000/hello";
 		public static void main(String[] args) throws Exception {
-			// ÒªÉèÖÃhadoopµÄFsUrlStreamHandlerFactory²ÅÄÜ·ÃÎÊ£¬URLÄ¬ÈÏÖ»Ö§³Öhttp
+			// è¦è®¾ç½®hadoopçš„FsUrlStreamHandlerFactoryæ‰èƒ½è®¿é—®ï¼ŒURLé»˜è®¤åªæ”¯æŒhttp
 			URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
 			
 			final URL url = new URL(PATH);
 			final InputStream in = url.openStream();
 			/**
-			 * @param in	±íÊ¾ÊäÈëÁ÷
-			 * @param out	±íÊ¾Êä³öÁ÷
-			 * @param buffSize	±íÊ¾»º³å´óĞ¡
-			 * @param close ±íÊ¾ÔÚ´«Êä½áÊøºóÊÇ·ñ¹Ø±ÕÁ÷
+			 * @param in	è¡¨ç¤ºè¾“å…¥æµ
+			 * @param out	è¡¨ç¤ºè¾“å‡ºæµ
+			 * @param buffSize	è¡¨ç¤ºç¼“å†²å¤§å°
+			 * @param close è¡¨ç¤ºåœ¨ä¼ è¾“ç»“æŸåæ˜¯å¦å…³é—­æµ
 			 */
 			IOUtils.copyBytes(in, System.out, 1024, true);
 		}
 	}
 
-Í¨¹ıhadoopµÄhdfs api·ÃÎÊhdfs
+é€šè¿‡hadoopçš„hdfs apiè®¿é—®hdfs
 	public class App2 {
 		static final String PATH = "hdfs://chaoren:9000/";
 		static final String DIR = "/d1";
 		static final String FILE = "/d1/hello";
 		public static void main(String[] args) throws Exception {
 			FileSystem fileSystem = getFileSystem();
-			//´´½¨ÎÄ¼ş¼Ğ     hadoop fs -mkdir   /f1
+			//åˆ›å»ºæ–‡ä»¶å¤¹     hadoop fs -mkdir   /f1
 			mkdir(fileSystem);
-			//ÉÏ´«ÎÄ¼ş  -put  src  des
+			//ä¸Šä¼ æ–‡ä»¶  -put  src  des
 			putData(fileSystem);
-			//ÏÂÔØÎÄ¼ş   hadoop fs -get src des
+			//ä¸‹è½½æ–‡ä»¶   hadoop fs -get src des
 			//getData(fileSystem);
-			//ä¯ÀÀÎÄ¼ş¼Ğ
+			//æµè§ˆæ–‡ä»¶å¤¹
 			list(fileSystem);
-			//É¾³ıÎÄ¼ş¼Ğ
+			//åˆ é™¤æ–‡ä»¶å¤¹
 			//remove(fileSystem);
 		}
 		private static void list(FileSystem fileSystem) throws IOException {
 			final FileStatus[] listStatus = fileSystem.listStatus(new Path("/"));
 			for (FileStatus fileStatus : listStatus) {
-				String isDir = fileStatus.isDir()?"ÎÄ¼ş¼Ğ":"ÎÄ¼ş";
+				String isDir = fileStatus.isDir()?"æ–‡ä»¶å¤¹":"æ–‡ä»¶";
 				final String permission = fileStatus.getPermission().toString();
 				final short replication = fileStatus.getReplication();
 				final long len = fileStatus.getLen();
@@ -221,17 +221,17 @@ SecondaryNameNode
 	}
 
 
-RPC (remote procedure call)Ô¶³Ì¹ı³Ìµ÷ÓÃ, ÊÇhadoop¹¹½¨µÄ»ù´¡
-ÒµÎñ½Ó¿Ú
+RPC (remote procedure call)è¿œç¨‹è¿‡ç¨‹è°ƒç”¨, æ˜¯hadoopæ„å»ºçš„åŸºç¡€
+ä¸šåŠ¡æ¥å£
 	public interface MyBizable extends VersionedProtocol{
 		long VERSION = 2345245L;
 		public abstract String hello(String name);
 	}
-ÒµÎñÀà
+ä¸šåŠ¡ç±»
 	public class MyBiz implements  MyBizable{
 		
 		public String hello(String name){
-			System.out.println("ÎÒ±»µ÷ÓÃÁË");
+			System.out.println("æˆ‘è¢«è°ƒç”¨äº†");
 			return "hello "+name;
 		}
 
@@ -245,10 +245,10 @@ RPC server
 		static final int PORT = 12345;
 		public static void main(String[] args)throws Exception {
 			/** 
-			 * ¹¹ÔìÒ»¸öRPCµÄ·şÎñ¶Ë.
-		     * @param instance Õâ¸öÊµÀıÖĞµÄ·½·¨»á±»µ÷ÓÃ
-		     * @param bindAddress °ó¶¨µÄµØÖ·ÊÇÓÃÓÚ¼àÌıÁ¬½ÓµÄ
-		     * @param port °ó¶¨µÄ¶Ë¿ÚÊÇÓÃÓÚ¼àÌıÁ¬½ÓµÄ
+			 * æ„é€ ä¸€ä¸ªRPCçš„æœåŠ¡ç«¯.
+		     * @param instance è¿™ä¸ªå®ä¾‹ä¸­çš„æ–¹æ³•ä¼šè¢«è°ƒç”¨
+		     * @param bindAddress ç»‘å®šçš„åœ°å€æ˜¯ç”¨äºç›‘å¬è¿æ¥çš„
+		     * @param port ç»‘å®šçš„ç«¯å£æ˜¯ç”¨äºç›‘å¬è¿æ¥çš„
 		     * @param conf the configuration to use
 		     */
 			final Server server = RPC.getServer(new MyBiz(), ADDRESS, PORT, new Configuration());
@@ -259,52 +259,52 @@ RPC server
 RPC client
 	public class MyClient {
 		public static void main(String[] args) throws Exception{
-			// ¹¹ÔìÒ»¸ö¿Í»§¶Ë´úÀí¶ÔÏó£¬¸Ã´úÀí¶ÔÏóÊµÏÖÁËÃüÃûµÄĞ­Òé¡£´úÀí¶ÔÏó»áÓëÖ¸¶¨µØÖ·µÄ·şÎñ¶ËÍ¨»°
+			// æ„é€ ä¸€ä¸ªå®¢æˆ·ç«¯ä»£ç†å¯¹è±¡ï¼Œè¯¥ä»£ç†å¯¹è±¡å®ç°äº†å‘½åçš„åè®®ã€‚ä»£ç†å¯¹è±¡ä¼šä¸æŒ‡å®šåœ°å€çš„æœåŠ¡ç«¯é€šè¯
 			MyBizable proxy = (MyBizable)RPC.waitForProxy(
 						MyBizable.class,
 						MyBizable.VERSION,
 						new InetSocketAddress(MyServer.ADDRESS, MyServer.PORT),
 						new Configuration());
 			final String result = proxy.hello("world");
-			System.out.println("¿Í»§¶Ë½á¹û£º"+result);
-			//¹Ø±ÕÍøÂçÁ¬½Ó
+			System.out.println("å®¢æˆ·ç«¯ç»“æœï¼š"+result);
+			//å…³é—­ç½‘ç»œè¿æ¥
 			RPC.stopProxy(proxy);
 		}
 	}
 
-fssystemµ÷ÓÃcreate·½·¨µÄÁ÷³Ì£º
+fssystemè°ƒç”¨createæ–¹æ³•çš„æµç¨‹ï¼š
 	DistributedFileSystem.create() -> DFSClient.create -> new DFSOutputStream() 
 															-> namenode.craete()
-															-> streamerÏònamenodeÉêÇëblock,ÏòdatanodeĞ´Êı¾İ
-ClientProtocolÊÇ¿Í»§¶Ë(FileSystem)ÓëNameNodeÍ¨ĞÅµÄ½Ó¿Ú¡£
-DatanodeProtocolÊÇDataNodeÓëNameNodeÍ¨ĞÅµÄ½Ó¿Ú
-NamenodeProtocolÊÇSecondaryNameNodeÓëNameNodeÍ¨ĞÅµÄ½Ó¿Ú
-DFSClientÊÇÖ±½Óµ÷ÓÃNameNode½Ó¿ÚµÄ¶ÔÏó¡£ÓÃ»§´úÂëÊÇÍ¨¹ıDistributedFileSystemµ÷ÓÃDFSClient¶ÔÏó£¬²ÅÄÜÓëNameNode´ò½»µÀ¡£
+															-> streamerå‘namenodeç”³è¯·block,å‘datanodeå†™æ•°æ®
+ClientProtocolæ˜¯å®¢æˆ·ç«¯(FileSystem)ä¸NameNodeé€šä¿¡çš„æ¥å£ã€‚
+DatanodeProtocolæ˜¯DataNodeä¸NameNodeé€šä¿¡çš„æ¥å£
+NamenodeProtocolæ˜¯SecondaryNameNodeä¸NameNodeé€šä¿¡çš„æ¥å£
+DFSClientæ˜¯ç›´æ¥è°ƒç”¨NameNodeæ¥å£çš„å¯¹è±¡ã€‚ç”¨æˆ·ä»£ç æ˜¯é€šè¿‡DistributedFileSystemè°ƒç”¨DFSClientå¯¹è±¡ï¼Œæ‰èƒ½ä¸NameNodeæ‰“äº¤é“ã€‚
 
 
 
 MapReduce:
-8¸öÖ´ĞĞ²½Öè£º
-	1. mapÈÎÎñ´¦Àí
-	1.1 ¶ÁÈ¡ÊäÈëÎÄ¼şÄÚÈİ£¬½âÎö³Ékey¡¢value¶Ô¡£¶ÔÊäÈëÎÄ¼şµÄÃ¿Ò»ĞĞ£¬½âÎö³Ékey¡¢value¶Ô¡£Ã¿Ò»¸ö¼üÖµ¶Ôµ÷ÓÃÒ»´Îmapº¯Êı¡£
-	1.2 Ğ´×Ô¼ºµÄÂß¼­£¬¶ÔÊäÈëµÄkey¡¢value´¦Àí£¬×ª»»³ÉĞÂµÄkey¡¢valueÊä³ö¡£
-	1.3 ¶ÔÊä³öµÄkey¡¢value½øĞĞ·ÖÇø¡£
-	1.4 ¶Ô²»Í¬·ÖÇøµÄÊı¾İ£¬°´ÕÕkey½øĞĞÅÅĞò¡¢·Ö×é¡£ÏàÍ¬keyµÄvalue·Åµ½Ò»¸ö¼¯ºÏÖĞ¡£
-	1.5 (¿ÉÑ¡)·Ö×éºóµÄÊı¾İ½øĞĞ¹éÔ¼(combiner)¡£
-	2.reduceÈÎÎñ´¦Àí
-	2.1 ¶Ô¶à¸ömapÈÎÎñµÄÊä³ö£¬°´ÕÕ²»Í¬µÄ·ÖÇø£¬Í¨¹ıÍøÂçcopyµ½²»Í¬µÄreduce½Úµã¡£
-	2.2 ¶Ô¶à¸ömapÈÎÎñµÄÊä³ö½øĞĞºÏ²¢¡¢ÅÅĞò¡£Ğ´reduceº¯Êı×Ô¼ºµÄÂß¼­£¬¶ÔÊäÈëµÄkey¡¢value´¦Àí£¬×ª»»³ÉĞÂµÄkey¡¢valueÊä³ö¡£
-	2.3 °ÑreduceµÄÊä³ö±£´æµ½ÎÄ¼şÖĞ¡£
+8ä¸ªæ‰§è¡Œæ­¥éª¤ï¼š
+	1. mapä»»åŠ¡å¤„ç†
+	1.1 è¯»å–è¾“å…¥æ–‡ä»¶å†…å®¹ï¼Œè§£ææˆkeyã€valueå¯¹ã€‚å¯¹è¾“å…¥æ–‡ä»¶çš„æ¯ä¸€è¡Œï¼Œè§£ææˆkeyã€valueå¯¹ã€‚æ¯ä¸€ä¸ªé”®å€¼å¯¹è°ƒç”¨ä¸€æ¬¡mapå‡½æ•°ã€‚
+	1.2 å†™è‡ªå·±çš„é€»è¾‘ï¼Œå¯¹è¾“å…¥çš„keyã€valueå¤„ç†ï¼Œè½¬æ¢æˆæ–°çš„keyã€valueè¾“å‡ºã€‚
+	1.3 å¯¹è¾“å‡ºçš„keyã€valueè¿›è¡Œåˆ†åŒºã€‚
+	1.4 å¯¹ä¸åŒåˆ†åŒºçš„æ•°æ®ï¼ŒæŒ‰ç…§keyè¿›è¡Œæ’åºã€åˆ†ç»„ã€‚ç›¸åŒkeyçš„valueæ”¾åˆ°ä¸€ä¸ªé›†åˆä¸­ã€‚
+	1.5 (å¯é€‰)åˆ†ç»„åçš„æ•°æ®è¿›è¡Œå½’çº¦(combiner)ã€‚
+	2.reduceä»»åŠ¡å¤„ç†
+	2.1 å¯¹å¤šä¸ªmapä»»åŠ¡çš„è¾“å‡ºï¼ŒæŒ‰ç…§ä¸åŒçš„åˆ†åŒºï¼Œé€šè¿‡ç½‘ç»œcopyåˆ°ä¸åŒçš„reduceèŠ‚ç‚¹ã€‚
+	2.2 å¯¹å¤šä¸ªmapä»»åŠ¡çš„è¾“å‡ºè¿›è¡Œåˆå¹¶ã€æ’åºã€‚å†™reduceå‡½æ•°è‡ªå·±çš„é€»è¾‘ï¼Œå¯¹è¾“å…¥çš„keyã€valueå¤„ç†ï¼Œè½¬æ¢æˆæ–°çš„keyã€valueè¾“å‡ºã€‚
+	2.3 æŠŠreduceçš„è¾“å‡ºä¿å­˜åˆ°æ–‡ä»¶ä¸­ã€‚
 
-map¡¢reduce¼üÖµ¶Ô¸ñÊ½	
-	º¯Êı		ÊäÈë¼üÖµ¶Ô	Êä³ö¼üÖµ¶Ô
+mapã€reduceé”®å€¼å¯¹æ ¼å¼	
+	å‡½æ•°		è¾“å…¥é”®å€¼å¯¹	è¾“å‡ºé”®å€¼å¯¹
 	map()		<k1,v1>		<k2,v2>
 	reduce()	<k2,{v2}>	<k3,v3>
 
-JobSubmissionProtocolÊÇJobClientÓëJobTrackerÍ¨ĞÅµÄ½Ó¿Ú¡£
-InterTrackerProtocolÊÇTaskTrackerÓëJobTrackerÍ¨ĞÅµÄ½Ó¿Ú¡£
+JobSubmissionProtocolæ˜¯JobClientä¸JobTrackeré€šä¿¡çš„æ¥å£ã€‚
+InterTrackerProtocolæ˜¯TaskTrackerä¸JobTrackeré€šä¿¡çš„æ¥å£ã€‚
 
-×îĞ¡µÄMapReduceÇı¶¯:
+æœ€å°çš„MapReduceé©±åŠ¨:
 	Configuration configuration = new Configuration();
 	Job job = new Job(configuration, "HelloWorld");
 	job.setInputFormat(TextInputFormat.class);
@@ -319,9 +319,9 @@ InterTrackerProtocolÊÇTaskTrackerÓëJobTrackerÍ¨ĞÅµÄ½Ó¿Ú¡£
 	job.setOutputFormat(TextOutputFormat.class);
 	job.waitForCompletion(true);
 
-MapReduceÇı¶¯Ä¬ÈÏµÄÉèÖÃ
-	InputFormat(ÊäÈë)	TextInputFormat
-	MapperClass(mapÀà)	IdentityMapper
+MapReduceé©±åŠ¨é»˜è®¤çš„è®¾ç½®
+	InputFormat(è¾“å…¥)	TextInputFormat
+	MapperClass(mapç±»)	IdentityMapper
 	MapOutputKeyClass	LongWritable
 	MapOutputValueClass	Text
 	PartitionerClass	HashPartitioner
@@ -330,24 +330,24 @@ MapReduceÇı¶¯Ä¬ÈÏµÄÉèÖÃ
 	OutputValueClass	Text
 	OutputFormatClass	TextOutputFormat
 
-InputFormatÓĞÈı¸ö×÷ÓÃ:
-	ÑéÖ¤×÷ÒµµÄÊäÈëÊÇ·ñ¹æ·¶.
-	°ÑÊäÈëÎÄ¼şÇĞ·Ö³ÉInputSplit. (Ã¿¸öblock´óĞ¡»®·ÖÒ»¸ösplit)
-	Ìá¹©RecordReader µÄÊµÏÖÀà£¬°ÑInputSplit¶Áµ½MapperÖĞ½øĞĞ´¦Àí.
+InputFormatæœ‰ä¸‰ä¸ªä½œç”¨:
+	éªŒè¯ä½œä¸šçš„è¾“å…¥æ˜¯å¦è§„èŒƒ.
+	æŠŠè¾“å…¥æ–‡ä»¶åˆ‡åˆ†æˆInputSplit. (æ¯ä¸ªblockå¤§å°åˆ’åˆ†ä¸€ä¸ªsplit)
+	æä¾›RecordReader çš„å®ç°ç±»ï¼ŒæŠŠInputSplitè¯»åˆ°Mapperä¸­è¿›è¡Œå¤„ç†.
 
-¾ÉAPIĞ´·¨£º
+æ—§APIå†™æ³•ï¼š
 	/**
-	 * hadoop°æ±¾1.xµÄ°üÒ»°ãÊÇmapreduce
-	 * hadoop°æ±¾0.xµÄ°üÒ»°ãÊÇmapred
+	 * hadoopç‰ˆæœ¬1.xçš„åŒ…ä¸€èˆ¬æ˜¯mapreduce
+	 * hadoopç‰ˆæœ¬0.xçš„åŒ…ä¸€èˆ¬æ˜¯mapred
 	 */
 	public class OldAPP {
 		static final String INPUT_PATH = "hdfs://cloud4:9000/hello";
 		static final String OUT_PATH = "hdfs://cloud4:9000/out";
 		/**
-		 * ¸Ä¶¯£º
-		 * 1.²»ÔÙÊ¹ÓÃJob£¬¶øÊÇÊ¹ÓÃJobConf
-		 * 2.ÀàµÄ°üÃû²»ÔÙÊ¹ÓÃmapreduce£¬¶øÊÇÊ¹ÓÃmapred
-		 * 3.²»ÔÙÊ¹ÓÃjob.waitForCompletion(true)Ìá½»×÷Òµ£¬¶øÊÇÊ¹ÓÃJobClient.runJob(job);
+		 * æ”¹åŠ¨ï¼š
+		 * 1.ä¸å†ä½¿ç”¨Jobï¼Œè€Œæ˜¯ä½¿ç”¨JobConf
+		 * 2.ç±»çš„åŒ…åä¸å†ä½¿ç”¨mapreduceï¼Œè€Œæ˜¯ä½¿ç”¨mapred
+		 * 3.ä¸å†ä½¿ç”¨job.waitForCompletion(true)æäº¤ä½œä¸šï¼Œè€Œæ˜¯ä½¿ç”¨JobClient.runJob(job);
 		 * 
 		 */
 		public static void main(String[] args) throws Exception {
@@ -359,43 +359,43 @@ InputFormatÓĞÈı¸ö×÷ÓÃ:
 			}
 			
 			final JobConf job = new JobConf(conf , WordCountApp.class);
-			//1.1Ö¸¶¨¶ÁÈ¡µÄÎÄ¼şÎ»ÓÚÄÄÀï
+			//1.1æŒ‡å®šè¯»å–çš„æ–‡ä»¶ä½äºå“ªé‡Œ
 			FileInputFormat.setInputPaths(job, INPUT_PATH);
-			//Ö¸¶¨ÈçºÎ¶ÔÊäÈëÎÄ¼ş½øĞĞ¸ñÊ½»¯£¬°ÑÊäÈëÎÄ¼şÃ¿Ò»ĞĞ½âÎö³É¼üÖµ¶Ô
+			//æŒ‡å®šå¦‚ä½•å¯¹è¾“å…¥æ–‡ä»¶è¿›è¡Œæ ¼å¼åŒ–ï¼ŒæŠŠè¾“å…¥æ–‡ä»¶æ¯ä¸€è¡Œè§£ææˆé”®å€¼å¯¹
 			//job.setInputFormatClass(TextInputFormat.class);
 			
-			//1.2 Ö¸¶¨×Ô¶¨ÒåµÄmapÀà
+			//1.2 æŒ‡å®šè‡ªå®šä¹‰çš„mapç±»
 			job.setMapperClass(MyMapper.class);
-			//mapÊä³öµÄ<k,v>ÀàĞÍ¡£Èç¹û<k3,v3>µÄÀàĞÍÓë<k2,v2>ÀàĞÍÒ»ÖÂ£¬Ôò¿ÉÒÔÊ¡ÂÔ
+			//mapè¾“å‡ºçš„<k,v>ç±»å‹ã€‚å¦‚æœ<k3,v3>çš„ç±»å‹ä¸<k2,v2>ç±»å‹ä¸€è‡´ï¼Œåˆ™å¯ä»¥çœç•¥
 			//job.setMapOutputKeyClass(Text.class);
 			//job.setMapOutputValueClass(LongWritable.class);
 			
-			//1.3 ·ÖÇø
+			//1.3 åˆ†åŒº
 			
-			//1.4 TODO ÅÅĞò¡¢·Ö×é
+			//1.4 TODO æ’åºã€åˆ†ç»„
 			
-			//1.5 TODO ¹æÔ¼
+			//1.5 TODO è§„çº¦
 			
-			//2.2 Ö¸¶¨×Ô¶¨ÒåreduceÀà
+			//2.2 æŒ‡å®šè‡ªå®šä¹‰reduceç±»
 			job.setReducerClass(MyReducer.class);
-			//Ö¸¶¨reduceµÄÊä³öÀàĞÍ
+			//æŒ‡å®šreduceçš„è¾“å‡ºç±»å‹
 			job.setOutputKeyClass(Text.class);
 			job.setOutputValueClass(LongWritable.class);
 			
-			//2.3 Ö¸¶¨Ğ´³öµ½ÄÄÀï
+			//2.3 æŒ‡å®šå†™å‡ºåˆ°å“ªé‡Œ
 			FileOutputFormat.setOutputPath(job, outPath);
-			//Ö¸¶¨Êä³öÎÄ¼şµÄ¸ñÊ½»¯Àà
+			//æŒ‡å®šè¾“å‡ºæ–‡ä»¶çš„æ ¼å¼åŒ–ç±»
 			//job.setOutputFormatClass(TextOutputFormat.class);
 			
-			//°ÑjobÌá½»¸øJobTrackerÔËĞĞ
+			//æŠŠjobæäº¤ç»™JobTrackerè¿è¡Œ
 			JobClient.runJob(job);
 		}
 
 		
 		
 		/**
-		 * ĞÂapi:extends Mapper
-		 * ÀÏapi:extends MapRedcueBase implements Mapper
+		 * æ–°api:extends Mapper
+		 * è€api:extends MapRedcueBase implements Mapper
 		 */
 		static class MyMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, LongWritable>{
 			@Override
@@ -424,11 +424,11 @@ InputFormatÓĞÈı¸ö×÷ÓÃ:
 		}
 	}
 
-MapReduce»ñÈ¡ÃüÁîĞĞ²ÎÊı:
+MapReduceè·å–å‘½ä»¤è¡Œå‚æ•°:
 	/**
 	 * 1. extends Configured implements Tool
-	 * 2. Ô­À´ÔÚmainµÄÄÚÈİĞ´µ½runÖĞ
-	 * 3. mainÖĞÊ¹ÓÃToolRunner.runÀ´ÔËĞĞ
+	 * 2. åŸæ¥åœ¨mainçš„å†…å®¹å†™åˆ°runä¸­
+	 * 3. mainä¸­ä½¿ç”¨ToolRunner.runæ¥è¿è¡Œ
 	 */
 	public class CacheFileApp extends Configured implements Tool{
 		public static void main(String[] args) throws Exception {
@@ -446,36 +446,36 @@ MapReduce»ñÈ¡ÃüÁîĞĞ²ÎÊı:
 		}
 	}
 
-¼ÆËãÆ÷£º¿ÉÒÔÈÃ¿ª·¢ÈËÔ±ÒÔÈ«¾ÖµÄÊÓ½ÇÀ´Éó²é³ÌĞòµÄÔËĞĞÇé¿öÒÔ¼°¸÷ÏîÖ¸±ê£¬¼°Ê±×ö³ö´íÎóÕï¶Ï²¢½øĞĞÏàÓ¦´¦Àí¡£
-Hello you, hello meµÄ¼ÆÊıÆ÷ĞÅÏ¢£º£¨ÔËĞĞMRºóÊä³ö£©
+è®¡ç®—å™¨ï¼šå¯ä»¥è®©å¼€å‘äººå‘˜ä»¥å…¨å±€çš„è§†è§’æ¥å®¡æŸ¥ç¨‹åºçš„è¿è¡Œæƒ…å†µä»¥åŠå„é¡¹æŒ‡æ ‡ï¼ŒåŠæ—¶åšå‡ºé”™è¯¯è¯Šæ–­å¹¶è¿›è¡Œç›¸åº”å¤„ç†ã€‚
+Hello you, hello meçš„è®¡æ•°å™¨ä¿¡æ¯ï¼šï¼ˆè¿è¡ŒMRåè¾“å‡ºï¼‰
 	Counters: 19
 	  File Output Format Counters 
-	    Bytes Written=19	//reduceÊä³öµ½hdfsµÄ×Ö½ÚÊı
+	    Bytes Written=19	//reduceè¾“å‡ºåˆ°hdfsçš„å­—èŠ‚æ•°
 	  FileSystemCounters
 	    FILE_BYTES_READ=481
 	    HDFS_BYTES_READ=38
 	    FILE_BYTES_WRITTEN=81316
 	    HDFS_BYTES_WRITTEN=19
 	  File Input Format Counters 
-	    Bytes Read=19	//map´Óhdfs¶ÁÈ¡µÄ×Ö½ÚÊı
+	    Bytes Read=19	//mapä»hdfsè¯»å–çš„å­—èŠ‚æ•°
 	  Map-Reduce Framework
 	    Map output materialized bytes=49
-	    Map input records=2  	//map¶ÁÈëµÄ¼ÇÂ¼ĞĞÊı
+	    Map input records=2  	//mapè¯»å…¥çš„è®°å½•è¡Œæ•°
 	    Reduce shuffle bytes=0
 	    Spilled Records=8
 	    Map output bytes=35
 	    Total committed heap usage (bytes)=266469376
 	    SPLIT_RAW_BYTES=105
 	    Combine input records=0
-	    Reduce input records=4	//reduce´Ómap¶Ë½ÓÊÕµÄ¼ÇÂ¼ĞĞÊı
-	    Reduce input groups=3	//reduceº¯Êı½ÓÊÕµÄkeyÊıÁ¿£¬¼´¹é²¢ºóµÄk2ÊıÁ¿
+	    Reduce input records=4	//reduceä»mapç«¯æ¥æ”¶çš„è®°å½•è¡Œæ•°
+	    Reduce input groups=3	//reduceå‡½æ•°æ¥æ”¶çš„keyæ•°é‡ï¼Œå³å½’å¹¶åçš„k2æ•°é‡
 	    Combine output records=0
-	    Reduce output records=3	//reduceÊä³öµÄ¼ÇÂ¼ĞĞÊı
-	    Map output records=4	//mapÊä³öµÄ¼ÇÂ¼ĞĞÊı
+	    Reduce output records=3	//reduceè¾“å‡ºçš„è®°å½•è¡Œæ•°
+	    Map output records=4	//mapè¾“å‡ºçš„è®°å½•è¡Œæ•°
 	   Sensitive Words
 	   	hello=1
 
-×Ô¶¨Òå¼ÆËãÆ÷Àı×Ó£º
+è‡ªå®šä¹‰è®¡ç®—å™¨ä¾‹å­ï¼š
 	protected void map(LongWritable k1, Text v1, Context context) throws java.io.IOException ,InterruptedException {
 		final Counter helloCounter = context.getCounter("Sensitive Words", "hello");  // groupName, counterName
 		
@@ -491,39 +491,39 @@ Hello you, hello meµÄ¼ÆÊıÆ÷ĞÅÏ¢£º£¨ÔËĞĞMRºóÊä³ö£©
 
 Combiner:
 /**
- * ÎÊ£ºÎªÊ²Ã´Ê¹ÓÃCombiner£¿
- * ´ğ£ºCombiner·¢ÉúÔÚMap¶Ë£¬¶ÔÊı¾İ½øĞĞ¹æÔ¼´¦Àí£¬Êı¾İÁ¿±äĞ¡ÁË£¬´«ËÍµ½reduce¶ËµÄÊı¾İÁ¿±äĞ¡ÁË£¬´«ÊäÊ±¼ä±ä¶Ì£¬×÷ÒµµÄÕûÌåÊ±¼ä±ä¶Ì¡£
+ * é—®ï¼šä¸ºä»€ä¹ˆä½¿ç”¨Combinerï¼Ÿ
+ * ç­”ï¼šCombinerå‘ç”Ÿåœ¨Mapç«¯ï¼Œå¯¹æ•°æ®è¿›è¡Œè§„çº¦å¤„ç†ï¼Œæ•°æ®é‡å˜å°äº†ï¼Œä¼ é€åˆ°reduceç«¯çš„æ•°æ®é‡å˜å°äº†ï¼Œä¼ è¾“æ—¶é—´å˜çŸ­ï¼Œä½œä¸šçš„æ•´ä½“æ—¶é—´å˜çŸ­ã€‚
  * 
- * ÎÊ£ºÎªÊ²Ã´Combiner²»×÷ÎªMRÔËĞĞµÄ±êÅä£¬¶øÊÇ¿ÉÑ¡²½ÖèÄÄ£¿
- * ´ğ£ºÒòÎª²»ÊÇËùÓĞµÄËã·¨¶¼ÊÊºÏÊ¹ÓÃCombiner´¦Àí£¬ÀıÈçÇóÆ½¾ùÊı¡£
+ * é—®ï¼šä¸ºä»€ä¹ˆCombinerä¸ä½œä¸ºMRè¿è¡Œçš„æ ‡é…ï¼Œè€Œæ˜¯å¯é€‰æ­¥éª¤å“ªï¼Ÿ
+ * ç­”ï¼šå› ä¸ºä¸æ˜¯æ‰€æœ‰çš„ç®—æ³•éƒ½é€‚åˆä½¿ç”¨Combinerå¤„ç†ï¼Œä¾‹å¦‚æ±‚å¹³å‡æ•°ã€‚
  *
- * ÎÊ£ºCombiner±¾ÉíÒÑ¾­Ö´ĞĞÁËreduce²Ù×÷£¬ÎªÊ²Ã´ÔÚReducer½×¶Î»¹ÒªÖ´ĞĞreduce²Ù×÷ÄÄ£¿
- * ´ğ£ºcombiner²Ù×÷·¢ÉúÔÚmap¶ËµÄ£¬´¦ÀíÒ»¸öÈÎÎñËù½ÓÊÕµÄÎÄ¼şÖĞµÄÊı¾İ£¬²»ÄÜ¿çmapÈÎÎñÖ´ĞĞ£»Ö»ÓĞreduce¿ÉÒÔ½ÓÊÕ¶à¸ömapÈÎÎñ´¦ÀíµÄÊı¾İ¡£
+ * é—®ï¼šCombineræœ¬èº«å·²ç»æ‰§è¡Œäº†reduceæ“ä½œï¼Œä¸ºä»€ä¹ˆåœ¨Reduceré˜¶æ®µè¿˜è¦æ‰§è¡Œreduceæ“ä½œå“ªï¼Ÿ
+ * ç­”ï¼šcombineræ“ä½œå‘ç”Ÿåœ¨mapç«¯çš„ï¼Œå¤„ç†ä¸€ä¸ªä»»åŠ¡æ‰€æ¥æ”¶çš„æ–‡ä»¶ä¸­çš„æ•°æ®ï¼Œä¸èƒ½è·¨mapä»»åŠ¡æ‰§è¡Œï¼›åªæœ‰reduceå¯ä»¥æ¥æ”¶å¤šä¸ªmapä»»åŠ¡å¤„ç†çš„æ•°æ®ã€‚
  */	
 
 
 partition:
 	/**
-	 * ·ÖÇøµÄÀı×Ó±ØĞë´ò³ÉjarÔËĞĞ
-	 * ÓÃ´¦£º	
-	 * 1.¸ù¾İÒµÎñĞèÒª£¬²úÉú¶à¸öÊä³öÎÄ¼ş (Ä¬ÈÏÖ»Êä³öÒ»¸öpart-r-00000, ¶à¸ö·ÖÇøÔòÊä³ö¶à¸öÎÄ¼ş)
-	 * 2.¶à¸öreduceÈÎÎñÔÚÔËĞĞ£¬Ìá¸ßÕûÌåjobµÄÔËĞĞĞ§ÂÊ
+	 * åˆ†åŒºçš„ä¾‹å­å¿…é¡»æ‰“æˆjarè¿è¡Œ
+	 * ç”¨å¤„ï¼š	
+	 * 1.æ ¹æ®ä¸šåŠ¡éœ€è¦ï¼Œäº§ç”Ÿå¤šä¸ªè¾“å‡ºæ–‡ä»¶ (é»˜è®¤åªè¾“å‡ºä¸€ä¸ªpart-r-00000, å¤šä¸ªåˆ†åŒºåˆ™è¾“å‡ºå¤šä¸ªæ–‡ä»¶)
+	 * 2.å¤šä¸ªreduceä»»åŠ¡åœ¨è¿è¡Œï¼Œæé«˜æ•´ä½“jobçš„è¿è¡Œæ•ˆç‡
 	 */
 	
 	job.setPartitionerClass(KpiPartitioner.class);
 	job.setNumReduceTasks(2);	
 
 	static class KpiPartitioner extends HashPartitioner<Text, KpiWritable>{
-		// »ñÈ¡·ÖÇøºÅ£¬ ²»Í¬µÄ·ÖÇøºÅËÍµ½²»Í¬µÄreducerÖĞ£¬²¢Êä³öµ½²»Í¬µÄÎÄ¼ş
+		// è·å–åˆ†åŒºå·ï¼Œ ä¸åŒçš„åˆ†åŒºå·é€åˆ°ä¸åŒçš„reducerä¸­ï¼Œå¹¶è¾“å‡ºåˆ°ä¸åŒçš„æ–‡ä»¶
 		public int getPartition(Text key, KpiWritable value, int numReduceTasks) {
-			// return (key.hashCode() & Integer.MAX_VALUE) % numReduceTasks; //reduce num=1, ÓàÊıÒ»¶¨Îª0
-			// Êä³öÎÄ¼şpart-r-00000£¬ÊÇ5Î»Êı×Ö£¬²»¹»ÔòÔÚÇ°Ãæ²¹0
+			// return (key.hashCode() & Integer.MAX_VALUE) % numReduceTasks; //reduce num=1, ä½™æ•°ä¸€å®šä¸º0
+			// è¾“å‡ºæ–‡ä»¶part-r-00000ï¼Œæ˜¯5ä½æ•°å­—ï¼Œä¸å¤Ÿåˆ™åœ¨å‰é¢è¡¥0
 			return (key.toString().length()==11)?0:1;
 		}
 	}
 
-ÅÅĞò£º
-	#Ê×ÏÈ°´ÕÕµÚÒ»ÁĞÉıĞòÅÅÁĞ£¬µ±µÚÒ»ÁĞÏàÍ¬Ê±£¬µÚ¶şÁĞÉıĞòÅÅÁĞ
+æ’åºï¼š
+	#é¦–å…ˆæŒ‰ç…§ç¬¬ä¸€åˆ—å‡åºæ’åˆ—ï¼Œå½“ç¬¬ä¸€åˆ—ç›¸åŒæ—¶ï¼Œç¬¬äºŒåˆ—å‡åºæ’åˆ—
 	3	3
 	3	2
 	3	1
@@ -541,8 +541,8 @@ partition:
 	public class SortApp {
 		public static void main(String[] args) throws Exception{
 			..
-			//Ö¸¶¨Êä³ö<k2,v2>µÄÀàĞÍ
-			job.setMapOutputKeyClass(NewK2.class); // »á¶Ôkey½øĞĞÅÅĞò£¬ËùÒÔÒª°ÑÁ½ÁĞ·â×°³ÉÒ»¸öĞÂµÄkey¶ÔÏó
+			//æŒ‡å®šè¾“å‡º<k2,v2>çš„ç±»å‹
+			job.setMapOutputKeyClass(NewK2.class); // ä¼šå¯¹keyè¿›è¡Œæ’åºï¼Œæ‰€ä»¥è¦æŠŠä¸¤åˆ—å°è£…æˆä¸€ä¸ªæ–°çš„keyå¯¹è±¡
 			job.setMapOutputValueClass(LongWritable.class);
 			..
 		}
@@ -563,8 +563,8 @@ partition:
 		}
 		
 		/**
-		 * ÎÊ£ºÎªÊ²Ã´ÊµÏÖ¸ÃÀà£¿
-		 * ´ğ£ºÒòÎªÔ­À´µÄv2²»ÄÜ²ÎÓëÅÅĞò£¬°ÑÔ­À´µÄk2ºÍv2·â×°µ½Ò»¸öÀàÖĞ£¬×÷ÎªĞÂµÄk2
+		 * é—®ï¼šä¸ºä»€ä¹ˆå®ç°è¯¥ç±»ï¼Ÿ
+		 * ç­”ï¼šå› ä¸ºåŸæ¥çš„v2ä¸èƒ½å‚ä¸æ’åºï¼ŒæŠŠåŸæ¥çš„k2å’Œv2å°è£…åˆ°ä¸€ä¸ªç±»ä¸­ï¼Œä½œä¸ºæ–°çš„k2
 		 *
 		 */
 		static class  NewK2 implements WritableComparable<NewK2>{
@@ -592,8 +592,8 @@ partition:
 			}
 
 			/**
-			 * µ±k2½øĞĞÅÅĞòÊ±£¬»áµ÷ÓÃ¸Ã·½·¨.
-			 * µ±µÚÒ»ÁĞ²»Í¬Ê±£¬ÉıĞò£»µ±µÚÒ»ÁĞÏàÍ¬Ê±£¬µÚ¶şÁĞÉıĞò
+			 * å½“k2è¿›è¡Œæ’åºæ—¶ï¼Œä¼šè°ƒç”¨è¯¥æ–¹æ³•.
+			 * å½“ç¬¬ä¸€åˆ—ä¸åŒæ—¶ï¼Œå‡åºï¼›å½“ç¬¬ä¸€åˆ—ç›¸åŒæ—¶ï¼Œç¬¬äºŒåˆ—å‡åº
 			 */
 			@Override
 			public int compareTo(NewK2 o) {
@@ -621,7 +621,7 @@ partition:
 	}
 
 group:
-	#µ±µÚÒ»ÁĞÏàÍ¬Ê±£¬Çó³öµÚ¶şÁĞµÄ×îĞ¡Öµ
+	#å½“ç¬¬ä¸€åˆ—ç›¸åŒæ—¶ï¼Œæ±‚å‡ºç¬¬äºŒåˆ—çš„æœ€å°å€¼
 	3	3
 	3	2
 	3	1
@@ -635,7 +635,7 @@ group:
 -------------------------------------------
 	public class GroupApp {
 		public static void main(String[] args) throws Exception{
-			//1.4 TODO ÅÅĞò¡¢·ÖÇø
+			//1.4 TODO æ’åºã€åˆ†åŒº
 			job.setGroupingComparatorClass(MyGroupingComparator.class);
 			..
 		}
@@ -665,9 +665,9 @@ group:
 		static class  NewK2 implements WritableComparable<NewK2>{.. }
 		
 		/**
-		 * ÎÊ£ºÎªÊ²Ã´×Ô¶¨Òå¸ÃÀà£¿
-		 * ´ğ£ºÒµÎñÒªÇó·Ö×éÊÇ°´ÕÕµÚÒ»ÁĞ·Ö×é£¬µ«ÊÇNewK2µÄ±È½Ï¹æÔò¾ö¶¨ÁË²»ÄÜ°´ÕÕµÚÒ»ÁĞ·Ö¡£Ö»ÄÜ×Ô¶¨Òå·Ö×é±È½ÏÆ÷¡£
-		 * Ä¬ÈÏÊÇÏàÍ¬µÄkey²ÅÄÜ·Å³ÉÒ»×é£¬ÓÉÓÚk2°ÑµÚÒ»£¬µÚ¶şÁĞ¶¼×÷Îªkey, ÒÑ¾­²»ÄÜ°ÑµÚÒ»ÁĞµ¥¶À×÷Îªkey
+		 * é—®ï¼šä¸ºä»€ä¹ˆè‡ªå®šä¹‰è¯¥ç±»ï¼Ÿ
+		 * ç­”ï¼šä¸šåŠ¡è¦æ±‚åˆ†ç»„æ˜¯æŒ‰ç…§ç¬¬ä¸€åˆ—åˆ†ç»„ï¼Œä½†æ˜¯NewK2çš„æ¯”è¾ƒè§„åˆ™å†³å®šäº†ä¸èƒ½æŒ‰ç…§ç¬¬ä¸€åˆ—åˆ†ã€‚åªèƒ½è‡ªå®šä¹‰åˆ†ç»„æ¯”è¾ƒå™¨ã€‚
+		 * é»˜è®¤æ˜¯ç›¸åŒçš„keyæ‰èƒ½æ”¾æˆä¸€ç»„ï¼Œç”±äºk2æŠŠç¬¬ä¸€ï¼Œç¬¬äºŒåˆ—éƒ½ä½œä¸ºkey, å·²ç»ä¸èƒ½æŠŠç¬¬ä¸€åˆ—å•ç‹¬ä½œä¸ºkey
 		 */
 		static class MyGroupingComparator implements RawComparator<NewK2>{
 
@@ -676,98 +676,98 @@ group:
 				return (int)(o1.first - o2.first);
 			}
 			/**
-			 * @param arg0 ±íÊ¾µÚÒ»¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×é
-			 * @param arg1 ±íÊ¾µÚÒ»¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×éµÄÆğÊ¼Î»ÖÃ
-			 * @param arg2 ±íÊ¾µÚÒ»¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×éµÄÆ«ÒÆÁ¿
+			 * @param arg0 è¡¨ç¤ºç¬¬ä¸€ä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„
+			 * @param arg1 è¡¨ç¤ºç¬¬ä¸€ä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„çš„èµ·å§‹ä½ç½®
+			 * @param arg2 è¡¨ç¤ºç¬¬ä¸€ä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„çš„åç§»é‡
 			 * 
-			 * @param arg3 ±íÊ¾µÚ¶ş¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×é
-			 * @param arg4 ±íÊ¾µÚ¶ş¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×éµÄÆğÊ¼Î»ÖÃ
-			 * @param arg5 ±íÊ¾µÚ¶ş¸ö²ÎÓë±È½ÏµÄ×Ö½ÚÊı×éµÄÆ«ÒÆÁ¿
+			 * @param arg3 è¡¨ç¤ºç¬¬äºŒä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„
+			 * @param arg4 è¡¨ç¤ºç¬¬äºŒä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„çš„èµ·å§‹ä½ç½®
+			 * @param arg5 è¡¨ç¤ºç¬¬äºŒä¸ªå‚ä¸æ¯”è¾ƒçš„å­—èŠ‚æ•°ç»„çš„åç§»é‡
 			 */
 			@Override
 			public int compare(byte[] arg0, int arg1, int arg2, byte[] arg3,
 					int arg4, int arg5) {
-				return WritableComparator.compareBytes(arg0, arg1, 8, arg3, arg4, 8);  // longÊÇ8Î»
+				return WritableComparator.compareBytes(arg0, arg1, 8, arg3, arg4, 8);  // longæ˜¯8ä½
 			}
 		}
 	}
 
-Shuffle£º
-	map½×¶ÎÁ÷³Ì£º
-		1. Ã¿¸ömapÓĞÒ»¸ö»·ĞÎÄÚ´æ»º³åÇø£¬ÓÃÓÚ´æ´¢ÈÎÎñµÄÊä³ö¡£Ä¬ÈÏ´óĞ¡100MB£¨io.sort.mbÊôĞÔ£©£¬Ò»µ©´ïµ½·§Öµ0.8£¨io.sort.spill.percent£©,Ò»¸öºóÌ¨Ïß³Ì°ÑÄÚÈİĞ´µ½(spill)´ÅÅÌµÄÖ¸¶¨Ä¿Â¼£¨mapred.local.dir£©ÏÂµÄĞÂ½¨µÄÒ»¸öÒç³öĞ´ÎÄ¼ş¡£
-		2. Ğ´´ÅÅÌÇ°£¬Òªpartition,sort¡£Èç¹ûÓĞcombiner£¬combineÅÅĞòºóÊı¾İ¡£
-		3. µÈ×îºó¼ÇÂ¼Ğ´Íê£¬ºÏ²¢È«²¿Òç³öĞ´ÎÄ¼şÎªÒ»¸ö·ÖÇøÇÒÅÅĞòµÄÎÄ¼ş¡££¨ÔÚÓ²ÅÌÉÏºÏ²¢£©
-	reduce½×¶ÎÁ÷³Ì£º
-		1. ReducerÍ¨¹ıHttp·½Ê½µÃµ½Êä³öÎÄ¼şµÄ·ÖÇø¡£
-		2. TaskTrackerÎª·ÖÇøÎÄ¼şÔËĞĞReduceÈÎÎñ¡£¸´ÖÆ½×¶Î°ÑMapÊä³ö¸´ÖÆµ½ReducerµÄÄÚ´æ»ò´ÅÅÌ¡£Ò»¸öMapÈÎÎñÍê³É£¬Reduce¾Í¿ªÊ¼¸´ÖÆÊä³ö¡£
-		3. ÅÅĞò½×¶ÎºÏ²¢mapÊä³ö¡£È»ºó×ßReduce½×¶Î¡£
+Shuffleï¼š
+	mapé˜¶æ®µæµç¨‹ï¼š
+		1. æ¯ä¸ªmapæœ‰ä¸€ä¸ªç¯å½¢å†…å­˜ç¼“å†²åŒºï¼Œç”¨äºå­˜å‚¨ä»»åŠ¡çš„è¾“å‡ºã€‚é»˜è®¤å¤§å°100MBï¼ˆio.sort.mbå±æ€§ï¼‰ï¼Œä¸€æ—¦è¾¾åˆ°é˜€å€¼0.8ï¼ˆio.sort.spill.percentï¼‰,ä¸€ä¸ªåå°çº¿ç¨‹æŠŠå†…å®¹å†™åˆ°(spill)ç£ç›˜çš„æŒ‡å®šç›®å½•ï¼ˆmapred.local.dirï¼‰ä¸‹çš„æ–°å»ºçš„ä¸€ä¸ªæº¢å‡ºå†™æ–‡ä»¶ã€‚
+		2. å†™ç£ç›˜å‰ï¼Œè¦partition,sortã€‚å¦‚æœæœ‰combinerï¼Œcombineæ’åºåæ•°æ®ã€‚
+		3. ç­‰æœ€åè®°å½•å†™å®Œï¼Œåˆå¹¶å…¨éƒ¨æº¢å‡ºå†™æ–‡ä»¶ä¸ºä¸€ä¸ªåˆ†åŒºä¸”æ’åºçš„æ–‡ä»¶ã€‚ï¼ˆåœ¨ç¡¬ç›˜ä¸Šåˆå¹¶ï¼‰
+	reduceé˜¶æ®µæµç¨‹ï¼š
+		1. Reduceré€šè¿‡Httpæ–¹å¼å¾—åˆ°è¾“å‡ºæ–‡ä»¶çš„åˆ†åŒºã€‚
+		2. TaskTrackerä¸ºåˆ†åŒºæ–‡ä»¶è¿è¡ŒReduceä»»åŠ¡ã€‚å¤åˆ¶é˜¶æ®µæŠŠMapè¾“å‡ºå¤åˆ¶åˆ°Reducerçš„å†…å­˜æˆ–ç£ç›˜ã€‚ä¸€ä¸ªMapä»»åŠ¡å®Œæˆï¼ŒReduceå°±å¼€å§‹å¤åˆ¶è¾“å‡ºã€‚
+		3. æ’åºé˜¶æ®µåˆå¹¶mapè¾“å‡ºã€‚ç„¶åèµ°Reduceé˜¶æ®µã€‚
 
-MapReduceµÄÊä³ö½øĞĞÑ¹Ëõ:
-	conf.setBoolean("mapred.compress.map.output", true); // mapÊä³ö
-	conf.setBoolean("mapred.output.compress", true); // reduceÊä³ö
+MapReduceçš„è¾“å‡ºè¿›è¡Œå‹ç¼©:
+	conf.setBoolean("mapred.compress.map.output", true); // mapè¾“å‡º
+	conf.setBoolean("mapred.output.compress", true); // reduceè¾“å‡º
 	conf.setClass("mapred.output.compression.codec", GzipCodec.class, CompressionCodec.class);
 
-MapReduce³£¼ûËã·¨:
-	µ¥´Ê¼ÆÊı, Êı¾İÈ¥ÖØ, ÅÅĞò, Top, K Ñ¡Ôñ, Í¶Ó°, ·Ö×é, ¶à±íÁ¬½Ó, µ¥±í¹ØÁª
+MapReduceå¸¸è§ç®—æ³•:
+	å•è¯è®¡æ•°, æ•°æ®å»é‡, æ’åº, Top, K é€‰æ‹©, æŠ•å½±, åˆ†ç»„, å¤šè¡¨è¿æ¥, å•è¡¨å…³è”
 
-ÃæÊÔÌâ:
-	1. ¸ø¶¨a¡¢bÁ½¸öÎÄ¼ş£¬¸÷´æ·Å50ÒÚ¸öurl£¬Ã¿¸öurl¸÷Õ¼64×Ö½Ú£¬ÄÚ´æÏŞÖÆÊÇ4G£¬ÈÃÄãÕÒ³öa¡¢bÎÄ¼ş¹²Í¬µÄurl£¿
-	2. ÏÖÓĞ1ÒÚ¸öÕûÊı¾ùÔÈ·Ö²¼£¬ÇóÇ°1K¸ö×î´óµÄÊı¡£ÄÚ´æÏŞÖÆÎª100MB¡£
-	3. ÔÚ2.5ÒÚ¸öÕûÊıÖĞÕÒ³ö²»ÖØ¸´µÄÕûÊı£¬×¢£¬ÄÚ´æ2.5GB¡£
-	4. ÓĞ40ÒÚ¸öÓÊ¼şµØÖ·£¬Ã»ÅÅ¹ıĞòµÄ£¬È»ºóÔÙ¸øÒ»¸öÓÊ¼ş£¬ÈçºÎ¿ìËÙÅĞ¶ÏÕâ¸öÊıÊÇ·ñÔÚÄÇ40ÒÚ¸öÓÊ¼şµ±ÖĞ£¿
-	5. º£Á¿Êı¾İ·Ö²¼ÔÚ100Ì¨µçÄÔÖĞ£¬Ïë¸ö°ì·¨¸ßĞ§Í³¼Æ³öÕâÅúÊı¾İµÄTOP10¡£
+é¢è¯•é¢˜:
+	1. ç»™å®šaã€bä¸¤ä¸ªæ–‡ä»¶ï¼Œå„å­˜æ”¾50äº¿ä¸ªurlï¼Œæ¯ä¸ªurlå„å 64å­—èŠ‚ï¼Œå†…å­˜é™åˆ¶æ˜¯4Gï¼Œè®©ä½ æ‰¾å‡ºaã€bæ–‡ä»¶å…±åŒçš„urlï¼Ÿ
+	2. ç°æœ‰1äº¿ä¸ªæ•´æ•°å‡åŒ€åˆ†å¸ƒï¼Œæ±‚å‰1Kä¸ªæœ€å¤§çš„æ•°ã€‚å†…å­˜é™åˆ¶ä¸º100MBã€‚
+	3. åœ¨2.5äº¿ä¸ªæ•´æ•°ä¸­æ‰¾å‡ºä¸é‡å¤çš„æ•´æ•°ï¼Œæ³¨ï¼Œå†…å­˜2.5GBã€‚
+	4. æœ‰40äº¿ä¸ªé‚®ä»¶åœ°å€ï¼Œæ²¡æ’è¿‡åºçš„ï¼Œç„¶åå†ç»™ä¸€ä¸ªé‚®ä»¶ï¼Œå¦‚ä½•å¿«é€Ÿåˆ¤æ–­è¿™ä¸ªæ•°æ˜¯å¦åœ¨é‚£40äº¿ä¸ªé‚®ä»¶å½“ä¸­ï¼Ÿ
+	5. æµ·é‡æ•°æ®åˆ†å¸ƒåœ¨100å°ç”µè„‘ä¸­ï¼Œæƒ³ä¸ªåŠæ³•é«˜æ•ˆç»Ÿè®¡å‡ºè¿™æ‰¹æ•°æ®çš„TOP10ã€‚
 
-°²È«Ä£Ê½£º
+å®‰å…¨æ¨¡å¼ï¼š
 	hadoop dfsadmin -safemode enter | leave | get |wait
-	°²È«Ä£Ê½ÏÂÖ»ÄÜ¶Á£¬ ²»ÄÜÔöÉ¾¸Ä
+	å®‰å…¨æ¨¡å¼ä¸‹åªèƒ½è¯»ï¼Œ ä¸èƒ½å¢åˆ æ”¹
 
-ÎªÊ²Ã´Ê¹ÓÃZookeeper£¿ hbase
-ZooKeeper£ºÌá¹©Í¨ÓÃµÄ·Ö²¼Ê½Ëø·şÎñ£¬ÓÃÒÔĞ­µ÷·Ö²¼Ê½Ó¦ÓÃ
-°²×°£º
+ä¸ºä»€ä¹ˆä½¿ç”¨Zookeeperï¼Ÿ hbase
+ZooKeeperï¼šæä¾›é€šç”¨çš„åˆ†å¸ƒå¼é”æœåŠ¡ï¼Œç”¨ä»¥åè°ƒåˆ†å¸ƒå¼åº”ç”¨
+å®‰è£…ï¼š
 	1. vi zoo.cfg
 	dataDir=/usr/local/zk/data
 	server.1=server1:2888:3888
 	server.2=server2:2888:3888
 	server.3=server3:2888:3888
-	2. ÔÚdataDir´´½¨myidÎÄ¼ş£¬ÄÚÈİÎªzoo.cfgÖĞµÄid
-	server1µÄmyidÎª1£¬server2µÄmyidÎª2.   // echo 1 > /usr/local/zk/data/myid
-Æô¶¯£º bin/zkServer.sh start | stop | status
+	2. åœ¨dataDiråˆ›å»ºmyidæ–‡ä»¶ï¼Œå†…å®¹ä¸ºzoo.cfgä¸­çš„id
+	server1çš„myidä¸º1ï¼Œserver2çš„myidä¸º2.   // echo 1 > /usr/local/zk/data/myid
+å¯åŠ¨ï¼š bin/zkServer.sh start | stop | status
 	   bin/zkCli.sh
-zookeeperÊÇ²ã´Î»¯µÄÄ¿Â¼½á¹¹£¬Ã¿¸ö½ÚµãÔÚzookeeperÖĞ½Ğ×öznode
-ZnodeÖĞµÄÊı¾İ¿ÉÒÔÓĞ¶à¸ö°æ±¾£¬±ÈÈçÄ³Ò»¸öÂ·¾¶ÏÂ´æÓĞ¶à¸öÊı¾İ°æ±¾£¬ÄÇÃ´²éÑ¯Õâ¸öÂ·¾¶ÏÂµÄÊı¾İ¾ÍĞèÒª´øÉÏ°æ±¾
-ZnodeÓĞÁ½ÖÖÀàĞÍ£¬¶ÌÔİµÄ£¨ephemeral£©ºÍ³Ö¾ÃµÄ£¨persistent£©
-¶ÌÔİznodeµÄ¿Í»§¶Ë»á»°½áÊøÊ±£¬zookeeper»á½«¸Ã¶ÌÔİznodeÉ¾³ı£¬¶ÌÔİznode²»¿ÉÒÔÓĞ×Ó½Úµã
-³Ö¾Ãznode²»ÒÀÀµÓÚ¿Í»§¶Ë»á»°£¬Ö»ÓĞµ±¿Í»§¶ËÃ÷È·ÒªÉ¾³ı¸Ã³Ö¾ÃznodeÊ±²Å»á±»É¾³ı
+zookeeperæ˜¯å±‚æ¬¡åŒ–çš„ç›®å½•ç»“æ„ï¼Œæ¯ä¸ªèŠ‚ç‚¹åœ¨zookeeperä¸­å«åšznode
+Znodeä¸­çš„æ•°æ®å¯ä»¥æœ‰å¤šä¸ªç‰ˆæœ¬ï¼Œæ¯”å¦‚æŸä¸€ä¸ªè·¯å¾„ä¸‹å­˜æœ‰å¤šä¸ªæ•°æ®ç‰ˆæœ¬ï¼Œé‚£ä¹ˆæŸ¥è¯¢è¿™ä¸ªè·¯å¾„ä¸‹çš„æ•°æ®å°±éœ€è¦å¸¦ä¸Šç‰ˆæœ¬
+Znodeæœ‰ä¸¤ç§ç±»å‹ï¼ŒçŸ­æš‚çš„ï¼ˆephemeralï¼‰å’ŒæŒä¹…çš„ï¼ˆpersistentï¼‰
+çŸ­æš‚znodeçš„å®¢æˆ·ç«¯ä¼šè¯ç»“æŸæ—¶ï¼Œzookeeperä¼šå°†è¯¥çŸ­æš‚znodeåˆ é™¤ï¼ŒçŸ­æš‚znodeä¸å¯ä»¥æœ‰å­èŠ‚ç‚¹
+æŒä¹…znodeä¸ä¾èµ–äºå®¢æˆ·ç«¯ä¼šè¯ï¼Œåªæœ‰å½“å®¢æˆ·ç«¯æ˜ç¡®è¦åˆ é™¤è¯¥æŒä¹…znodeæ—¶æ‰ä¼šè¢«åˆ é™¤
 
 Hbase:
-	1.HBase(NoSQL)µÄÊı¾İÄ£ĞÍ
-	1.1 ±í(table)£¬ÊÇ´æ´¢¹ÜÀíÊı¾İµÄ¡£
-	1.2 ĞĞ¼ü(row key)£¬ÀàËÆÓÚMySQLÖĞµÄÖ÷¼ü¡£
-	    ĞĞ¼üÊÇHBase±íÌìÈ»×Ô´øµÄ¡£
-	1.3 ÁĞ×å(column family)£¬ÁĞµÄ¼¯ºÏ¡£
-	    HBaseÖĞÁĞ×åÊÇĞèÒªÔÚ¶¨Òå±íÊ±Ö¸¶¨µÄ£¬ÁĞÊÇÔÚ²åÈë¼ÇÂ¼Ê±¶¯Ì¬Ôö¼ÓµÄ¡£
-		HBase±íÖĞµÄÊı¾İ£¬Ã¿¸öÁĞ×åµ¥¶ÀÒ»¸öÎÄ¼ş¡£
-	1.4 Ê±¼ä´Á(timestamp)£¬ÁĞ(Ò²³Æ×÷±êÇ©¡¢ĞŞÊÎ·û)µÄÒ»¸öÊôĞÔ¡£
-	    ĞĞ¼üºÍÁĞÈ·¶¨µÄµ¥Ôª¸ñ£¬¿ÉÒÔ´æ´¢¶à¸öÊı¾İ£¬Ã¿¸öÊı¾İº¬ÓĞÊ±¼ä´ÁÊôĞÔ£¬Êı¾İ¾ßÓĞ°æ±¾ÌØĞÔ¡£	
-		Èç¹û²»Ö¸¶¨Ê±¼ä´Á»òÕß°æ±¾£¬Ä¬ÈÏÈ¡×îĞÂµÄÊı¾İ¡£
-	1.5 ´æ´¢µÄÊı¾İ¶¼ÊÇ×Ö½ÚÊı×é¡£
-	1.6 ±íÖĞµÄÊı¾İÊÇ°´ÕÕĞĞ¼üµÄË³ĞòÎïÀí´æ´¢µÄ¡£
+	1.HBase(NoSQL)çš„æ•°æ®æ¨¡å‹
+	1.1 è¡¨(table)ï¼Œæ˜¯å­˜å‚¨ç®¡ç†æ•°æ®çš„ã€‚
+	1.2 è¡Œé”®(row key)ï¼Œç±»ä¼¼äºMySQLä¸­çš„ä¸»é”®ã€‚
+	    è¡Œé”®æ˜¯HBaseè¡¨å¤©ç„¶è‡ªå¸¦çš„ã€‚
+	1.3 åˆ—æ—(column family)ï¼Œåˆ—çš„é›†åˆã€‚
+	    HBaseä¸­åˆ—æ—æ˜¯éœ€è¦åœ¨å®šä¹‰è¡¨æ—¶æŒ‡å®šçš„ï¼Œåˆ—æ˜¯åœ¨æ’å…¥è®°å½•æ—¶åŠ¨æ€å¢åŠ çš„ã€‚
+		HBaseè¡¨ä¸­çš„æ•°æ®ï¼Œæ¯ä¸ªåˆ—æ—å•ç‹¬ä¸€ä¸ªæ–‡ä»¶ã€‚
+	1.4 æ—¶é—´æˆ³(timestamp)ï¼Œåˆ—(ä¹Ÿç§°ä½œæ ‡ç­¾ã€ä¿®é¥°ç¬¦)çš„ä¸€ä¸ªå±æ€§ã€‚
+	    è¡Œé”®å’Œåˆ—ç¡®å®šçš„å•å…ƒæ ¼ï¼Œå¯ä»¥å­˜å‚¨å¤šä¸ªæ•°æ®ï¼Œæ¯ä¸ªæ•°æ®å«æœ‰æ—¶é—´æˆ³å±æ€§ï¼Œæ•°æ®å…·æœ‰ç‰ˆæœ¬ç‰¹æ€§ã€‚	
+		å¦‚æœä¸æŒ‡å®šæ—¶é—´æˆ³æˆ–è€…ç‰ˆæœ¬ï¼Œé»˜è®¤å–æœ€æ–°çš„æ•°æ®ã€‚
+	1.5 å­˜å‚¨çš„æ•°æ®éƒ½æ˜¯å­—èŠ‚æ•°ç»„ã€‚
+	1.6 è¡¨ä¸­çš„æ•°æ®æ˜¯æŒ‰ç…§è¡Œé”®çš„é¡ºåºç‰©ç†å­˜å‚¨çš„ã€‚
 
-	2.HBaseµÄÎïÀíÄ£ĞÍ
-	2.1 HBaseÊÇÊÊºÏº£Á¿Êı¾İ(Èç20PB)µÄÃë¼¶¼òµ¥²éÑ¯µÄÊı¾İ¿â¡£
-	2.2 HBase±íÖĞµÄ¼ÇÂ¼£¬°´ÕÕĞĞ¼ü½øĞĞ²ğ·Ö£¬ ²ğ·Ö³ÉÒ»¸ö¸öµÄregion¡£
-	    Ğí¶à¸öregion´æ´¢ÔÚregion server(µ¥¶ÀµÄÎïÀí»úÆ÷)ÖĞµÄ¡£
-		ÕâÑù£¬¶Ô±íµÄ²Ù×÷×ª»¯Îª¶Ô¶àÌ¨region serverµÄ²¢ĞĞ²éÑ¯¡£
+	2.HBaseçš„ç‰©ç†æ¨¡å‹
+	2.1 HBaseæ˜¯é€‚åˆæµ·é‡æ•°æ®(å¦‚20PB)çš„ç§’çº§ç®€å•æŸ¥è¯¢çš„æ•°æ®åº“ã€‚
+	2.2 HBaseè¡¨ä¸­çš„è®°å½•ï¼ŒæŒ‰ç…§è¡Œé”®è¿›è¡Œæ‹†åˆ†ï¼Œ æ‹†åˆ†æˆä¸€ä¸ªä¸ªçš„regionã€‚
+	    è®¸å¤šä¸ªregionå­˜å‚¨åœ¨region server(å•ç‹¬çš„ç‰©ç†æœºå™¨)ä¸­çš„ã€‚
+		è¿™æ ·ï¼Œå¯¹è¡¨çš„æ“ä½œè½¬åŒ–ä¸ºå¯¹å¤šå°region serverçš„å¹¶è¡ŒæŸ¥è¯¢ã€‚
 
-	3.HBaseµÄÌåÏµ½á¹¹
-	3.1 HBaseÊÇÖ÷´ÓÊ½½á¹¹£¬HMaster¡¢HRegionServer
+	3.HBaseçš„ä½“ç³»ç»“æ„
+	3.1 HBaseæ˜¯ä¸»ä»å¼ç»“æ„ï¼ŒHMasterã€HRegionServer
 
-	4.HBaseÎ±·Ö²¼°²×°
-	4.1 ½âÑ¹Ëõ¡¢ÖØÃüÃû¡¢ÉèÖÃ»·¾³±äÁ¿
-	4.2 ĞŞ¸Ä$HBASE_HOME/conf/hbase-env.sh£¬ĞŞ¸ÄÄÚÈİÈçÏÂ£º
+	4.HBaseä¼ªåˆ†å¸ƒå®‰è£…
+	4.1 è§£å‹ç¼©ã€é‡å‘½åã€è®¾ç½®ç¯å¢ƒå˜é‡
+	4.2 ä¿®æ”¹$HBASE_HOME/conf/hbase-env.shï¼Œä¿®æ”¹å†…å®¹å¦‚ä¸‹ï¼š
 	    export JAVA_HOME=/usr/local/jdk
 		export HBASE_MANAGES_ZK=true
-	4.2 ĞŞ¸Ä$HBASE_HOME/conf/hbase-site.xml£¬ĞŞ¸ÄÄÚÈİÈçÏÂ£º
+	4.2 ä¿®æ”¹$HBASE_HOME/conf/hbase-site.xmlï¼Œä¿®æ”¹å†…å®¹å¦‚ä¸‹ï¼š
 		<property>
 		  <name>hbase.rootdir</name>
 		  <value>hdfs://hadoop0:9000/hbase</value>
@@ -784,22 +784,22 @@ Hbase:
 		  <name>dfs.replication</name>
 		  <value>1</value>
 		</property>
-	4.3 (¿ÉÑ¡)ÎÄ¼şregionserversµÄÄÚÈİÎªhadoop0
-	4.4 Æô¶¯hbase£¬Ö´ĞĞÃüÁîstart-hbase.sh
-		******Æô¶¯hbaseÖ®Ç°£¬È·±£hadoopÊÇÔËĞĞÕı³£µÄ£¬²¢ÇÒ¿ÉÒÔĞ´ÈëÎÄ¼ş*******
-	4.5 ÑéÖ¤£º(1)Ö´ĞĞjps£¬·¢ÏÖĞÂÔö¼ÓÁË3¸öjava½ø³Ì£¬·Ö±ğÊÇHMaster¡¢HRegionServer¡¢HQuorumPeer
-	          (2)Ê¹ÓÃä¯ÀÀÆ÷·ÃÎÊhttp://hadoop0:60010
+	4.3 (å¯é€‰)æ–‡ä»¶regionserversçš„å†…å®¹ä¸ºhadoop0
+	4.4 å¯åŠ¨hbaseï¼Œæ‰§è¡Œå‘½ä»¤start-hbase.sh
+		******å¯åŠ¨hbaseä¹‹å‰ï¼Œç¡®ä¿hadoopæ˜¯è¿è¡Œæ­£å¸¸çš„ï¼Œå¹¶ä¸”å¯ä»¥å†™å…¥æ–‡ä»¶*******
+	4.5 éªŒè¯ï¼š(1)æ‰§è¡Œjpsï¼Œå‘ç°æ–°å¢åŠ äº†3ä¸ªjavaè¿›ç¨‹ï¼Œåˆ†åˆ«æ˜¯HMasterã€HRegionServerã€HQuorumPeer
+	          (2)ä½¿ç”¨æµè§ˆå™¨è®¿é—®http://hadoop0:60010
 
-	1.hbaseµÄ»úÈº´î½¨¹ı³Ì(ÔÚÔ­À´µÄhadoop0ÉÏµÄhbaseÎ±·Ö²¼»ù´¡ÉÏ½øĞĞ´î½¨)
-	1.1 ¼¯Èº½á¹¹£¬Ö÷½Úµã(hmaster)ÊÇhadoop0£¬´Ó½Úµã(region server)ÊÇhadoop1ºÍhadoop2
-	1.2 ĞŞ¸Ähadoop0ÉÏµÄhbaseµÄ¼¸¸öÎÄ¼ş
-	    (1)ĞŞ¸Ähbase-env.shµÄ×îºóÒ»ĞĞexport HBASE_MANAGES_ZK=false
-		(2)ĞŞ¸Ähbase-site.xmlÎÄ¼şµÄhbase.zookeeper.quorumµÄÖµÎªhadoop0,hadoop1,hadoop2
-		(3)ĞŞ¸ÄregionserversÎÄ¼ş(´æ·ÅµÄregion serverµÄhostname)£¬ÄÚÈİĞŞ¸ÄÎªhadoop1¡¢hadoop2
-	1.3 ¸´ÖÆhadoop0ÖĞµÄhbaseÎÄ¼ş¼Ğµ½hadoop1¡¢hadoop2ÖĞ	
-	    ¸´ÖÆhadoop0ÖĞµÄ/etc/profileµ½hadoop1¡¢hadoop2ÖĞ£¬ÔÚhadoop1¡¢hadoop2ÉÏÖ´ĞĞsource /etc/profile
-	1.4 Ê×ÏÈÆô¶¯hadoop£¬È»ºóÆô¶¯zookeeper¼¯Èº¡£
-	    ×îºóÔÚhadoop0ÉÏÆô¶¯hbase¼¯Èº¡£
+	1.hbaseçš„æœºç¾¤æ­å»ºè¿‡ç¨‹(åœ¨åŸæ¥çš„hadoop0ä¸Šçš„hbaseä¼ªåˆ†å¸ƒåŸºç¡€ä¸Šè¿›è¡Œæ­å»º)
+	1.1 é›†ç¾¤ç»“æ„ï¼Œä¸»èŠ‚ç‚¹(hmaster)æ˜¯hadoop0ï¼Œä»èŠ‚ç‚¹(region server)æ˜¯hadoop1å’Œhadoop2
+	1.2 ä¿®æ”¹hadoop0ä¸Šçš„hbaseçš„å‡ ä¸ªæ–‡ä»¶
+	    (1)ä¿®æ”¹hbase-env.shçš„æœ€åä¸€è¡Œexport HBASE_MANAGES_ZK=false
+		(2)ä¿®æ”¹hbase-site.xmlæ–‡ä»¶çš„hbase.zookeeper.quorumçš„å€¼ä¸ºhadoop0,hadoop1,hadoop2
+		(3)ä¿®æ”¹regionserversæ–‡ä»¶(å­˜æ”¾çš„region serverçš„hostname)ï¼Œå†…å®¹ä¿®æ”¹ä¸ºhadoop1ã€hadoop2
+	1.3 å¤åˆ¶hadoop0ä¸­çš„hbaseæ–‡ä»¶å¤¹åˆ°hadoop1ã€hadoop2ä¸­	
+	    å¤åˆ¶hadoop0ä¸­çš„/etc/profileåˆ°hadoop1ã€hadoop2ä¸­ï¼Œåœ¨hadoop1ã€hadoop2ä¸Šæ‰§è¡Œsource /etc/profile
+	1.4 é¦–å…ˆå¯åŠ¨hadoopï¼Œç„¶åå¯åŠ¨zookeeperé›†ç¾¤ã€‚
+	    æœ€ååœ¨hadoop0ä¸Šå¯åŠ¨hbaseé›†ç¾¤ã€‚
 
 	  
 
