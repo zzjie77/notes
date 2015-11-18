@@ -1,0 +1,200 @@
+hive
+----
+
+hive ha原理
+将若干hive实例纳入一个资源池，然后对外提供一个唯一的接口，进行proxy relay
+对于程序开发人员，就把他认为是一台超强“hive”就可以。每次它接收到一个hive查询后，都会轮训资源池里的可用hive资源
+
+内部表删除的时候，会把数据也删掉，外部表则不会删数据
+加载数据的时候，如果数据在hdfs上，则会把数据mv到/user/hive/warehouse，而不是拷贝
+
+hive参数
+	YEAR=2014
+	hive -e "select * from table where year=${env:YEAR}"
+hive结果保存到本地, -S是selient模式，不会输出mapreduce的进度信息
+	hive -S -e "select * from table limit 3" >> /tmp/result 
+hive查找warehouse在hdfs的什么路径
+	hive -S -e "set" | grep warehouse
+执行hive文件
+	hive -f /path/xx.sql
+执行shell
+	hive>! command
+执行hdfs命令
+	hive>dfs -ls /
+
+
+create table xx (id int) partitioned by dt;
+
+删除分区：alter table xx drop partitoin (dt='2014-12-12');
+limit使用： select * from xx limit 5 # 不支持limit 1,5这种两个参数的
+select * from xx 或者where条件的情况是不使用mr的，其他情况都使用mr
+select嵌套： 
+	from(select id from t1) e select t1.id where ..
+早期版本不支持in,使用左连接实现。a join b on (a.id=b.id and b.id is not null)
+
+case when then :
+	select name, salary, 
+	(case when 1<salary and salary<5000 then 'L1' 
+	when 5000<=salary and salary<1000 then 'L2' 
+	when 10000<=salary then 'L3' 
+	else 'L0' end) as salary_level
+	from partition_table 
+
+group by
+set hive.map.aggr=true; #map端group by，类似combiner
+
+默认join都是在reduce执行的，join只支持等值join，不支持大于、小于。
+	原理：将大表、小表分别进行map操作，map output key变成table_name_prefix+join_value,但在partition还是使用join_value进行hash. 容易导致key的数据倾斜问题
+如果有一个表很小，可以使用map join
+	select /*+ MAPJOIN(b) */ b.class, a.score from join_test b join group_test a on (a.user=b.user);
+	原理：将小表数据变成hashtable广播到所有的map端，然后用大表的数据一行行去探测小表，如果join相等则写hdfs
+left semi join 半连接
+
+order by
+	set hive.mapred.mode=strict # 严格模式，order by必须使用limit. 默认是nonstrict
+	order by会把所有数据传到一个reduce中执行，数据量大的情况下服务处理 
+sort by： sort by只保证每个reducer的输出有序，不保证全局有序。
+distribute by: 根据distribute by指定的字段对数据进行划分到不同的输出reduce 文件中。
+cluster by 除了具有 distribute by 的功能外还兼具 sort by 的功能。  但是排序只能是倒序排序
+
+union: 只支持union all,不支持union.不支持顶层union,只支持子查询里union
+
+索引：索引表必须建在分区表上
+	create table index_test(id int, name string) partitioned by(dt string);
+	set hive.exec.dynamic.partition.mode=nonstrict;
+	set hive.exec.dynamic.partition=true; 
+	insert overwrite table index_tset partition(dt) select id,name,dt from index_tmp; #动态插入分区
+	create index1_index_test on table index_test(id) as 'org.apache.hadoop.hive.sql.index.compact.CompactIndexHandler' with deferred rebuid; #创建索引表
+	alter index index1_index_test on index_test rebuild #构建索引
+	show index on index_test; #查看索引
+	查看索引表可以看到每个索引值对应记录的文件路径和偏移量
+
+bucket
+	将表或分区中指定列的值为key进行hash，hash到指定桶中。使用场景是对数据进行采样计算
+	在没有set hive.enforce.bucketing=true时，只有一个job且查看hdfs,只有一个目录，而非N个。所以要插入数据是要设置为true
+	create table xx (id int, age int, name string) clustered by(id) sorted by(age) into 5 buckets 
+	row format delimited fields terminated by ',' ;
+	select * from tb_stu tablesample(bucket 1 out of 5 on id); # 取桶1，使用id进行取模5等于0的记录
+
+
+hive的文件类型：TextFile、SequenceFile、RcFile
+	RCFile是facebook开发的一种集行存储和列存储，压缩比更高，读取列更快。先按行分块，保证同一个record在一个块上
+	create table xx(id int) stored as rcfile;
+	rcfile不能直接load,要创建一个textfile的表，先load到textfile表，然后通过insert xx select textfile
+
+hive自定义输入格式
+	通过SerDe(serialize/de..)，在数据序列化和反序列化时格式化数据，使用正则匹配和处理数据，性能有所影响
+	add jar /${hive_home}/lib/hive-contrib-xx.jar #加入jar后才可以使用serde查询
+	create table tt(id int, name string, age int)
+	row format serde 'org.apache.hadoop.hive.contrib.serde2.RegexSerde' with serdeproperties
+	('input.regex'='(^,)*,(^,)*,(^,)*',
+	'output.format.string'='%1$s %2$s %3$s')
+	stored as textfile
+	#数据样例
+	1,zhang san,20
+
+复合数据类型：
+array: 一组有序字段（不命名），字段类型必须相同 
+	192.168.1.1,123|122|111
+
+	create table login_array (
+		ip string,
+		uid array<bigint>
+	) row format delimited
+	fields terminated by ','
+	collection items terminated by '|'
+	stored as textfile;
+
+	> select ip, uid[0], size(uid) from login array; #访问数组的下标，长度
+	> select ip from login array where array_contains(uid, '111'); 
+map: Key结构，key是院子类型，value任意类型
+	192.168.1.1,src=xx&code=aa&time=2
+
+	create table login_map (
+		ip string,
+		request map<string, string>
+	) row format delimited
+	fields terminated by ','
+	collection items terminated by '&'
+	map keys terminated by '='
+	stored as textfile;
+
+	> select request['src'] from login_array;
+struct: 一组命名的字段。字段类型可以不同
+	192.168.1.1,zhangsan|15  
+
+	create table login_struct (
+		ip string,
+		user stuct<name string, age int>
+	) row format delimited
+	fields terminated by ','
+	collection items terminated by '|'
+	stored as textfile;
+	> select user.name from login_struct # 访问struct的字段
+
+hive内置函数：
+---
+关系运算
+	=, <>, <=, is null, like, regexp ...  #注意不等是<>，不可以是!=
+数值运算
+	round() 取整， floor, ceil, rand随机数, exp自然指数函数，log10 10为底取对数，pow/power幂运算
+	sqrt, bin, hex, unhex, conv进制转换， abs ...
+日期函数
+	from_unixtime, unix_timestamp, year, month, day, hour, minute, second, weektoyear, datediff, date_add, date_sub
+条件函数
+	if, coalesce非空查找函数, case
+字符串函数
+	length, 
+
+
+调优
+---
+explain
+	explain select * from table 
+	explain extended select * from table  #详细查看
+	# 设置在本地执行，本地也会执行mr
+	set hive.exec.mode.local.auto=true; #默认false
+	set mapred.tmp.dir=/home/vagrant/hive/data;
+队列设置
+	set mapred.queue.name=hadoop;
+	set mapred.job.queue.name=hadoop; #这个可能是旧版本写法
+	设置任务的优先级别
+	set mapred.job.priority=HIGH;
+并行执行
+	hive会将一个任务转换成一个或者多个stage
+	默认情况下hive只会执行一个stage
+	如果一个任务有多个stage,并且每个每个stage是依赖的，那么这个任务就不可以并行执行
+	hive.exec.parallel默认为false
+设置Mapper和Reducer的个数
+	mapper的个数默认由split数确定。text, bz2, lzo都是可以分割的，gz不可以
+	set mapred.reduce.tasks=15
+jvm重用
+	mapred.job.reuse.jvm.num.tasks=20 # -1不限制
+索引和动态分区
+	创建索引
+	创建分区，默认是静态分区
+	开启动态分区
+		set hive.exec.dynamic.partition=true;
+		set hive.exec.dynamic.partition.mode=nonstrict;
+推测执行
+	mapreduce配置
+	set mapred.map.tasks.speculative.execution=false;
+	set mapred.reduce.tasks.speculative.execution=false;
+	hive配置
+	set hive.mapred.reduce.tasks.speculative.execution=false
+	#hive里的推测执行，会在任务执行慢的时候，在别的节点重新运行任务。
+join调优
+	使用map join解决数据倾斜场景下小表关联大表的问题，但是如果小表很大
+	select * from log a left join members b on a.memberid=b.memberid
+	members有600w记录，数据量太大，不能使用map join.
+	select /*+mapjoin(x)*/* from log a
+	left outer join (select /*+mapjoin(c)*/d.*
+	from (select distinct memberid from log)c
+	join members d on c.memberid=d.memberid
+	)x
+	on a.memberid=b.memberid
+	先根据log取所有的memberid，然后mapjoin关联所有members取今天有日志的members信息，然后在和log做mapjoin
+
+hive安全
+---
+	
