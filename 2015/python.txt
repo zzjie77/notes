@@ -56,7 +56,7 @@ tuple: 元组
 	t = (1) # t的值为1，括号代表数学运算的括号，处理优先级的问题
 	t = (1,)  # t为一个元素1的元组，一个元素的元组必须加上逗号
 
-判断与循环：
+判断与循环： 
 	age = 3
 	if age >= 18:
 	    print('adult')
@@ -1048,3 +1048,5 @@ datetime:
 
 	now + timedelta(hours=10)
 	now - timedelta(days=1)
+
+	
