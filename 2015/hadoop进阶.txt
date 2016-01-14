@@ -1,0 +1,107 @@
+hadoop进阶
+---
+
+运维技巧
+配置core-site.xml
+	<name>mapred.reduce.parallel.copies</name>
+	<value>20</value>
+Log目录:<Hadoop_home>/conf/hadoop-env.xml中可以通过HADOOP_LOG_DIR修改日志目录
+MapReduce性能优化
+
+
+开发技巧
+---
+SequenceFileOutputFormat: 多用于连接过个job中间的数据格式，使用TextOutputFormat会比较占用空间，因为都是中间数据，没必要使用Text格式
+
+TotalOrderPartitioner: 
+	全排序partitioner，默认的partitioner在每个reduce中记录是有序的，但并非全局有序。TotalOrderPartitioner保证全局有序。要提供partitioner文件。比如[2,4,6,8]，对<4,"a">被送到第二个reducer,<7, "b">被送到第三个reducer
+KeyFieldBasedPartitioner:
+	key的部分参与partitioner计算。如key是姓名-id,但只想使用id来做分区
+	配合-Dmap.output.key.field.separator及-Dnum.key.fields.for.partition使用。
+
+setSortComparatorClass/setGroupingComparatorClass：
+Map阶段：
+	使用job.Partitoiner设置的partition进行分区
+	每个分区内，使用job.setSortComparatorClass设置的类进行排序
+Reduce阶段：
+	使用所有map输出都拖到本地之后，使用job.setSortComparatorClass设置的类进行排序
+	调用job.setGroupComparatorClass设置的类进行分组，属于同一组的，顺序记录，被放入相同value迭代器中。比如<1,a>, <2, b>如果认为key为1,2是同一组，则以这组第一个为key.合并value， 即<1, [a,b]>
+
+DistributeCache
+	bin/hadoop fs -copyFromLocal ip2loc.dat ip2loc.dat
+	DistributedCache.addCacheFile(new URI("ip2loc.dat#ip2localtion"), job.getConfiguration()); # #号后面是软连接名称
+	DistributedCache.addCacheArchive(new URI("/mymap/map.zip"), job); # 添加归档文件，本质上和addChacheFile是一样的，但是通过这个方法可以访问压缩包里的内容
+
+	File lookupDb = new File("ip2location"); # 软链接方式访问，在每个mapper，reducer的当前目录有一个文件 
+	Path[] cacheFiles = DistributedCache.getLocalCacheFiles(conf) #非软链接方式访问
+	File f= new File("./map.zip/some/file"); #访问zip的类容
+
+	通过命令行添加distributeCache
+	hadoop jar xx.jar xxClass -files ip2location.dat#ip2localtion indir outdir # -archives
+
+	# 添加到classpath
+	DistributedCache.addFileToClassPath(Path file, Configuration conf, FileSystem fs);
+	DistributedCache.addArchiveToClassPath(Path file, Configuration conf, FileSystem fs);
+	hadoop jar xx.jar MainClass -libjars cacheed.jar indir outdir
+
+	
+hadoop调试：
+本地执行
+	mapred.job.tracker=local # 运行jar时通过-D添加此参数
+	JDWP:agentlib:jdwp=transport=dt_socket,address8004,server=y,suspend=y # 修改hadoop运行脚本，添加此参数
+	然后指定ip和端口就可以在命令行使用jdb调试，或者在ide调试，
+
+远程执行
+	在执行JobTracker的机器上， /usr/lib/hadoop/conf/hadoop-env.sh文件中，
+	HADOOP_JOBTRACKER_OPTS添加-
+	agentlib:jdwp=transport=dt_socket,address=8004,server=y,suspend=n。
+	# suspend=n表示，客户端不attach，或者attach了没有设置断点，服务器不会暂停。=y的时候，默认启动就会暂停
+	>jdb -attach 192.168.0.111:8004 
+	jdb命令：
+	stop at 列名:行号   # 设置断点 如果server设置了suspend=n，那么服务器要执行run才会执行
+	threads #查看所有线程的上下文
+	通过locals、 dump、 print 等命令可以看到断点处的变量值
+	locals看当前所有局部变量，dump详细查看某个局部变量，print可以打印某个表达式，如某个方法的执行结果
+	如果需要列出对应的源代码，可以使用 use命令指定 源代码路径，使用list列出断点附近的代码
+	clear清除断点 cont继续执行
+
+日志
+	hadoop-daemon.sh定义日志级别
+
+java heap分为：
+	young generation: eden, from, to
+	old generation
+	permanent generation
+	# yong通常采用拷贝gc - ParNew
+	# old区域通常采用串行(SerialOld)、并发(ParalelOLd)、并行（CMS）GC。cms执行时对上层应用来说不会停顿
+
+jps 
+jstat -gcutil 进程号 刷新时间间隔
+s0 s1 e o p ygc ygct fgc fgct gct
+from区 to区 eden区 old-generation区 permaent区 young-gc次数 yong-gc每次平均时间 full-gc次数 full-gc时间 总时间
+
+假如在mapper中出现死锁，导致mapper中断执行。
+ps -ax | fgrep attempt_20151001xxx # attempt_2015是taskid。 或者使用jps -m 查看进程号
+jstack 进程号 > xx.log # 查看mapper的线程始终在那一行，查看那一行的代码
+kill -3 进程号 # 这样也可以打印jstack信息，会打印到hadoop日志的stdout
+
+建议增加记录gc的参数，在hadoop-env.sh增加
+	-verbose:gc -XX:+PrintGCDetails -XX:PrintGCDateStamps -Xloggc:gc.log
+
+jmap/jhat
+	场景：一份已经存在的代码，运行时占用内存偏高，或者抛出OutOfMemoryError(OOME)
+	用 jmap得到进程的运行时内存镜像
+	jmap -dump:live,format=b,file=jmap.dat ${PID}
+	用 jhat进行内存分析
+	jhat -J-Xmx4g jmap.dat
+	Jhat启动后会建立一个http server，端口为7000，之后通过浏览器查看统计数据并分析问题
+
+iostat, nload, iftraf, 
+netstat: recv-q, send-q可以判断阻塞方，TIME_WAIT状态说明这里是主动关闭连接的一方
+tcpdump: tcpdump -nn -i eth0 -xX -s 0 tcp and port 2181
+	-nn 不需要反解各个ip的域名
+	-xX 说明需要显示包的内容，默认是不显示的
+	-s 0 指定每个包取多少字节，0标示无上限，默认是128字节
+
+
+
