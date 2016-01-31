@@ -195,6 +195,239 @@ join调优
 	on a.memberid=b.memberid
 	先根据log取所有的memberid，然后mapjoin关联所有members取今天有日志的members信息，然后在和log做mapjoin
 
-hive安全
----
+
+set hive.cli.print.current.db=true;	
+set hive.cli.print.header=true;
+desc formatted extended tablename;
+set hive.enforce.bucketing=true;
+
+文件格式
+stored as textfile
+	hadoop fs -text
+stored as sequencefile
+	hadoop fs -text # 也可以查看seq文件格式，或者在hive中select
+stored as rcfile
+	hive -service rcfilecat path
+stored as inputformat 'class'
+	outformat 'class'
+
+hive访问方式： cli, jdbc, hwi, beeline
+beeline和cli类似，但是使用的jdbc. hwi是web接口，和jdbc都要开启thift server
+
+hive --help
+hive service --help 查看帮助
+list [file|jar|archive] # 查看已添加的分布式缓存。 通过add jar添加
+source /home/zhangjunjie/test.sql # 在cli执行sql文件
+set val='';
+${hiveconf:val} 查看配置变量
+${env:HOME} 查看环境变量
+
+create table t1 as select a,b from t2
+load data local inpath '/local/datafile' [overwrite] into table t1; # hadoop fs -copyFromLocal /local/datafile /user/hive/warehouse/t1 通过copyFromLocal不允许同名，而load data出现同名会自动改名datafile_copy_1
+load data inpath 'xx' [overwrite] into table t1; # 加载hdfs上的数据，注意是个移动操作，源目录的数据会消失。
+load data通过hadoop文件命令操作也可以
+
+>dfs ls #执行hdfs命令
+>!ls #执行linux命令
+
+insert [overwrite|into] table t1
+select a,b from t2 where ..;
+
+hive在load加载数据的时候不会校验类型，如定义了int型的数据，即使加载是字符串也没问题，查询的时候因为不能转换为int而返回NULL
+select查询插入，字段类型不能相互转换时，插入数据为NULL。 hive默认使用\N来保存NULL
+手动移动一个分区目录到分区表中，如果没有使用alter table add partition来添加分区，即使存在子目录也不会查询该目录
+
+
+hive数据导出
+--------
+hadoop命令方式：
+	get: hadoop fs -get /user/hive/warehouse/t1/* datafile #会将t1下多个文件合并成datafile
+	text: hadoop fs -text /user/hive/warehouse/t1/* > datafile # text可以自动解压zip, tar.gz等格式
+通过insert .. directory方式
+	insert overwrite [local] directory '/tmp/ca_employees'
+	[row format delimited fields terminated by '\t']  # local目录才支持row format,写到hdfs不支持row format
+	select name, salary from employees
+shell命令加管道： hive -f/e | sed/grep/awk > file
+
+
+order by:全局排序，只有一个reduce
+distribute by:按照key，把数据分发到多个reducer中
+sorted by: 排序每个reducer中数据
+cluter by: 等于distributed by和sorted by组合
+
+
+count(*) count(1) count(col): *是不全为空时计数， 1是只要有一行就计数，col是只要该列不为空则计数
+sum(): 返回bigint   sum(col)+cast(1 as bigint)
+
+
+
+select a from t1 left semi join t2 on t1.a=t2.a
+left semi join类似exists, 一行行过滤t1.a，只要在t2.a找到一个相等的值，就不再往下遍历t2.a，而inner join会匹配t2所有相等的t2.a
+
+distribute by和group by
+	都是按key划分数据，都使用reduce操作，唯一不同是distribute by只是单纯的分散数据，而group by把相同的key的数据聚集到一起，后续必须是聚合操作
+
+distribute by应用场景
+	map输出的文件大小不均
+	reduce输出的文件大小不均
+	小文件过多
+	文件超大
+
+join的子查询必须要有别名，而union all的子查询必须不能有别名
+
+函数：
+	show functions; #当前会话有多少可以使用的函数
+	desc function concat; #显示函数的描述信息
+	desc function extended concat;
+
+collect_set()： 选择某一列，组成array, 并去重
+collect_list(): 不去重
+
+
+id, money
+1, 3
+1, 1
+1, 2
+2, 5
+2, 3
+
+窗口函数
+	select id, money, first_value(money) over (partition by id order by money) # 不加的rows between表示不限制，按同一个id分区，按money排序，取第一个
+		1, 1, 1
+		1, 2, 1
+		1, 3, 1
+		2, 3, 3
+		2, 3, 5
+	select id, money, first_value(money) over (partition by id order by money rows between 1 preceding and 1 following) # 排序后，以当前行的上1行到下一行为选择范围。 类似的有last_value
+		1, 1, 1
+		1, 2, 2
+		1, 3, 2
+		2, 3, 3
+		2, 5, 3
+	select id, money, lead(money,2) over (order by money) # 直接使用order by全局排序，也可以加partition by. 去向下两行的money, lag为向上查
+		1, 1, 3
+		1, 2, 3
+		1, 3, 5
+		2, 3, null
+		2, 5, null
+	select id, money, rank() over (partition by id order by money) # 直接使用order by全局排序，也可以加partition by. 去向下两行的money, lag为向上查
+		1, 1, 1
+		1, 2, 2
+		1, 3, 3 
+		2, 3, 1
+		2, 5, 2
+
+混合函数
+	select java_method("java.lang.Math", "sqrt", cast(id as double)) from winfunc;
+
+udtf: user define table function
+	select id, adid from winfunc 
+	lateral view explode(split(type, '-')) tt as adid; # 将type分隔，转换成多列，与id做笛卡儿积
+
+row_number() 与rank类似，rank相同的值，排名相同，依次累加，row_number相同的值行号累加，遇到不同的值会从新置1
+1,2,2,4的rank值，使用dense_rank会出现1,2,2,3
+
+udf：自定义函数
+	继承UDF
+	实现evaluate方法
+	打成jar包
+	add jar xx.jar
+	create temporary function fun_name as com.zzjie.TestFunction;
+
+udaf: 自定义聚合函数.针对记录集合
+	编写resolver类，负责类型检查，操作符重载。
+	编写evaluator类，evaluator真正实现UDAF的逻辑
+	通常，顶层UDAF类继承GeneraticUDAFResolver2，里面编写嵌套类evalutor实现UDAF的逻辑
 	
+
+hive sql优化
+	join优化
+		hive.optimize.skewkoin-true;如果join过程出现倾斜，应该设置为true
+		set hive.skewjoin.key=100000; --这个是join的键对应的记录条数超过这个值则会进行优化
+		mapjoin
+			set hive.auto.convert.join=true;
+			hive.mapjoin.smalltable.filesize默认值是25mb
+			select /*+ mapjoin(A) */ f.a, f.b from A t join B on(f.a=t.a)
+		bucket join
+			两个表必须以相同的方式划分桶，两个表的桶个数是倍数关系
+	group by优化
+		hive.groupby.skewindata=true;
+		set hive.groupby.ampaggr.checkinterval=100000; --group键对应的记录数超过这个值则会进行优化
+	count distinct优化
+		优化前：select count(distinct id) from t1;  -- 一个job,只有一个reducer
+		优化后：select count(1) from (select distinct id from t1) tmp; 或 select count(1) from (select id from t1 group by id) tmp; -- 两个job,去重可以多个reducer,计数只有一个reducer
+		第二种方式可以配合set mapred.reduce.tasks=3来使用。第一种方式设置reducer没用
+
+		select a,sum(b), count(distinct c), count(distinct d) from test group by a;
+		优化后：
+		select a, sum(b) as b, count(c) as c, count(d) as d from (
+			select a, 0 as b, c, null as d from test group by a,c
+			union all
+			select a, 0 as b, null as c, d from test group by a,d
+			union all
+			select a, b, null as c, null as d from test
+		) tmp1 group by a;
+
+hive表优化
+	静态分区
+	动态分区
+		set hive.exec.dynamic.partition=true;
+		set hive.exec.dynamic.partition.mode=nonstrict;
+	分桶
+		set hive.enforce.bucking=true; -- 相同的key分到相同的文件
+		set hive.enforce.sorting=true;
+
+hive job优化
+	并行化执行：
+		set hive.exec.parallel=true;
+		set hive.exec.parallel.thread.number=8;
+	本地执行：
+		set hive.exec.mode.local.auto=true;
+		当一个job满足如下条件才能真正使用本地模式：
+		1.job的输入数据必须小于参数hive.exec.mode.local.auto.inputbytes.max（默认128m）
+		2.job的map数必须小于参数：hive.exec.mode.local.auto.tasks.max(默认4)
+		3.Job的reduce数必须为0或者1
+
+	job合并输入小文件
+	set hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat
+	合并文件数由mapred.max.split.size限制的大小决定
+	job合并输出小文件
+	set hive.merge.smallfiles.avgsize=256000000; 当输入文件平均大小小于该值，启动新job合并文件
+	set hive.merge.size.per.task=64000000; 合并之后的文件大小
+
+	set mapred.job.reuse.jvm.num.tasks=20; --jvm重用
+
+map优化
+	set mapred.map.tasks=10; 无效
+	1. 默认map个数 default_num=total_size/block_size;
+	2. 期望大小 goal_num=mapred.map.tasks;
+	3. 设置处理的文件大小
+	  split_size=max(mapred.min.split.size, block_size);
+	  split_num=total_size/split_size;
+	4. 计算的map的个数
+		compute_map_num=min(split_num, max(default_num, goal_num))
+	如果想增加map个数，设置mapred.map.tasks为一个较大的值
+	如果想减小map个数，设置mapred.min.split.size为一个较大的值
+	当小文件很多时，不要通过mapred.min.split.size来减小map数量，这种方式会导致网络传输过多，并不会按就近原则来合并小文件。需要使用CombineFileInputFormat将多个input path成一个InputSplit送给mapper处理，从而减小mapper数量
+
+
+	set hive.map.aggr=true
+	set mapred.map.tasks.speculative.exection=true
+
+reduce优化
+	set mapred.reduce.tasks=10;
+	hive.exec.reducers.max 默认999
+	hive.exec.reducers.bytes.per.reducer 默认1G
+
+	numRTashs=min[maxReducers, input.size/perReducer]
+	maxReducers=hive.exec.reducers.max
+	perReducer=hive.exec.reducers.bytes.per.reducer
+
+set hive.fetch.task.conversion=more; 简单列查询可以不走map reduce模式
+explain dependency select count(1) from p; 以json格式输出执行语句会读取的input table和input partition信息
+select NVL(name ,’no name’) from m limit 10;
+
+select f1(col1), f2(col2), f3(col3), count(1) \
+group by f1(col1), f2(col2), f3(col3);
+可以写成
+select f1(col1), f2(col2), f3(col3), count(1) group by 1, 2, 3;

@@ -1,0 +1,238 @@
+spark包含：spark core, spark on sql, MLlib, Streaming, GraphX, SparkR等
+
+spark部署
+---
+spark应用程序部署
+	local, spark standalone(spark自有的一种主从结构), hadoop yarn, apache mesos, amazon ec2
+	应用程序由两部分组成：驱动程序，executor
+spark standalone集群部署
+	standalone, standalone ha
+
+spark源码编译
+	SBT 编译 
+ 		SPARK_HADOOP_VERSION=2.2.0 SPARK_YARN=true sbt/sbt assembly  # sbt的配置文件是project/build.scala
+	Maven 编译 
+		export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m" 
+		mvn -Pyarn -Dhadoop.version=2.2.0 -Dyarn.version=2.2.0 -DskipTests clean package
+	Spark 部署包生成命令 make-distribution.sh 
+		--hadoop VERSION ： Hadoop 版本号，不加此参数时 hadoop 版本为 1.0.4
+		--with-yarn ：是否支持 Hadoop YARN ，不加参数时为不支持 yarn 
+		--with-hive ：是否在 Spark SQL 中支持 hive ，不加此参数时为不支持 hive 
+		--skip-java-test ：是否在编译的过程中略过 java 测试，不加此参数时为略过
+		--with-tachyon ：是否支持内存文件系统 Tachyon ，不加此参数时不支持 tachyon
+		--tgz ：在根目录下生成 spark-$VERSION-bin.tgz ，不加此参数时不生成 tgz 文件，只生成/dist 目录。 
+		--name NAME ：和-tgz 结合可以生成 spark-$VERSION-bin-$NAME.tgz 的部署包，不加此参数时 NAME 为 hadoop 的版本号
+		如，生成支持 yarn 、 hive 的部署包： 
+		./make-distribution.sh --hadoop 2.2.0 --with-yarn --with-hive --tgz  //make-distribution.sh里面是使用mvn编译打包
+		// 在根目录生成spark-$VERSION-bin.tgz，在assembly/target/scala-2.10/spark-assembly-1.0.0-hadoop2.2.0.jar
+	也可以直接在官方下载spark对应yarn的部署包，就不用自己编译。但是spark的一些库因为版权问题没法提前编译，如ganglia,mllib，所以要掌握源码编译的方式。
+	源码编译出来的tgz只有100多m，但是整个源码目录比较大，编译完成拷贝到其他机器时可以只拷贝tgz解压出来的目录
+
+Spark Standalone集群部署（master挂了集群就挂了）
+	java安装
+	ssh无密码登录
+	spark安装包解压,在hadoop1上，hadoop1也是主
+	spark配置文件配置
+		conf/slave
+			hadoop1
+			hadoop2
+			hadoop3
+		conf/spark-env.sh 
+			export SPARK_MASTER_IP=hadoop1 
+			export SPARK_MASTER_PORT=7077 
+			export SPARK_WORKER_CORES=1 # worker占一个cpu核
+			export SPARK_WORKER_INSTANCES=1 # 每个slave一个worker实例 
+			export SPARK_WORKER_MEMORY=3g # worker最大占用内存，默认占用512m
+		拷贝配置好的spark目录到slave节点（hadoop2, hadoop3）
+		启动spark
+			sbin/start-all.sh
+			启动后可以访问http://hadoop1:8080查看部署节点信息
+Spark Client 部署
+	Java的安装 
+	ssh无密码登录 
+	Spark安装包部署(拷贝hadoop1的spark目录到客户端机器即可)
+	测试
+		bin/spark-shell --master spark://hadoop1:7077 
+		启动spark-shell后可以访问http://hadoop1:8080查看，spark shell是一个running application
+
+Spark Standalone HA 部署 
+	基于文件系统的HA
+		spark.deploy.recoveryMode 设成 FILESYSTEM 
+		spark.deploy.recoveryDirectory  Spark保存恢复状态的目录 
+		Spark-env.sh 里对 SPARK_DAEMON_JAVA_OPTS 设置 
+		export SPARK_DAEMON_JAVA_OPTS="-Dspark.deploy.recoveryMode=FILESYSTEM -D spark.deploy.recoveryDirectory=/app/hadoop/spark100/recovery"
+		master挂掉后，需要手动重启master
+	基于zookeeper的HA
+		spark.deploy.recoveryMode 设置成 ZOOKEEPER
+		park.deploy.zookeeper.url ZooKeeper URL
+		spark.deploy.zookeeper.dir ZooKeeper 保存恢复状态的目录，缺省为 /spark
+		spark-env 里对 SPARK_DAEMON_JAVA_OPTS 设置
+		export SPARK_DAEMON_JAVA_OPTS="-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=hadoop1:2181,hadoop2:2181,hadoop3:2181 -Dspark.deploy.zookeeper.dir=/spark"
+		master挂掉后，因为数据保存在zookeeper,从把一个standby节点的置为active
+
+Spark Standalone 伪分布式部署是类似的，slave不用写多台机器，不需拷贝spark目录到其他机器
+
+Spark 工具简介
+	Spark 交互工具 spark-shell 
+	Spark 应用程序部署工具 spark-submit 
+	spark-shell是调用spark-submit的，两个工具具有相同的参数，查看bin/spark-submit --help
+	Options:
+	  --master MASTER_URL         spark://host:port, mesos://host:port, yarn, or local.
+	  --deploy-mode DEPLOY_MODE   driver运行之处，client运行在本机，cluster运行在集群
+	  --class CLASS_NAME          应用程序包的要运行的class
+	  --name NAME                 应用程序名称
+	  --jars JARS                 用逗号隔开的driver本地jar包列表以及executor类路径
+	  --py-files PY_FILES         用逗号隔开的放置在Python应用程序PYTHONPATH上的.zip, .egg, .py文件列表
+	  --files FILES               用逗号隔开的要放置在每个executor工作目录的文件列表
+	  --properties-file FILE      设置应用程序属性的文件放置位置，默认是conf/spark-defaults.conf
+	  --driver-memory MEM         driver内存大小，默认512M
+	  --driver-java-options       driver的java选项
+	  --driver-library-path       driver的库路径Extra library path entries to pass to the driver
+	  --driver-class-path         driver的类路径，用--jars 添加的jar包会自动包含在类路径里
+	  --executor-memory MEM       executor内存大小，默认1G
+
+	 Spark standalone with cluster deploy mode only:
+	  --driver-cores NUM          driver使用内核数，默认为1
+	  --supervise                 如果设置了该参数，driver失败是会重启
+
+	 Spark standalone and Mesos only:
+	  --total-executor-cores NUM  executor使用的总核数
+
+	 YARN-only:
+	  --executor-cores NUM        每个executor使用的内核数，默认为1
+	  --queue QUEUE_NAME          提交应用程序给哪个YARN的队列，默认是default队列
+	  --num-executors NUM         启动的executor数量，默认是2个
+	  --archives ARCHIVES         被每个executor提取到工作目录的档案列表，用逗号隔开
+	例子：
+	bin/spark-shell --executor-memory 2g --driver-memory 1g --master spark://hadoop1:7077,hadoop2:7077 # ha不知道那个是master,用逗号分隔，轮流尝试
+	scala> val rdd=sc.textFile("hdfs://hadoop1:8000/dataguru/data/NOTICE") 
+	scala> rdd.cache()
+	scala> val wordcount=rdd.flatMap(_.split(" ")).map(x=>(x,1)).reduceByKey(_+ _)
+	scala> wordcount.take(10)
+	scala> val wordsort=wordcount.map(x=>(x._2,x._1)).sortByKey(false).map(x=> (x._2,x._1)) 
+	scala> wordsort.take(10)
+
+	bin/spark-submit --master spark://hadoop1:7077 --class org.apache.spark.exa mples.SparkPi --executor-memory 2g --total-executor-cores 2 lib/spark-examples-1.0.0-hadoop2.2.0.jar 1000
+
+Spark 应用程序有两部分组成： driver 和 executor 
+Spark 应用程序之所以快不仅仅是由于基于内存计算，还和其工作原理相关：DAG、Schedule、Cache() 等
+
+---
+
+02Spark编程模型和解析
+并行化Scala集合 
+	Spark 使用 parallelize 方法转换成 RDD 
+	val rdd1 = sc.Parallelize(Array(1,2,3,4,5))  # 默认几个exector就切成几个分片
+	val rdd2 = sc.Parallelize(List(0 to 10),5)  # 切成5个分片
+	– 参数 slice 是对数据集切片，每一个 slice 启动一个 Task 进行处理。
+
+Hadoop数据集 
+	Spark 可以将任何 hadoop 所支持存储资源转化成 RDD ，如本地文件、 HDFS 、 Cassandr a 、 HBase, Amazon S3 等。
+	textFile("/my/directory/*.gz")   # 支持统配符，也支持整个目录读取
+	有可选的第二个参数 slice ，默认情况下，为每个block创建一个分片，用户也可以通过slice指定更多的分片，但不能使用少于 block 数的分片 
+	使用 wholeTextFiles() 读取目录里面的小文件，返回 ( 文件名，内容 ) 对 
+	使用 sequenceFile[K,V]() 方法可以将 SequenceFile 转换成 RDD 
+	使用 hadoopRDD() 方法可以将其他任何 Hadoop 的输入类型转化成 RDD
+
+Spark 应用程序编程模型 
+	Driver Program （ SparkContext ） 
+	Executor （ RDD 操作）
+		输入 Base-> RDD 
+		Transformation: RDD->RDD  # lazy，等有action再执行
+		Action: RDD->value
+		缓存 persist or cache()
+	共享变量
+		broadcast variables
+		accumulators
+
+Transformations
+	map(func) 集合每个元素经过func处理后返回，形成一个新的集合
+	filter(func) func返回true的保留，false过滤
+	flatMap(func) 与map类似，不过每个item可以返回0个或多个item
+	sample(withReplacement, fraction, seed) 取样
+	union(otherDataset) 合并数据集
+	distinct([numTasks]) 去重
+	groupByKey([numTasks]) 对(K, V)的dataset,返回(K, Seq[V])
+	reduceByKey(func, [numTasks]) 先对所有K,V做groupByKey，然后对每个K,V调用func，返回新的K,V
+	sortByKey([ascending], [numTasks]) 按key进行排序，ascending为true则升序
+	join(otherDataset) 对两个K,V的dataset进行连接
+
+Action
+	reduce(func) 聚集所有元素使用func，如reduce(_ + _) 累加所有值
+	collect() 以数组的形式把所有值返回给驱动程序
+	count() 计数
+	first() 第一个元素
+	take(n) 取前n个
+	takeSample(withReplacement, fraction, seed) 
+	saveAsTextFile(path) 保存rdd到文件
+	saveAsSequenceFile(path) 保存rdd到sequence文件
+	countByKey() 返回(K, Int)
+	foreach(func) 与map不同，它会修改rdd本身而不是返回
+
+缓存
+	可以使用persist和cache方法将任意RDD缓存到内存或磁盘、 tachyon 文件系统中
+	缓存是容错的，如果一个RDD分片丢失，可以通过构建它的 transformation 自动重构
+	被缓存的 RDD 被使用的时，存取速度会加速 10X 
+	cache是persist的特例（persist为MEMORY_ONLY的情况，默认就是MEMORY_ONLY）
+	excutor中默认60中cache,40%做task计算
+	# StorageLevel(useDisk, useMemory, useOffHeap, deserialized, replication:1) # useOffHeap使用tachyon，deserialized不序列化
+	# 序列化可以节省内存但消耗cpu，默认使用java的序列化器，兼容性好但慢不建议使用
+	val DISK_ONLY_2 = new StorageLevel(true, false, false, false, 2) 
+	val MEMORY_ONLY = new StorageLevel(false, true, false, true) 
+	val MEMORY_ONLY_SER = new StorageLevel(false, true, false, false) # 序列化
+	val OFF_HEAP = new StorageLevel(false, false, true, true) 
+
+
+广播变量（Broadcast Variables）
+	广播变量缓存到各个节点的内存中，而不是每个Task
+	广播变量被创建后，能在集群中运行的任何函数调用
+	广播变量是只读的，不能在广播后修改
+	对于大数据集的广播，spark尝试使用高效的广播算法来降低通信成本
+	使用方法 val bc = sc.broadcast(Array(1,2,3))
+		bc.value
+
+累加器
+	累加器只支持加法操作
+	累加器可以高效地并行，用于实现计数器和变量求和
+
+
+RDD
+窄依赖（ narrow dependencies ） 
+	子 RDD 的每个分区依赖于常数个父分区（即与数据规模无关） 
+	输入输出一对一的算子，且结果 RDD 的分区结构不变，主要是 map 、 flatMap 
+	输入输出一对一，但结果 RDD 的分区结构发生了变化，如 union 、 coalesce 
+	从输入中选择部分元素的算子，如 filter 、 distinct 、 subtract 、 sample  
+宽依赖（ wide dependencies ） 
+	子 RDD 的每个分区依赖于所有父 RDD 分区 
+	对单个 RDD 基于 key 进行重组和 reduce ，如 groupByKey 、 reduceByKey
+	对两个 RDD 基于 key 进行 join 和重组，如 join
+
+
+spark streaming
+----
+DSream
+	DStream由很多个rdd组成，每个rdd是一段时间间隔内的rdd
+	如果对dstream做flatmap操作，就是对里面的每个rdd做flatmap操作
+
+spark streaming支持spark的transforation，另外还有自己特有的transformation:
+	updateStateByKey
+	window, countByWindow, reduceByWindow, countByValueAndWindow, reduceByKeyAndWindow
+dstream输出：
+	print, foreachRDD, saveAsObjectFiles, saveAsTextFiles, saveAsHadoopFiles
+
+持久化
+	仍然允许用户调用persist来之久话
+	默认级别为<内存+序列化>
+	对于window和stateful操作默认持久化
+	对于来自网络的数据源，每份数据都会在内存中存两份。 MEMORY_AND_DISK_SER_2. 当内存放不下才会放磁盘
+
+check point
+	对于window和stateful操作必须checkpoint
+	通过StreamContext的checkpoint来指定目录
+	通过DStream的checkpoint来指定间隔时间
+	间隔必须是slide interval（两个window间隔的时间）的倍数
+
+
+
+
+

@@ -301,12 +301,271 @@ one.isDefinedAt(1) // true
 val two: PartialFunction[Int, String] = { case 2 => "two" }
 val wildcard: PartialFunction[Int, String] = { case _ => "something else" }
 val partial = one orElse two orElse three orElse wildcard //orElse组合多个PartialFunction
-partial(5)
+partial(5) 
 
 
 case class PhoneExt(name: String, ext: Int)
 val extensions = List(PhoneExt("steve", 100), PhoneExt("robey", 200))
 // 这就是为什么能在filter使用case的原因，因为本质是PartialFunction，也就是Function
 extensions.filter { case PhoneExt(name, extension) => extension < 200 }
+
+
+======
+枚举（for表达式）
+  for(i <- e) E(i)
+  // for表达式报错发生器（i <- e）同函数体E(i),e可以是各种集合，列，表达式，或者有上下界的数值范围:
+  // 1 to 4 (1 <= i <=4);   1 until 4 (1 <= i < 4)(不包含上届) 
+  for(i <- 1 to 4) println("No." + i)
+
+  嵌套枚举
+  for(i <- e1) for(j <- e2) E(i,j)  // 多于一行可以用花括号括起来
+  for(i <- e1; j <- e2) E(i,j) // 简便写法，只用写一个for
+  for(i <- e1; if A; j <- e2; if B) E(i,j) // 第一个for循环会判断条件A才执行，第二个会判断条件B
+
+  枚举返回值yield
+  > val No=for(i <- i to 4) yield i
+  No为Vector(1,2,3,4)
+
+
+匹配（match表达式）
+  val sign = a match { // 返回多种类型时，不能执行类型推断，返回Any类型
+    case e1 => 123
+    case e2 => 'H'
+    case _ => "else" 
+  }
+
+异常处理
+  throw new IllegalArgumentException
+  try {} catch {case ... ; case ...} finally {}
+
+输入输出
+  println("hello")
+  val name=readLine("your name: \n")
+  val age=readInt()
+
+其他语句
+  函数默认返回最后执行的一行，不需加return,加上return就必须声明返回值类型，如def a():T={return ..}
+  break/continue在c++中非常常见，在scala中是不必要的，可以通过if进行控制
+
+数组
+  val A=new Array[Int](4) //定长数组声明，4个元素Int默认值0
+  val A=Array(1, 2) // 两个元素，1,2
+  val G=B+Array（1,2） //重新生成一个数组  val G=B-Array（1,2） 
+  import scala.collection.mutable.ArrayBuffer
+  val C=new ArrayBuffer[String]() // 变长数组，要声明类型，否则使用+=的时候会报错
+  C += "aa"  // 添加元素 
+  C += "bb"
+  C+=("cc", "dd") // 添加两个元素
+  C++=Array("ee", "ff") // 使用++添加一个数组。 aa,bb,cc,dd,ee,ff
+  C.trimEnd(1) // 删除最后一个元素，会改变C而不是返回一个新的数组。 aa,bb,cc,dd,ee
+  C.insert(2, "ee") // 在第个二位置插入ee, 可以插入多个C.insert(2, "ee", "ff")
+  C.remove(3) //删除地三个元素 C.remove(3,2) 删除第三个元素后2个元素
+  D=C.toArray // 转换为定长数组
+  E=D.toBuffer // 转换为变长数组
+  for(i <- C) println(i) //直接遍历数组成员
+  for(i <- 0 to (C.length-1)) println(c(i)) //通过下标遍历
+  for(i <- 0 to (C.length,2 )) // 每个两个元素取一个
+  for(i <- 0 to (C.length).reverse) // 反序遍历
+  val NEW=for(i <- C) yield i+1 //如果C是定长，NEW就是定长，C是变长，NEW就是变长
+
+映射Map: 包含不可变映射和可变映射
+  // 不可变映射
+  val Z=Map(a1->b1, a2->b2)
+  val Z=Map((a1,b1), (a2,b2))
+  // 可变
+  val Y=scala.cellection.mutable.Map((a1,b1), (a2,b2))
+  val X=new scala.collection.mutable.Map[Int, String] //没有初始值的可变映射
+  val a=Z(an) //返回值
+  val b=Z.get(an) //返回对象Option，避免空指针异常
+  val c=Z.contains(an) //判断是否有值
+  val d=Z.getOrElse(an, 0) // 没有则返回0
+  Y+=(a4->b4, a5->b5) //添加新键值对
+  Y-=a4 //删除键值对
+  val W=Z+(a4->b4, a5->b5) //对于不可变map,这回从新构造一个新的Map
+  val V=W-(a4->b4, a5->b5) 
+  for((i,j) <- Z) E(i,j) // 遍历Map
+  for((i,j) <- Z) yield (j,i) // 互换键值
+  val e=Z.keySet // key集合
+  val f=Z.values // value集合
+
+元组tuple
+  map是二元的元组，元组是不同类型的值的聚集，若干个单个的值包含在圆括号中便构成了元组
+  val g=(1, 1.2, 'A') // (Int, Double, Char)的元组
+  val h=g._1 // 或val h=g _1 。使用_1、_2来访问元组的组元
+  // 使用zip能把几个集合结合起来
+  val one=Array('a', 'b', 'c')
+  val two=Array(1,2,3)
+  val three=one.zip(two) // 或val three=one zip two   Array[(Char, Int)] = Array((a,1), (b,2), (c,3))
+  val four=one.zip(two).toMap 或 val hour= one zip two toMap
+
+包引入
+  import scala.collection.{A, B} // 引入多个包
+  import scala.cellection.mutable._ // 引入该包下所有成员
+  import java.util.{HashMap => JavaHashMap} //引入并重命名
+  import java.util.{HashMap => _, _} // 隐藏，可能引入了util下的所有，但是HashMap冲突了不需要使用，将它隐藏
+  scala默认引入3个包： java.lang._, scala._, Predef._
+  引入a.b._ 并不会引入a._ 。 引入a._也不会引入a.b._
+  引入可以在文件的开头，也可以在使用之前才引入。 引入有范围，花括号
+
+类定义
+  class HELLOWORLD {
+    val value1 = "HELLO"
+    var value2 = "WORLD "
+    def add() {println(value1+value2)}
+    def plus(m:char)=value2+m
+    private var _value3 = "aa" // 这里用下划线只是自己标识它是一个私有变量
+    // 如下是实现setter方法。var可以实现setter,val没有setter
+    def value3 = _value3  // getter
+    def value3_ = (newValue3:String) {  //setter
+      if(newValue3.length>_value3.length) _value3=newValue3
+    }
+
+  }
+  val one = new HELLOWORLD
+  one.add() // 或者one.add，注意如果声明无参方法时没有带()，带哦用也不可以带()
+
+构造器
+  主构造器 
+    class HELLOWORLD(val value1:String, var value2:String) {
+      pirntln("created")
+      val value3 = value1 + value2 
+    }
+    val two = new HELLOWROLD("welcome", "home")
+    主构造器的参数一般有四种：
+    value:String 生成自由字段，对象有没有方法使用value,则没有该字段
+    private val/var value:String sioux字段，私有的getter/setter方法
+    val/var value:String 私有字段，共有的getter/setter方法
+    @BeanProperty val/var:String 私有字段，共有的Scala和JavaBean的getter/setter方法
+    class HELLOWORLD private (主构造器) {类成员} // 主构造器私有，只能通过辅助构造器构造对象
+  辅助构造器。 可以有任意多个辅助构造器，用this作为方法名
+    class HELLOWORLD{
+      private var value1=""
+      private var value2=""
+      def this(m:String) {
+        this() //调用默认的主构造器
+        this.value1=m
+      }
+      def this(m:String, n:String) {
+        this(m)
+        this.value2=n
+      }
+    }
+
+单例对象
+  object语法定义莫格勒的单例，对象的构造器在该对象第一次被使用时调用。object语法结构与class大致相同，除了object不能提供构造器参数。通常用于：1，作为存放工具函数或者常量。2，共享单个不可变实力。3，利用单个实例协调某个服务
+伴生对象
+  当一个单例对象存在同名类的时候，称为伴生对象
+  class HELLOWORLD{}
+  object HELLOWROLD{ def NOW{} }
+  类和其伴生对象可以互相访问私有属性，但必须存在同一个源文件中，类的伴生对象可以被访问，但不存在作用于中，如：
+  HELLOWORLD类必须通过HELLOWORLD.NOW调用伴生对象中的NOW方法，而不是直接用NOW调用
+apply方法
+  需要构造有参数需求的伴生对象时，可定义并使用apply方法
+  class HELLOWORLD(var m:String, n:Char) {...}
+  object HELLOWORLD {
+    def apply:(n:Char)=new HELLOWRLD(" ", n)
+  }
+  val hi = HELLOWORLD('j')
+
+继承
+  class week extends month{  // 继承
+    override def firstday = {...} // 重写
+    // 重写规则：子类中，def只能重写超类的def，
+    // val能重写超类的val或不带参数的def，
+    // var只能重写 超类中抽象的var（定义了类型没有赋初值的var）或者超类的getter/setter对
+  } 
+  class month{ 
+    val one = 25  //可在子类中用val重写 
+    var two = 15 //不可在子类中用var重写，因为不是抽象的 
+    var three：Int def firstday = //可在子类中用val重写 
+    def now = //getter/setter 可在子类中用var重写 
+    def now_ =                                 
+    def lastday(m:Char)={} //可在子类中用def重写 
+  }
+
+抽象类，不能被实例化
+  abstract year {
+    val name:Array[String] //抽象的val，带有一个抽象的getter
+    val num:Int //抽象的var,带有抽象的getter/setter方法
+    def sign // 没有方法提/函数体，是一个抽象方法
+  }
+  只要类中有任意一个抽象成员，必须使用abstract标记
+
+保护
+  final class year{..} 不可继承
+  class year{ final def sign{...}} 不可重写
+  protected 对子类可见，private对本类可见
+
+构造
+  子类构造器运行在超累构造器之后，在超类的构造器中调用的成员被子类重写后，返回值可能不正确： 
+  class month {
+    val num = 31
+    val days = new Array[Int](num)
+  }
+  class week extends month {
+    overwrite val num=7
+  }
+  val a = new week
+  先调用父类构造器，但num被子类week重写了，但因为week构造器还没被调用，此时 num的值未被初始化，因而返回0，days被设置为长度为0的数组，month构造器运行 完毕，执行week构造器，num被初始化为7
+  解决办法：
+    将超类的val声明为final， 不灵活
+    将超类的val声明为lazy, 慢
+    在子类中使用预定义语法
+       class week extends {override val num =7} with month{...} 
+
+特质trait，类似java的接口
+  Scala不支持多重继承，但可以扩展多个特质
+  trait reset{ 
+    def reset(m:Int,n:Int)={}
+  } 
+  class week extends reset {...}  // 混入一个特质
+  class week extends reset with B with C {...} //混入多个特质
+  特质的成员可以是抽象的，而且，不需要使用abstract声明 
+  trait reseting extends reset{...}  // 在特质定义中混入特质
+  val five = new month with reseting //在对象构造时混入特质 
+  如果class A extends B1 with B2 with B3.... 那么，串接B1、B2、B3...等特质，去掉重复项且右侧胜出
+  特质的一个主要应用方面在于接口，根据类已有的方法自动为类添加方法：
+  trait Logger{
+    def log(msg:String) 
+    def warn(msg:String) { log(“server”+msg) } 
+    def server(msg:String) { log(“server”+msg) }
+  } 
+  class week extends Logger{ 
+    def log(msg:String){println(msg)}
+    server(“HI”) // 根据log方法有了Logger的方法
+  }
+  特质的另一个应用方面在于：为类提供可堆叠的改变（super保留字）：
+  abstract class IntQueue {  def get(): Int；def put(x: Int)  } 
+  class BasicIntQueue extends IntQueue {
+    private val buf = new ArrayBuffer[Int] 
+    def get() = buf.remove(0) 
+    def put(x: Int) { buf += x } 
+  } 
+  trait Incrementing extends IntQueue { 
+    abstract override def put(x: Int) { super.put(x + 1) } 
+  } 
+  trait Doubling extends IntQueue { 
+    abstract override def put(x: Int) { super.put(2 * x) } 
+  }
+  object TestClient extends App { 
+    val queue1 = (new BasicIntQueue with Incrementing with Doubling) 
+    queue1.put(2)            //Doubling.put(2*2)->Incrementing.put(4+1)。 从最右的trait开始执行
+    println(queue1.get()) //result is 5
+
+    val queue2 = (new BasicIntQueue with Doubling with Incrementing) 
+    queue2.put(2)            //Incrementing.put(2+1)->Doubling.put(2*3) 
+    println(queue2.get()) //result is 6
+  }
+
+
+
+
+
+
+
+
+
+
+
 
 
