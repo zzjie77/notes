@@ -1,0 +1,46 @@
+100w个block，namenode大概需要1g内存
+20台4t硬盘的datanode，namenode需要多大内存:
+20 * 4000000 mb / (128mb * 3) 约= 2000， 即2g内存
+数据节点默认使用1g内存，tasktracker默认使用1g内存
+tasktrack的子map任务默认使用200m, 如果这台机有2个子map任务，即400m
+trasktack的子reduce任务默认使用200m，如果这台机有两个子reduce任务，即400m
+一般设置reducer数目为cpu核心数的一到二倍
+
+spark:
+----
+
+cogroup: 
+	rdd1: [k1, v1], [k2, v2]
+	rdd2: [k1, v3], [k1, v4]
+	cogroup结果： [k1, ((v1), (v3, v4))]、[k2, (v2), (null)]
+	join结果：[k1, (v1, v3)]、[k1, (v1, v4)]
+	join操作是先进行cogroup，然后进行笛卡尔积
+
+collectAsMap与collect类似，只是用于key-value类型的rdd
+lookup也是对key-value的rdd,查找指定key所形成的value的seq序列
+reduceByKey内部由combineByKey实现
+reduceByKeyLocally，先执行Reduce，然后collectAsMap
+
+reduce操作相当于两个步骤的reduceLeft,第一步先对每个分区进行reduceLeft（即第一个元素与第二个元素计算，得到结果作为第一个元素，再与第三个元素进行计算，结果作为第一个元素，再与第四个元素计算）。第二个步骤将各个分区的结果再做一次reduceLeft来合并结果
+foldLeft操作与reduce类似，但是foldLeft可以有一个初始值
+aggregate与fold,reduce类似，但是aggregate各个分区之前的计算是并行的，而另外两个是串行的
+
+saveAsTextFile, 转换为key-value写入，(null, element to string)，每个分区一个文件
+saveAdObjectFile, 将rdd的元素转换为数组， 每个分区一个数组，然后写入(null, ByteWritble)
+
+spark什么时候应该进行缓存
+	1. 每个stage切换的时候
+	2. 很长的计算链条，即使在一个stage内，也应该缓存
+	3. 每个计算步骤非常耗时
+	4. checkpoint之前。checkpoint会把rdd数据写入一个checkpoint目录，然后把当前rdd作为dag计算图的起点，删除之前的parent rdd。checkpoint也是lazy的，要有action才会执行
+	引入checkpoint主要是为了避免缓存丢失(如内存不足)造成重复计算，如果缓存丢失了一部分，由于rdd是lineage容错的，可以向前找数据并重新计算。 
+	建议要checkpoint的rdd，persist在内存中，否则在进行checkpoint的时候要重新计算
+
+parent rdd可能有多个，子rdd只有一个。如join有两个parent, 子rdd只能有一个
+narrow dependency
+	每个parent rdd的partition最多被子rdd的一个partition使用
+	或者说 
+wide dependecy
+	每个parent rdd的partition被子rdd的多个partition使用
+	
+划分stage的意义是，stage内的计算步骤可以进行pipeline，不需要写磁盘，减少io,通过函数式编程将多个函数的计算步骤写成一个函数，将函数当成参数传递给另一个函数。而宽依赖要shuffle,所以要写磁盘

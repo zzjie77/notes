@@ -190,6 +190,22 @@ def calcType(calc: Calculator) = calc match {
 }
 calcType(hp20b)
 
+abstract class Persion
+case class Student(age: Int) extends Person //age默认是val, case class和caseobject默认是不能修改的
+case class Worker(age: Int, salary: Double) extends Pesion
+case object Shard extends Persion
+
+val worker = Worker(29, 10000)
+val worker2 = worker.copy(salary = 7812.5) 
+
+persion match {
+  case Student(age) => println("I am " + age + " years old")
+  case Work(_, salary) => println("I got " + salary)
+  case Shared = > println("No property")
+}
+caseOps(Student(19))
+caseOps(Shared)
+
 // 异常
 val result: Int = try {
   remoteCalculatorService.add(1, 2)
@@ -206,7 +222,7 @@ val result: Int = try {
 
 //  ---------------- 集合 -----------
 // list 
-val numbers = List(1, 2, 3, 4) // 不需要new
+val numbers = List(1, 2, 3, 4) // 不需要new .   numbers(1)获取元素
 val number2 = 1 :: 2 :: 3 :: 4 :: Nil //也可以这样创建List,最后一个要为Nil
 Set(1, 1, 2) 
 // Tuple
@@ -223,7 +239,7 @@ val a = 1 -> 2
 // map  map其实是一个list,存放的是元组tuple
 val map = Map(1 -> 2) 
 val map2 = Map("foo" -> "bar", "hello" -> "world")
-map2.get("foo") //返回Some(bar), 没有对应的key则返回None
+map2.get("foo") //返回Some(bar), 没有对应的key则返回None。 map2.get("foo").get 最后不加括号
 
 // option 有子类Some[T]和None
 trait Option[T] {
@@ -249,12 +265,12 @@ numbers.filter((i: Int) => i % 2 == 0) // 同样可以写成 numbers.filter(_ % 
 // zip将两个列表的内容聚合到一个对偶列表中。
 scala> List(1, 2, 3).zip(List("a", "b", "c"))
 res0: List[(Int, String)] = List((1,a), (2,b), (3,c))
-// partition
+// partition 返回tuple
 scala> numbers.partition(_ % 2 == 0)
 res0: (List[Int], List[Int]) = (List(2, 4, 6, 8, 10),List(1, 3, 5, 7, 9))
 // find返回集合中第一个匹配谓词函数的元素。
-numbers.find((i: Int) => i > 5) // Some(6)
-numbers.drop(5) // 删除前5个元素
+numbers.find((i: Int) => i > 5) // Some(6).get
+numbers.drop(5) // 返回一个删除前5个元素的新集合
 numbers.dropWhile(_ % 2 != 0) //List(2, 3, 4, 5, 6, 7, 8, 9, 10)
 // foldLeft 0为初始值（记住numbers是List[Int]类型），m作为一个累加器。
 numbers.foldLeft(0)((m: Int, n: Int) => m + n) 
@@ -323,7 +339,7 @@ extensions.filter { case PhoneExt(name, extension) => extension < 200 }
   for(i <- e1; if A; j <- e2; if B) E(i,j) // 第一个for循环会判断条件A才执行，第二个会判断条件B
 
   枚举返回值yield
-  > val No=for(i <- i to 4) yield i
+  > val No=for(i <- 1 to 4) yield i
   No为Vector(1,2,3,4)
 
 
@@ -340,8 +356,12 @@ extensions.filter { case PhoneExt(name, extension) => extension < 200 }
 
 输入输出
   println("hello")
-  val name=readLine("your name: \n")
+  val name=readLine("your name: \n") // Console.readLine，Console默认导入可以省略
   val age=readInt()
+
+  val writer = new PrintlWriter(new File("c:/test.txt"))
+  for(i <- 1 to 100) writer.println(i)
+  writer.close()
 
 其他语句
   函数默认返回最后执行的一行，不需加return,加上return就必须声明返回值类型，如def a():T={return ..}
@@ -350,7 +370,7 @@ extensions.filter { case PhoneExt(name, extension) => extension < 200 }
 数组
   val A=new Array[Int](4) //定长数组声明，4个元素Int默认值0
   val A=Array(1, 2) // 两个元素，1,2
-  val G=B+Array（1,2） //重新生成一个数组  val G=B-Array（1,2） 
+  val G=B+Array(1,2) //重新生成一个数组  val G=B-Array（1,2） 
   import scala.collection.mutable.ArrayBuffer
   val C=new ArrayBuffer[String]() // 变长数组，要声明类型，否则使用+=的时候会报错
   C += "aa"  // 添加元素 
@@ -558,13 +578,546 @@ apply方法
   }
 
 
+----------
+import scala.io.Source
+val files = Source.fromFile("c:/test.txt") // fromURL可以获取url的文字流
+for(line <- files) println(line)
+
+使用递归函数必须指定返回值类型
+
+val d = ArrayBuffer(1,3,2)
+d.sorted # 返回排序好的array
+val e = Array(1,3,2)
+scala.util.Sorting.quickSort(e) # 快速排序，改变e本身
+e.mkString(" and ") # 1 and 2 and 3
+e.mkString("<", ",", ">") # <1,2,3>
+Array(1,2,3).sum #求和，max最大值
+val matrix=Array.ofDim[Double](3,4)
+val triangle=new Array[Array[Int]](10)
+for(i <- 0 util triangle.length)
+  triangle(i)=new Array[Int](i+1)
+
+---
+默认的map是不可修改的，要修改使用
+val scores=scala.collection.mutable.Map("a" -> 1, "b" -> 2)
+val value=scores.getOrElse("a", 0)
+scores += ("c" -> 3) 
+scores -= "b" #根据key删除元素
+val sortedMap = scala.collection.immutable.SortedMap("c"->3, "b"->2) # 根据key排序的map
+
+Console.print("a" * 5) 打印a 5次
+val tuple=(1, 2, 3.14, "a", "b")
+val third = tuple._3 #也可以tuple _3来取
+val (first, second, third2, fouth, fifth) = tuple
+val (f, s, _, _, _) = tuple #不需要使用后三个， 使用占位符_
+
+class Persion {
+  private var age = 0 #private属性必须初始化的时候赋值
+}
+
+class Student {
+  var age = 0 #默认是private,并且会生成getter setter方法
+  val name="a" #val默认会生成getter
+  private[this] nickname = "jack" 
+  // s1、s2是Student的两个对象，可以相互访问private属性但不能访问[this]
+
+  def this(name:String) { //重载的构造方法
+    this  // 需要先调用一个构造方法，默认的主构造方法是无参的
+    this.name = name
+  }
+
+}
+
+class Student (val name : String, val age : Int) { // ()是主构造方法的参数列表
+  println("构造方法。不是def的方法都是构造方法")
+  var name : String = _
+  println(gender)
+  def this(name:String, age:Int, gender:String) {
+    this(name, age) //必须调用一个构造方法
+    this.gender = gender
+  }
+
+内部类：
+  Java的内部类是从属于外部类的，scala是从属于对象的
+class Outer(val name: String) { outer => // 通过outer这个名字让内部类可以访问外部类
+  class Inner(val name: String) {
+    def foo(b:Inner) = println("Outer: " + outer.name + " Inner: " + b.name)
+  }
+}
+object OOPInScala {
+  def main(args: Array[String]) {
+    val outer1 = new Outer("spark")
+    val outer2 = new Outer("Hadoop")
+    val inner1 = new outer1.Inner("Scala")
+    val inner2 = new outer1.Inner("Java")
+    inner1.foo(inner1)
+    inner2.foo(inner2)
+  }
+}
+
+类与对象的apply方法
+  val arr = Array(1,2,3) #调用Array对象的apply方法
+  val arr2 = new Array[Int](4)
+  println(arr2(1)) # 通过 对象() 调用类的apply方法
+
+抽象类
+abstract class SuperTeacher(val name : String) {
+  var id : Int
+  var age : Int // 没有值也没有占位符_的字段就是抽象字段
+  def teach   //没有方法体的方法就是抽象方法，不用加abstract关键字
+}
+如果重写的方法是抽象的就可以不加override，否则要加
+
+接口 trait特质
+trait与java接口不同的是，trait不必所有方法都是抽象的，可以有实现的方法
+trait Logger {
+  def log(msg:String) {}
+}
+class ConcreteLogger extends Logger with Cloneable { //实现多个trait
+  
+}
+trait TraitLogger extends Logger {
+  override def log(msg:String) {
+    println("trait logger: " + msg)
+  }
+}
+
+val logger = new ConcreteLogger with TraitLogger //对象动态混入特质
+logger.log
+
+包：除了像java一样以目录作为包，scala可以在代码里定义包
+package com 
+package scala 下面代码的作用域都是com.scala开头
+package spark.navigation {
+  class Navigator
+  package tests {
+    // 在com.scala.spark.navigation.tests包里
+    class NavigatorSuite
+  }
+
+  // 包对象people
+  package object people {
+    val defaultName = "scala"
+  }
+  package people {
+    class people {
+      val name = defaultName //包可以使用包对象中定义的字段或方法
+    }
+  }
+}
+
+正则
+val numPattern = "[0-9]+".r // .r表示正则表达式
+val numberPattern = """\s+[0-9]+\s+""".r // """里面的特殊字符不需要转义
+// findAllIn方法遍历所有匹配的迭代器
+for(matchString <- numPattern.findAllIn("1232 scala, 123 spark")).println(matchString)
+// 查找首个匹配项
+println(numberPattern.findFirstIn("1232 scala, 123 spark"))
+
+// case中使用
+val numitemPattern="""([0-9]+) ([a-z]+)""".r
+//val numitemPattern(num, item) = "99 hadoop"
+val line = "93829 spark"
+line match {
+  case numitemPattern(num, blog) => println(num + "\t" + blog)
+  case _ => println("ohh")
+}
+
+sam代码样例
+var data=0
+val frame = new JFrame("SAM Testing")
+val jButton = new JButton("counter")
+jButton.addActionListener(new ActionListener {
+  override def actionPerformed(event: ActionEvent) {
+    data += 1
+    println(data)
+  }
+})
+// 添加事件每次都要new一个对象，sam使我们直接添加代码逻辑，而不需要多余的代码样板
+// 声明隐式转换，将代码逻辑转换为类
+implicit def convertedAction(action: (ActionEvent) => Unit) =
+  new ActionListener {
+    override def actionPerformed(event:ActionEvent) {
+      action(event)
+    }
+  }
+jButton.addActionListener((event: ActionEvenet) => {data += 1; println(data)})
+frame.setContentPane(jButton)
+frame.pack()
+frame.setVisible(true)
+
+
+val a = List(1,2,3,4,5)
+a partition (_%2 == 0) //(List(2,4), List(1,3,5))
+a find (_ % 2 ==0) // Some(2)
+a find (_ <=0) // None
+a takeWhile (_ < 4) // List(1,2,3)
+a dropWhile (_ < 4) // List(4,5)
+a span (_ < 4) // span速度比partition快。(List(1,2,3), List(4,5))
+
+def hasTotallyZeroRow(m: List[List[Int]]) = m exists (row => row forall (_ == 0))
+val m=List(List(1,0,0), List(0,1,0), List(0,0,0))
+println(hasTotallyZeroRow(m)) // true
+// exists要求只要有个List满足即返回true，forall要求List的每个元素满足
+
+(1 to 100).foldLeft(0)(_+_) // 0是初始值，加1后迭代加2，一直加到100
+0 /: (1 to 100)(_ + _) // foldLeft的符号写法
+(1 to 5).foldRight(100)(_-_) //-97  5-(4-(3-(2-(1-100))))
+(1 to 5):\100(_-_)
+
+a sortWith (_ < _) // 第一个元素要小于第二个元素，即升序排序 
+a wortWith (_ > _) // 降序排序
+
+List.apply(1,2,3) // List(1,2,3)
+List.make(3,5) // 3是重复次数，5是元素值 List(5,5,5)
+List.range(1,5) // List(1,2,3,4) 左闭右开。 还可以在第三个参数指定步长，默认1
+List.range(9,1,-3) // List(9,6,3)
+
+ListBuffer, ArrayBuffer, Queue, Stack
+-----
+import scala.collection.mutable.ListBuffer
+val listBuffer = new ListBuffer[Int]
+listBuffer +=1
+listBuffer +=2 
+println(listBuffer) // ListBuffer(1,2)
+
+import scala.collection.mutable.ArrayBuffer
+val arrayBuffer = new ArrayBuffer[Int]()
+arrayBuffer += 1
+arrayBuffer += 2 // ArrayBuffer(1,2)
+
+val empty = Queue[Int]() //没有import，默认是immutable
+val queue1 = empty.enqueue(1) // 因为不可变，返回一个新的queue
+val queue2 = queue1.enqueue(List(2,3,4,5))
+val (element, left) = queue2.dequeue // 返回第一个元素和剩下的元素
+
+import scala.collection.mutable.Queue
+val queue = Queue[String]()
+queue += "a"
+queue ++= List("b", "c")
+queue.dequeue # 和imtable不同，这里是删除第一个元素
+
+import scala.collection.mutable.Stack
+val stack = new Stack[Int]
+stack.push(1)
+stack.push(2)
+stack.push(3)
+statck.top // 获取栈顶3
+stack.pop // 弹出栈顶3
+
+
+Actor
+-----
+import scala.actors.Actor
+
+object First_Actor extends Actor {
+  def act() {
+    println(Thread.currentThread().getName())
+    for (i <- 1 to 10) {
+      println("Step : " + i)
+      Thread.sleep(2000)
+    }
+  }
+}
+object Hello_Actor {
+  def main(args: Array[String]) {
+    First_Actor.start // 启动线程，调用act方法
+  }
+}
+---
+import scala.actors.Actor._
+object Actor_Message extends Actor{
+  def act() {
+    while(true) {
+      receive {    // 偏函数receive
+        case msg => println("Message content Actor from inbox: " + msg)
+      }
+    }
+  }
+}
+object Actor_Messages {
+  def main(args: Array[String]) {
+    val actor_Message = actor { // 使用actor工具方法创建匿名的actor
+      while(true) {
+        receive {
+          case msg => println("Message content from inbox: " + msg)
+        }
+      }
+    }
+
+    val double_Message = actor { // 使用actor工具方法创建匿名的actor
+      while(true) {
+        receive {
+          case msg : Doule => println("Double Number from inbox: " + msg)
+          case _ => println("unknown")
+        }
+      }
+    } 
+
+    actor_Message ! "Spark" //发送消息
+    double_Message ! Math.PI
+    Actor_Message.start
+    Actor_message ! "hadoop" 
+    // receive接收方法会先调用isDefineAt查看该消息类型对应的case有没定义，没有则忽略该消息，有则取第一个isDefineAt返回true的，然后调用apply方法
+  }
+}
+
+--- 
+case class Persion(name:String, age:Int)
+
+class HelloActor extends actor {
+  def act() {
+    while(true) {
+      receive {
+        case Persion(name, age) => {
+          println("Name: " + name + " age: " + age)
+          sender ! "Echo!!" // 给发送者发消息
+        }
+      }
+    }
+  }
+
+  def main(args: Array[String]) {
+    val helloActor = new HelloActor
+    helloActor.start
+    helloActor ! Persion("zhangsan", 15)
+    helloActor.receive{case msg => println(msg)} // 一直接收
+    helloActor.receiveWithin(1000){case msg => println(msg)} // 一秒后停止
+  }
+}
+
+react和loop
+----
+object NameResolver extends Actor {
+  def act() {
+    react { // react的代码块不用返回，从而可以进行线程复用
+      case Net(name, actor) =>
+        sender ! getIp(name)
+        act // 不返回，所以不会保存调用堆栈。重新调用，就需要while(tue)了
+      case "EXIT" => println("Name resolver exiting.")
+      case msg => 
+        println("Unhandled message : " + msg)
+        act
+    }
+
+    //loop { // 重复执行
+    //  case Net(name, actor) => 
+    //    sender ! getIp(name) =>
+    //  case msg => 
+    //    println("Unhadled message : " + msg)
+    //}
+  }
+}
+
+模式匹配
+-----------
+for循环模式匹配
+for(i <- List(1,2,3,4)) {println(i)}
+for(index@"Flink" <- List("hadoop", "spark", "Flink")) {println(index)} // 遍历list，匹配Flink，index是别名
+for((language, "Hadoop") <- Set("Scala"->"Spark", "Java"->"Hadoop")) println(language) //Java
+for((k,v:Int) <- List( ("Spark"->5), ("Hadoop"->"Big data") )) {println(k)}
+
+val a@b=100 // @是别名，赋值给变量b，a是b的别名
+val (c, d)=(100, 200)
+//val (e, F)=(100, 200) //大写F要是常量val类型的，这里会报错，要预先定义F,预先定义就不能放在tuple内
+//val Array(i, J) = Array(100, 200) //同样J不能是大写的
+
+
+提取器
+object :> {
+  def unapply[A] (list: List[A]) = { // case进行模式匹配时会调用unapply提取值
+    Some( (list.init, list.last) )
+  } 
+}
+object Extractor_advanced {
+  def main(args: Array[String]) {
+    (1 to 9).toList match{ case _ :> 9 => println("hadoop")} 
+    (1 to 9).toList match{ case x :> 8 :> 9 println("spark") }
+  }
+}
+
+Actor akka
+-----
+Message.scala
+  import java.util.{HashMap, ArrayList}
+
+  class World(val word:String, val count:Integer)
+  case class Result
+  class MapData(val dataList: ArrayList[World])
+  class ReduceData(val reduceDataMap: HashMap[String, Intger])
+
+object MapReduceApplication {
+  def main(args: Array[String]) {
+    val _system = ActorSystem("HelloAkka")
+    val master = _system.actorOf(Props[MasterActor], name="master")
+
+    master ! "Hi! my name is xx. so so happy"
+    master ! "I hope you'll like it"
+
+    Thread.sleep(500)
+    master ! new Result
+    Thread.sleep(500)
+    _system.shutdown
+  }
+}
+
+class MasterActor extends Actor {
+  val aggregateActor:ActorRef = context.actorOf(Props[AggregateActor], name="aggregate")
+  val reduceActor:ActorRef = context.actorOf(Props(new ReduceActor(aggregateActor)), name="reduce")
+  val mapActor:ActorRef = context.actorOf(Props(new MapActor(reduceActor)), name="map")
+
+  def receive: Receive = {
+    case message:String =>
+      mapActor ! message
+    case message:Resule =>
+      aggregateActor ! message
+    case _ =>
+  }
+}
+
+class MapActor(reduceActor: ActorRef) extends Actor {
+  val STOP_WORDS_LIST = List("a", "is")
+
+  ref receive: Receive = {
+    case message: String =>
+      reduceActor ! evaluateExpression(message)
+    case _ =>
+  }
+
+  def evaluateExpression(line: String):MapData = {
+    var dataList = new ArrayList[Word]
+    var parser: StringTokenizer = new StringTokenizer(line)
+    var defaultCount:Integer = 1
+    while(parser.hasMoreTokens()) {
+      var word: String = parser.nextToken().toLowerCase()
+      if (!STOP_WORDS_LIST.contails(word)) {
+        dataList.add(World(word, defaultCount))
+      }
+      return new MapData(dataList)
+    }
+  }
+}
+
+class ReduceActor(aggregateActor: ActorRef) extends Actor {
+  def receive: Receive = {
+    case message: MapData =>
+      aggregateActor ! reduce(message.dataList)
+    case _ =>
+  }
+
+  def reduce(dataList: ArrayList[Wold]): ReduceData = {
+    var reduceMap = new HashMap[String, Integer]
+    for (wc:Word <- dataList) {
+      var word: String = wc.word
+      if(redeceMap.containsKey(word)) {
+        reduceMap.put(word, reduceMap.get(word)+1)
+      } else {
+        reduceMap.put(word, 1)
+      }
+    }
+    return new ReduceData(reduceMap)
+  }
+}
+
+class AggregateActor extends Actor {
+  var finalReduceMap = new HashMap[String, Integer]
+
+  def receive: Receive = {
+    case message: ReduceData =>
+      aggregateInMemoryReduce(message.reduceDataMap)
+    case message: Result =>
+      System.out.println(finalReduceMap.toString())
+  }
+
+  def aggregateInMemoryReduce(reducedList: HashMap[String, Integer]) {
+    var count: Integer = 0
+    for (key <- reduceList.keySet) {
+      if(finalReduceMap.containsKey(key)) {
+        count = reducedList.get(key)
+        count += finalReduceMap.get(key)
+        finalReducedMap.put(key. count)
+      } else {
+        finalReducedMap.put(key, reducedList.get(key))
+      }
+    }
+  }
+}
+
+--------
+类型变量Bounds
+// 泛型T是Comparable的子类，Comparable是上届
+class Pair_NotPrefect[T <: Comparable[T]](val first : T, val second : T) {
+  def bigger = if(first.compareTo(second) > 0) first else second
+}
+class Pair[T >: Comparable[T]] // T是父类
+class Pair_NotPrefect[T <% Comparable[T]](val first : T, val second : T) 
+// <%是view Bounds视图界定，意思是T可以隐式转换为Comparable类型
+// val pairInt = new Pair_NotPerfect(3,5) //使用<:会报错，<%就可以。Int转换为RichInt
+
+// Comparable比较要使用compareTo,Ordered比较可以直接用操作符> <
+class Pair_Better[T <% Ordered[T]](val first : T, val second : T) {
+  def bigger = if(first > second) first else second
+}
+
+Context Bounds上下文界定 :，T是泛型类型，Ordering必须是有泛型的类或接口。通过隐式参数来使用Ordering的compare方法，这样就不需要传进来的参数必须实现接口
+class Pair_Ordering[T : Ordering] (val first : T, val second : T) {
+  def bigger(implicit ordered : Ordering[T]) = { // 隐式参数，即不用传也有默认参数
+    if (ordered.compare(first, second) > 0) first else second
+  }
+}
+
+// ClassTag、Manifest、ClassManifest、TypeTag
+def array[T : Manifest](first : T, second : T) = {
+  val r = new Array[T](2); //本来不能创建泛型数组，必须指定具体类型。使用Manifest就可以保存实际传进来的类型的信息。
+  r(0) = first; r(1)=second; r
+}
+arrayMake(1, 2).foreach(println) // 可以类型推断，传入Int参数，T就为Int
+泛型T在运行是指定的信息是会被擦除的，通过Manifest来保存类型信息
+Manifest在路径依赖的时候会出现问题，使用ClassTag就没问题
+ClassTag只保存运行时的类型信息，TypeTag还包含一些静态信息
+ClassTag用得最多，替换Manifest。 TypeTag替换ClassManifest
+
+类型约束 
+// A =:= B //标示A类型等于B类型
+// A <:< B //标示A类型是B的子类型。 比<:更严格
+//A<%<B是A可以转换为B，但是scala 1.x已废弃
+def rocky[T](i:T)(implicit ev: T <:< java.io.Serialiable) { 
+  print("hello")
+}
+rocky("spark")
+
+协变Variance
+class Persion
+class Student extends Persion
+class C[+T](val args:T) // +协变，-逆变
+trait Friend[-T] {
+  def makeFriend(somebody: T)
+}
+协变：Student是Persion的子类，C[Student]就是C[Persion]的子类
+
+终止表达式
+object Log{ def >>:(data:String):Log.type = {println(data); Log}}
+"Haddoop" >>: "Spark" >>: Log // 终止表达式是右结合的，链式调用两次
+
+val list = List()
+val newList = "A" :: "B" :: list // ::也是终止表达式，右结合
+println(newList)
+
+终止类型 infix type
+val infix: Int Infix_Type String = null
+
+case class Cons(first:String, second:String)
+val case_class = Cons("one", "two")
+case_class match {case "one" Cons "two" => println("spark")}
+
+class A {
+  self =>   // 意思是self是this的别名
+  ..
+}
 
 
 
-
-
-
-
+链式调用要声明返回类型为this.type，而不是this
 
 
 
