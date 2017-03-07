@@ -233,6 +233,7 @@ check point
 	间隔必须是slide interval（两个window间隔的时间）的倍数
 
 
-
+-----------------------------------
+小文件多的时候可以通过colease来减少partition的数量，进而减少并行运算的task的数量，与reparation不同的是不需要shuffle
 
 

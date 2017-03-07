@@ -30,17 +30,17 @@ scala> capitalizeAll("rarity", "applejack")
 
 // 类
 class Calculator(brand: String) { // 
-	// 构造方法，并不是一个方法，类方法意外的代码都算构造方法
-	val color: String = if (brand == "TI") {
-		"blue"
-	} else if (brand == "HP") {
-		"black"
-	} else {
-		"white"
-	}
+  // 构造方法，并不是一个方法，类方法意外的代码都算构造方法
+  val color: String = if (brand == "TI") {
+    "blue"
+  } else if (brand == "HP") {
+    "black"
+  } else {
+    "white"
+  }
 
-	var age = 10
-	val sex = "mail"
+  var age = 10
+  val sex = "mail"
 
     // val brand: String = "HP"
     def add(m: Int, n: Int): Int = m + n //方法与函数的区别，方法能访问类中的变量
@@ -65,7 +65,7 @@ abstract class Shape {
 }
 
 class Circle(r: Int) extends Shape {
-	def getArea():Int = { r * r * 3 }
+  def getArea():Int = { r * r * 3 }
 }
 
 val c = new Circle(2)
@@ -117,7 +117,7 @@ Timer.currentCount() // 使用单例对象，不需要new
 Timer() // 调用apply方法
 
 class Bar {
-	def apply() = 0
+  def apply() = 0
 }
 
 // 调用类中的apply, 与object是不同的, 相同的是都要通过对象加()来调用 
@@ -134,7 +134,7 @@ object Bar {
 // 函数即对象，一个参数的函数其实是继承Function1的对象，两个参数对应Function2,支持从0到22
 // 所以定义def addOne(m:Int): Int = m + 1 ，相当于下面
 object addOne extends Function1[Int, Int] { // [Int, Int] 最后一个Int是返回值
-	def apply(m: Int): Int = m + 1
+  def apply(m: Int): Int = m + 1
 }
 addOne(1)
 
@@ -190,18 +190,18 @@ def calcType(calc: Calculator) = calc match {
 }
 calcType(hp20b)
 
-abstract class Persion
+abstract class Person
 case class Student(age: Int) extends Person //age默认是val, case class和caseobject默认是不能修改的
-case class Worker(age: Int, salary: Double) extends Pesion
-case object Shard extends Persion
+case class Worker(age: Int, salary: Double) extends Person
+case object Shared extends Person
 
 val worker = Worker(29, 10000)
 val worker2 = worker.copy(salary = 7812.5) 
 
-persion match {
+def caseOps(person: Person) = person match {
   case Student(age) => println("I am " + age + " years old")
-  case Work(_, salary) => println("I got " + salary)
-  case Shared = > println("No property")
+  case Worker(_, salary) => println("I got " + salary)
+  case Shared => println("No property")
 }
 caseOps(Student(19))
 caseOps(Shared)
@@ -232,6 +232,7 @@ hostPort._2
 hostPort match {
   case ("localhost", 80) => println(80)
   case ("localhost", 12) => println(12)
+  case _ => println("other")
 }
 建两个元素的元组时，可以使用特殊语法：->
 val a = 1 -> 2
@@ -359,7 +360,7 @@ extensions.filter { case PhoneExt(name, extension) => extension < 200 }
   val name=readLine("your name: \n") // Console.readLine，Console默认导入可以省略
   val age=readInt()
 
-  val writer = new PrintlWriter(new File("c:/test.txt"))
+  val writer = new PrintWriter(new File("c:/test.txt"))
   for(i <- 1 to 100) writer.println(i)
   writer.close()
 
@@ -766,7 +767,7 @@ println(hasTotallyZeroRow(m)) // true
 (1 to 5):\100(_-_)
 
 a sortWith (_ < _) // 第一个元素要小于第二个元素，即升序排序 
-a wortWith (_ > _) // 降序排序
+a sortWith (_ > _) // 降序排序
 
 List.apply(1,2,3) // List(1,2,3)
 List.make(3,5) // 3是重复次数，5是元素值 List(5,5,5)
@@ -863,7 +864,7 @@ object Actor_Messages {
 }
 
 --- 
-case class Persion(name:String, age:Int)
+case class Person(name:String, age:Int)
 
 class HelloActor extends actor {
   def act() {
@@ -932,7 +933,7 @@ object :> {
 object Extractor_advanced {
   def main(args: Array[String]) {
     (1 to 9).toList match{ case _ :> 9 => println("hadoop")} 
-    (1 to 9).toList match{ case x :> 8 :> 9 println("spark") }
+    (1 to 9).toList match{ case x :> 8 :> 9 => println("spark") }
   }
 }
 
@@ -969,7 +970,7 @@ class MasterActor extends Actor {
   def receive: Receive = {
     case message:String =>
       mapActor ! message
-    case message:Resule =>
+    case message:Result =>
       aggregateActor ! message
     case _ =>
   }
@@ -978,7 +979,7 @@ class MasterActor extends Actor {
 class MapActor(reduceActor: ActorRef) extends Actor {
   val STOP_WORDS_LIST = List("a", "is")
 
-  ref receive: Receive = {
+  def receive: Receive = {
     case message: String =>
       reduceActor ! evaluateExpression(message)
     case _ =>
@@ -1081,14 +1082,14 @@ ClassTag用得最多，替换Manifest。 TypeTag替换ClassManifest
 // A =:= B //标示A类型等于B类型
 // A <:< B //标示A类型是B的子类型。 比<:更严格
 //A<%<B是A可以转换为B，但是scala 1.x已废弃
-def rocky[T](i:T)(implicit ev: T <:< java.io.Serialiable) { 
+def rocky[T](i:T)(implicit ev: T <:< java.io.Serializable) { 
   print("hello")
 }
 rocky("spark")
 
 协变Variance
-class Persion
-class Student extends Persion
+class Person
+class Student extends Person
 class C[+T](val args:T) // +协变，-逆变
 trait Friend[-T] {
   def makeFriend(somebody: T)
@@ -1119,6 +1120,22 @@ class A {
 
 链式调用要声明返回类型为this.type，而不是this
 
+-----------------------
+import sys.process._
+"ls -al" ! #导入之后可以通过!来调用系统命令
 
+val patten = "[a-z]+".r # str to regex
+patten.findFirstIn("hello world") # Some(hello)
+for( item <- patten.findAllIn("hello world")) println(item) # 返回iterator, hello world
+patten.replaceAllIn("hello world", "123") # 返回string 123 123
 
+scala继承体系，源头在Any, 一分为二AnyRef和AnyVal, Null是所有引用的子类，只有一个实例为null, 最终在Nothing, Nothing没有实例
+Null和Nothing都是继承结构的最低端，Null是任意AnyRef类型的最低端,所以不能将null赋值给Int(AnyVal)，而Nothing是其他类型的最底端（包括Null）
+scala.collection.immutable.Nil其实就是List<Nothing>
 
+trait可以的class可以通过javap查看反编译，如果没有实现会编译成interface，如果有实现会编译成abstract class,实现的方法为static
+trait不能定义var字段，可以定义val字段
+trait可以当作interface使用，也可以同成util来使用
+scala没有static关键字，要使方法只有一份，可以使用object或者trait
+
+extends App可以直接在object中写代码，不用写main方法直接可以运行,args可以直接使用
