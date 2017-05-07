@@ -1,0 +1,642 @@
+安装go-sqlite3: https://my.oschina.net/Obahua/blog/129689
+win 64安装下载TMD 版的 GCC 编译器， 用go get github.com/mattn/go-sqlite3安装即可
+
+安装beego:
+    go get github.com/astaxie/beego
+    go get github.com/beego/bee
+
+beego hellworld
+-------------
+package main
+
+import (
+	"github.com/astaxie/beego"
+)
+
+type MainController struct {
+	beego.Controller
+}
+
+func (this *MainController) Get() {
+	this.Ctx.WriteString("hello world")
+}
+
+func main() {
+	beego.Router("/", &MainController{})
+	beego.Run()
+}
+
+go run beego_helloworld.go 
+访问 http://127.0.0.1:8080 
+
+go http server实现1 
+---------------------
+import (
+	"io"
+	"log"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "hello world, this is verion 1")
+	})
+
+	http.HandleFunc("/bye", bye)
+
+	// ListenAndServe第二参数为handler为nil,只使用handlerFunc
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func bye(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "byebye, this is verion 1")
+}
+
+go http server实现2 
+---------------------
+import (
+	"io"
+	"log"
+	"net/http"
+	"os"
+)
+
+func main() {
+	// log.Fatal(http.ListenAndServe(":8080", &myHandler{}))
+
+	mux := http.DefaultServeMux
+	mux.Handle("/", &myHandler{}) // 注册handler
+	mux.HandleFunc("/bye", bye)   // 注册handler func, 实际上是把func转换为HandlerFunc类型，HandlerFunc是实现了ServeHTTP方法，就是调用自身。 所以HandlerFunc是Handler， 再注册Handler
+
+	// 静态文件
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux.Handle("/static", http.StripPrefix("/static",
+		http.FileServer(
+			http.Dir(wd))))
+
+	log.Fatal(http.ListenAndServe(":8080", mux))
+}
+
+func bye(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "byebye, this is verion 2")
+}
+
+type myHandler struct {
+}
+
+func (*myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "hello world, this is verion 2")
+}
+
+go http server实现3 
+---------------------
+import (
+	"io"
+	"log"
+	"net/http"
+	"time"
+)
+
+var mux map[string]func(http.ResponseWriter, *http.Request)
+
+func main() {
+	mux = make(map[string]func(http.ResponseWriter, *http.Request))
+	mux["/"] = sayHello
+	mux["/bye"] = bye
+
+	server := &http.Server{
+		Addr:        ":8080",
+		Handler:     &myHandler{},
+		ReadTimeout: 5 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
+}
+
+func sayHello(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "hello world, this is verion 3")
+}
+
+func bye(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "byebye, this is verion 3")
+}
+
+type myHandler struct {
+}
+
+func (*myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// log.Println(r.URL.String())
+	if h, ok := mux[r.URL.String()]; ok {
+		h(w, r)
+		return
+	}
+	io.WriteString(w, "My server: "+r.URL.String())
+}
+
+beego创建项目
+--------------------------
+bee new myapp # 要先将bee.exe加入PATH，或拷贝到当前目录
+bee start myapp # 热部署启动，修改代码立即生效
+修改controllers/default.go:
+	func (c *MainController) Get() {
+		// 配置管理
+		c.Ctx.WriteString("AppName: " + beego.AppConfig.String("appname") +
+			"\nRunMode: " + beego.AppConfig.String("runmode"))
+
+		// 默认参数 新版beego取消了这些属性
+		// c.Ctx.WriteString("\n\nAppName: " + beego.AppName +
+		// "\nRunMode: " + beego.RunMode)
+
+		// 日志级别
+		beego.Trace("Trace test1")
+		beego.Info("Info test1")
+
+		// 旧版为beego.LevelInfo
+		beego.SetLevel(beego.LevelInformational)
+
+		beego.Trace("Trace test2")
+		beego.Info("Info test2")
+	}
+
+go http server 执行流程
+-------------------
+http.listenAndServe
+|	server.Serve(l net.Listener)
+ 	|	rw, e := l.Accept() // responseWriter
+	|	c := srv.newConn(rw) // connection   srv是server
+	|	go conn.Serve(ctx context.Context) // gorotine
+		|	serverHandler.ServeHTTP // serverHandler{c.server}.ServeHTTP(w, w.req)     serverHandler是server的代理
+			|	handler:= serverHandler.srv.Handler     // listenAndServe第二个参数传入handler, 如果没传 默认DefaultServeMux
+			|	if handler == nil { handler = DefaultServeMux} //   DefaultServeMux, mux=multiplexer多路转接器
+			|	handler.ServeHTTP(rw, req)
+				|	h, _ := mux.Handler(req) // 根据路径获取handler
+					|	// 遍历mux.m，是一个map: url-> struct muxEntry{handler} 获取匹配出key最长的url和对应handler
+					|	mux.handler(r.Host, r.URL.Path) 
+				|	h.ServeHTTP(w, r)
+
+
+
+beego模板基本使用
+-------------------
+func (c *MainController) Get() {
+	c.TplName = "index.tpl"
+	c.Data["Website"] = "beego.me"
+	c.Data["Email"] = "astaxie@gmail.com"
+
+	c.Data["TrueCond"] = true
+	c.Data["FalseCond"] = false
+
+	type user struct {
+		Name string
+		Age  int
+		Sex  string
+	}
+
+	var u = &user{
+		Name: "zhangsan",
+		Age:  14,
+		Sex:  "male",
+	}
+	c.Data["u"] = u
+
+	c.Data["Nums"] = []int{1, 2, 3, 4, 5, 6}
+
+	c.Data["tplVar"] = "tplVar"
+
+	c.Data["Html"] = "<div>hello world</div>"
+}
+
+==================
+<div>
+	{{if .TrueCond}}
+	TrueCond
+	{{end}}
+</div>
+
+{{/*if不能判断条件，只能给true false的变量*/}}
+<div>
+	{{if .FalseCond}}
+	{{else}}
+	FalseCond
+	{{end}}
+</div>
+
+<div>
+{{/*name: {{.u.Name}}- age: {{.u.Age}}- sex: {{.u.Sex}} 
+// with简化前缀
+*/}}
+{{with .u}}
+name: {{.Name}}- age: {{.Age}}- sex1: {{.Sex}}
+{{end}}
+</div>
+
+<div>
+	{{/*for range*/}}
+	{{range .Nums}}
+	{{.}}
+	{{end}}
+</div>
+
+<div>
+	{{$var1 := .tplVar}} {{/*模板变量赋值*/}}
+	{{$var1}}      {{/*模板变量显示*/}}
+</div>
+
+{{.Html}}
+{{str2html .Html}} {{/*转义html*/}}
+
+<div>
+	{{.Html | htmlquote}} {{/*使用pipieline将变量传递到后面的函数*/}}
+</div>
+
+{{template "test"}}  {{/*使用子模板*/}}
+
+ {{/*定义子模板*/}}
+{{define "test"}}
+<div>
+  this is a template
+</div>
+{{end}}	
+
+
+go操作cookie
+------------------------
+package main
+
+import (
+	"io"
+	"net/http"
+	"strings"
+)
+
+func main() {
+	http.HandleFunc("/", Cookie)
+	http.HandleFunc("/2", Cookie2)
+
+	http.ListenAndServe(":8080", nil)
+}
+
+// 传统设置法
+func Cookie(w http.ResponseWriter, r *http.Request) {
+	ck := &http.Cookie{
+		Name:   "myCookie",
+		Value:  "heyguys",
+		Path:   "/",
+		Domain: "localhost",
+		MaxAge: 120,
+	}
+	http.SetCookie(w, ck)
+
+	ck2, err := r.Cookie("myCookie")
+	if err != nil {
+		// 错误表示 Cookie 不存在
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	io.WriteString(w, ck2.Value)
+}
+
+// Header 设置法
+func Cookie2(w http.ResponseWriter, r *http.Request) {
+	ck := &http.Cookie{
+		Name:   "myCookie",
+		Value:  "hey guys",
+		Path:   "/",
+		Domain: "localhost",
+		MaxAge: 120,
+	}
+	w.Header().Set("Set-Cookie", strings.Replace(ck.String(), " ", "%20", -1))
+
+	ck2, err := r.Cookie("myCookie")
+	if err != nil {
+		// 错误表示 Cookie 不存在
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	io.WriteString(w, ck2.Value)
+}
+
+
+go获取表单参数
+------------------------
+package main
+
+import (
+	"fmt"
+	"html/template"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/", parseForm)
+	http.ListenAndServe(":8080", nil)
+}
+
+const tpl = `
+<html>
+	<head>
+		<title>hello world</title>
+	</head>
+	<body>
+		<form method="post" action="/">
+			Username: <input type="text" name="uname">
+			Password: <input type="password" name="pwd">
+			<button type="submit">Submit</button>
+		</form>
+	</body>
+</html>
+`
+
+func parseForm(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		t := template.New("hey")
+		t.Parse(tpl)
+		t.Execute(w, nil)
+	} else {
+		//r.ParseForm()
+		fmt.Println(r.Form) // 这种方式要先r.ParseForm
+		fmt.Println(r.FormValue("uname")) // 自动Parse
+	}
+}
+
+中间件实现1： 以类型形式
+------------------------------
+package main
+
+import (
+	"net/http"
+)
+
+type SingleHost struct {
+	handler   http.Handler
+	allowHost string
+}
+
+// 中间件代码，判断访问主机是否允许访问
+//func (this SingleHost) ServeHTTP(w http.ResponseWriter, r *http.Request) { // 注册在struct上, 实例是Handler类型的， ListenAndServe(":8080", SingleHost{..})
+func (this *SingleHost) ServeHTTP(w http.ResponseWriter, r *http.Request) { // 注册在指针上，所以指针才是Handler类型的，ListenAndServe(":8080", &SingleHost{..})
+	if r.Host == this.allowHost {
+		this.handler.ServeHTTP(w, r)
+	} else {
+		w.WriteHeader(403)
+	}
+}
+
+func handle(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("this is middleware"))
+}
+
+func main() {
+	// http.HandlerFunc是一个adapter，将函数转换为http.Handler. 其实只是一个函数的类型，实现了ServeHTTP方法内部调用函数自身
+	singleHost := &SingleHost{http.HandlerFunc(handle), "exapmple.com"} 
+	// singleHost := SingleHost{http.HandlerFunc(handle), "localhost:8080"} //  func (this SingleHost) ServeHTTP
+	singleHost := &SingleHost{http.HandlerFunc(handle), "localhost:8080"} // func (this *SingleHost) ServeHTTP
+	http.ListenAndServe(":8080", singleHost)
+}
+
+中间件实现2： 以函数形式 闭包
+------------------------------
+package main
+
+import (
+	"net/http"
+)
+
+func singleHost(handler http.Handler, allowHost string) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		if r.Host == allowHost {
+			handler.ServeHTTP(w, r)
+		} else {
+			w.WriteHeader(403)
+		}
+	}
+	return http.HandlerFunc(fn)
+}
+
+func handle(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("hello world"))
+}
+
+func main() {
+	single := singleHost(http.HandlerFunc(handle), "localhost:8080")
+	http.ListenAndServe(":8080", single)
+}
+
+中间件实现3： 追加响应内容
+------------------------------
+import (
+	"net/http"
+)
+
+type AppendMiddleware struct {
+	handler http.Handler
+}
+
+func (this *AppendMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	this.handler.ServeHTTP(w, r)
+	w.Write([]byte("this is middleware"))
+}
+
+func handle(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("hello world"))
+}
+
+func main() {
+	handler := &AppendMiddleware{http.HandlerFunc(handle)}
+	http.ListenAndServe(":8080", handler)
+}
+
+中间件实现4： 自定义响应
+------------------------------
+import (
+	"net/http"
+	"net/http/httptest"
+)
+
+type ModifiedMiddleWare struct {
+	handler http.Handler
+}
+
+// 自定义输出，使用NewRecorder记录输出，最后定义自己的输出
+func (this *ModifiedMiddleWare) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rec := httptest.NewRecorder()
+	this.handler.ServeHTTP(rec, r)
+
+	for k, v := range rec.Header() {
+		w.Header()[k] = v
+	}
+
+	// w.Header()["go-web"] = []string{"vip"}
+	w.Header().Set("go-web", "vip")
+	w.Write([]byte("this is middleware"))
+	w.Write(rec.Body.Bytes())
+}
+
+func handle(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("hello world"))
+}
+
+func main() {
+	mw := &ModifiedMiddleWare{http.HandlerFunc(handle)}
+	http.ListenAndServe(":8080", mw)
+}
+
+go http rpc: 用标准库实现rpc，只能用于go语言之间通信，底层传输的是二进制gob格式。如果要跟其他语言通信，要用第三方库
+-----------------------------
+server:
+package main
+
+import (
+	"errors"
+	"log"
+	"net/http"
+	"net/rpc"
+)
+
+type Math int
+
+type Args struct {
+	A, B int
+}
+
+// 商
+type Quotint struct {
+	Quo, Rem int // 商，余数
+}
+
+func (*Math) Multiply(args Args, reply *int) error {
+	*reply = args.A * args.B
+	return nil
+}
+
+func (*Math) Divide(args Args, reply *Quotint) error {
+	if args.B == 0 {
+		return errors.New("divide by zero")
+	}
+	reply.Quo = args.A / args.B
+	reply.Rem = args.A % args.B
+
+	return nil
+}
+
+func main() {
+	math := new(Math)
+	rpc.Register(math)
+	rpc.HandleHTTP()
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+client
+=====================
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/rpc"
+	"os"
+)
+
+type Math int
+
+type Args struct {
+	A, B int
+}
+
+// 商
+type Quotint struct {
+	Quo, Rem int // 商，余数
+}
+
+// go run httprpcclient.go localhost:8080
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage:", os.Args[0], "server")
+		os.Exit(1)
+	}
+	addr := os.Args[1]
+	client, err := rpc.DialHTTP("tcp", addr)
+	if err != nil {
+		log.Fatal("dialing:", err)
+	}
+
+	args := Args{17, 0}
+	var reply int
+	err = client.Call("Math.Multiply", args, &reply)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		fmt.Printf("%d * %d = %d\n", args.A, args.B, reply)
+	}
+
+	var quo Quotint
+	err = client.Call("Math.Divide", args, &quo)
+	if err != nil {
+		log.Fatal(err)
+		return
+	} else {
+		fmt.Printf("%d / %d = %d rem is %d\n", args.A, args.B, quo.Quo, quo.Rem)
+	}
+}
+
+tcp rpc:
+--------------------
+tcp rpc server 修改部分
+===============
+func main() {
+	math := new(Math)
+	rpc.Register(math)
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", ":8080")
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(2)
+	}
+
+	listener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(2)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatal(err)
+			continue
+		}
+		rpc.ServeConn(conn)
+	}
+
+}
+
+tcp rpc client 修改部分
+===============
+	// client, err := rpc.DialHTTP("tcp", addr)
+	client, err := rpc.Dial("tcp", addr)
+
+json rpc
+----------------------------------
+server 修改部分
+=============
+import "net/rpc"
++import "net/rpc/jsonrpc"
+
+-jsonrpc.ServeConn(conn)
++jsonrpc.ServeConn(conn)
+
+client 修改部分
+=============
+-import "net/rpc"
++import "net/rpc/jsonrpc"
+
+-client, err := rpc.Dial("tcp", addr)
++client, err := jsonrpc.Dial("tcp", addr)
+

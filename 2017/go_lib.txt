@@ -1,0 +1,791 @@
+Go名库讲解： https://github.com/Unknwon/go-rock-libraries-showcases
+
+goconfig
+------------------
+conf.ini
+====================
+; 以分号开头的均为注释行
+# 以井号开头的也为注释行
+key_default = 默认节的一个键 # 注释必须单独占行，此处的注释无效
+
+# 该行注释会作为 super 节的注释，冒号或等号两侧的空白符号均会被自动剔除
+[super]
+# 该行注释会作为键 key_super 的注释
+key_super = 比较常见的一个键值对
+
+# 也可以用冒号代替等号
+key_super2 : 测试值
+
+# 用于测试自动转换和 Must 系列方法
+[must]
+string = 字符串值
+int = 123
+int64 = 123456
+float64 = 123.456
+bool = true
+bool2 = 0
+
+sample1.go
+=====================
+package main
+
+import (
+	"log"
+
+	// 导入 goconfig 包
+	"github.com/Unknwon/goconfig"
+)
+
+func main() {
+	// 创建并获取一个 ConfigFile 对象，以进行后续操作
+	// 文件名支持相对和绝对路径
+	cfg, err := goconfig.LoadConfigFile("conf.ini")
+	if err != nil {
+		log.Fatalf("无法加载配置文件：%s", err)
+	}
+
+	// 加载完成后所有数据均已存入内存，任何对文件的修改操作都不会影响到已经获取到的对象
+
+	// >>>>>>>>>>>>>>> 基本读写操作 >>>>>>>>>>>>>>>
+
+	// 对默认分区进行普通读取操作
+	value, err := cfg.GetValue(goconfig.DEFAULT_SECTION, "key_default")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "key_default", err)
+	}
+	log.Printf("%s > %s: %s", goconfig.DEFAULT_SECTION, "key_default", value)
+
+	// 对已有的键进行值重写操作，返回值为 bool 类型，表示是否为插入操作
+	isInsert := cfg.SetValue(goconfig.DEFAULT_SECTION, "key_default", "这是新的值")
+	log.Printf("设置键值 %s 为插入操作：%v", "key_default", isInsert)
+
+	// 对不存在的键进行插入操作
+	isInsert = cfg.SetValue(goconfig.DEFAULT_SECTION, "key_new", "这是新插入的键")
+	log.Printf("设置键值 %s 为插入操作：%v", "key_new", isInsert)
+
+	// 传入空白字符串也可直接操作默认分区
+	value, err = cfg.GetValue("", "key_default")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "key_default", err)
+	}
+	log.Printf("%s > %s: %s", goconfig.DEFAULT_SECTION, "key_default", value)
+
+	// 获取冒号为分隔符的键值
+	value, err = cfg.GetValue("super", "key_super2")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "key_super2", err)
+	}
+	log.Printf("%s > %s: %s", "super", "key_super2", value)
+
+	// <<<<<<<<<<<<<<< 基本读写操作 <<<<<<<<<<<<<<<
+
+	// >>>>>>>>>>>>>>> 对注释进行读写操作 >>>>>>>>>>>>>>>
+
+	// 获取某个分区的注释
+	comment := cfg.GetSectionComments("super")
+	log.Printf("分区 %s 的注释：%s", "super", comment)
+
+	// 获取某个键的注释
+	comment = cfg.GetKeyComments("super", "key_super")
+	log.Printf("键 %s 的注释：%s", "key_super", comment)
+
+	// 设置某个键的注释，返回值为 true 时表示注释被插入或删除（空字符串），false 表示注释被重写
+	v := cfg.SetKeyComments("super", "key_super", "# 这是新的键注释")
+	log.Printf("键 %s 的注释被插入或删除：%v", "key_super", v)
+
+	// 设置某个分区的注释，返回值效果同上
+	v = cfg.SetSectionComments("super", "# 这是新的分区注释")
+	log.Printf("分区 %s 的注释被插入或删除：%v", "super", v)
+
+	// <<<<<<<<<<<<<<< 对注释进行读写操作 <<<<<<<<<<<<<<<
+
+	// >>>>>>>>>>>>>>> 自动转换和 Must 系列方法 >>>>>>>>>>>>>>>
+
+	// 自动转换类型读取操作，直接返回指定类型，error 类型用于指示是否发生错误
+	vInt, err := cfg.Int("must", "int")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "int", err)
+	}
+	log.Printf("%s > %s: %v", "must", "int", vInt)
+
+	// Must 系列方法，一定返回某个类型的值；如果失败则返回零值
+	vBool := cfg.MustBool("must", "bool")
+	log.Printf("%s > %s: %v", "must", "bool", vBool)
+
+	// 若键不存在则返回零值，此例应返回 false
+	vBool = cfg.MustBool("must", "bool404")
+	log.Printf("%s > %s: %v", "must", "bool404", vBool)
+
+	// <<<<<<<<<<<<<<< 自动转换和 Must 系列方法 <<<<<<<<<<<<<<<
+
+	// 删除键值，返回值用于表示是否删除成功
+	ok := cfg.DeleteKey("must", "string")
+	log.Printf("删除键值 %s 是否成功：%v", "string", ok)
+
+	// 保存 ConfigFile 对象到文件系统，保存后的键顺序与读取时的一样
+	err = goconfig.SaveConfigFile(cfg, "conf_save.ini")
+	if err != nil {
+		log.Fatalf("无法保存配置文件：%s", err)
+	}
+}
+
+-------------------------------
+conf.ini
+=========================
+; 以分号开头的均为注释行
+# 以井号开头的也为注释行
+key_default = 默认节的一个键 # 注释必须单独占行，此处的注释无效
+
+# 该行注释会作为 super 节的注释，冒号或等号两侧的空白符号均会被自动剔除
+[super]
+# 该行注释会作为键 key_super 的注释
+key_super = 比较常见的一个键值对
+
+# 也可以用冒号代替等号
+key_super2 : 测试值
+
+# 用于测试自动转换和 Must 系列方法
+[must]
+string = 字符串值
+int = 123
+int64 = 123456
+float64 = 123.456
+bool = true
+bool2 = 0
+
+conf2.ini
+=========================
+; 以分号开头的均为注释行
+# 以井号开头的也为注释行
+key_default = 这个键的值会被覆盖
+
+# 该行注释会作为 super 节的注释，冒号或等号两侧的空白符号均会被自动剔除
+[super]
+# 该行注释会作为键 key_super 的注释
+key_super = 比较常见的一个键值对
+
+# 也可以用冒号代替等号
+key_super2 : 测试值
+
+# 用于测试自动转换和 Must 系列方法
+[must]
+string = 字符串值
+int = 123
+int64 = 123456
+float64 = 123.456
+bool = true
+bool2 = 0
+
+conf3.ini
+=========================
+; Google
+google=www.google.com
+search=http://%(google)s
+
+; Here are Comments
+; Second line
+[Demo]
+# This symbol can also make this line to be comments
+key1=Let's us goconfig!!!
+key2=test data
+key3=this is based on key2:%(key2)s
+[What's this?]
+; Not Enough Comments!!
+name=try one more value ^-^
+
+[parent]
+name=john
+relation=father
+sex=male
+age=32
+
+[parent.child]
+age=3
+
+; Auto increment by setting key to "-"
+[auto increment]
+-=hello
+-=go
+-=config
+
+sample2.go
+==========================
+package main
+
+import (
+	"log"
+
+	// 导入 goconfig 包
+	"github.com/Unknwon/goconfig"
+)
+
+func main() {
+	// 创建并获取一个 ConfigFile 对象，以进行后续操作
+	// 文件名支持相对和绝对路径，可指定多个文件名进行覆盖加载
+	cfg, err := goconfig.LoadConfigFile("conf.ini", "conf2.ini")
+	if err != nil {
+		log.Fatalf("无法加载配置文件：%s", err)
+	}
+
+	// 加载完成后所有数据均已存入内存，任何对文件的修改操作都不会影响到已经获取到的对象
+
+	// 对默认分区进行普通读取操作
+	value, err := cfg.GetValue(goconfig.DEFAULT_SECTION, "key_default")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "key_default", err)
+	}
+	log.Printf("%s > %s: %s", goconfig.DEFAULT_SECTION, "key_default", value)
+
+	// 若外部文件发生修改，可通过调用方法进行快速重载
+	err = cfg.Reload()
+	if err != nil {
+		log.Fatalf("无法重载配置文件：%s", err)
+	}
+
+	// 若在调用 Must 系列方法时发生错误，则可设置缺省值
+	vBool := cfg.MustBool("must", "bool404", true)
+	log.Printf("%s > %s: %v", "must", "bool404", vBool)
+
+	// 可在操作中途追加配置文件
+	err = cfg.AppendFiles("conf3.ini")
+	if err != nil {
+		log.Fatalf("无法追加配置文件：%s", err)
+	}
+
+	// 进行递归读取键值
+	value, err = cfg.GetValue("", "search")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "search", err)
+	}
+	log.Printf("%s > %s: %s", goconfig.DEFAULT_SECTION, "search", value)
+
+	// >>>>>>>>>>>>>>> 子孙分区覆盖读取 >>>>>>>>>>>>>>>
+
+	// 以半角符号 . 为分隔符来表示多级别分区
+
+	// 当子孙分区某个键存在时，会直接获取
+	value, err = cfg.GetValue("parent.child", "age")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "age", err)
+	}
+	log.Printf("%s > %s: %s", "parent.child", "age", value)
+
+	// 当子孙分区某个键不存在时，会向父区按级寻找
+	value, err = cfg.GetValue("parent.child", "sex")
+	if err != nil {
+		log.Fatalf("无法获取键值（%s）：%s", "sex", err)
+	}
+	log.Printf("%s > %s: %s", "parent.child", "sex", value)
+
+	// <<<<<<<<<<<<<<< 子孙分区覆盖读取 <<<<<<<<<<<<<<<
+
+	// 进行自增键名获取，凡是键名为半角符号 - 的在加载时均会被处理为自增
+	// 自增范围限制在相同分区内
+	// 为了方便展示，此处直接结合获取整个分区的功能并打印
+	sec, err := cfg.GetSection("auto increment")
+	if err != nil {
+		log.Fatalf("无法获取分区：%s", err)
+	}
+	log.Printf("%s : %v", "auto increment", sec)
+
+}
+
+
+
+xorm
+--------------------------
+log.Fatalf(err) // 会打印日志并中断程序
+fmt.Printf("%#v", s) 详细方式打印struct, 不仅打印value， 还打印字段名
+
+sample1
+=======================================
+main.go:
++++++++++++++++++++
+package main
+
+import (
+	"fmt"
+)
+
+const prompt = `Please enter number of operation:
+1. Create new account
+2. Show detail of account
+3. Deposit
+4. Withdraw
+5. Make transfer
+6. List exist accounts by Id
+7. List exist accounts by balance
+8. Delete account
+9. Exit`
+
+func main() {
+	fmt.Println("Welcome bank of xorm!")
+Exit:
+	for {
+		fmt.Println(prompt)
+
+		// 获取用户输入并转换为数字
+		var num int
+		fmt.Scanf("%d\n", &num) // 要有\n，否则输入换行时认为是下一次输入
+
+		// 判断用户选择
+		switch num {
+		case 1:
+			fmt.Println("Please enter <name> <balance>:")
+			var name string
+			var balance float64
+			fmt.Scanf("%s %f\n", &name, &balance)
+			if err := newAccount(name, balance); err != nil {
+				fmt.Println("Fail to create new account:", err)
+			} else {
+				fmt.Println("New account has been created")
+			}
+		case 2:
+			fmt.Println("Please enter <id>:")
+			var id int64
+			fmt.Scanf("%d\n", &id)
+			a, err := getAccount(id)
+			if err != nil {
+				fmt.Println("Fail to get account:", err)
+			} else {
+				fmt.Printf("%#v\n", a)
+			}
+		case 3:
+			fmt.Println("Please enter <id> <deposit>:")
+			var id int64
+			var deposit float64
+			fmt.Scanf("%d %f\n", &id, &deposit)
+			a, err := makeDeposit(id, deposit)
+			if err != nil {
+				fmt.Println("Fail to deposit:", err)
+			} else {
+				fmt.Printf("%#v\n", a)
+			}
+		case 4:
+			fmt.Println("Please enter <id> <withdraw>:")
+			var id int64
+			var withdraw float64
+			fmt.Scanf("%d %f\n", &id, &withdraw)
+			a, err := makeWithdraw(id, withdraw)
+			if err != nil {
+				fmt.Println("Fail to withdraw:", err)
+			} else {
+				fmt.Printf("%#v\n", a)
+			}
+		case 5:
+			fmt.Println("Please enter <id> <balance> <id>:")
+			var id1, id2 int64
+			var balance float64
+			fmt.Scanf("%d %f %d\n", &id1, &balance, &id2)
+			if err := makeTransfer(id1, id2, balance); err != nil {
+				fmt.Println("Fail to transfer:", err)
+			} else {
+				fmt.Println("Transfer has been made")
+			}
+		case 6:
+			as, err := getAccountsAscId()
+			if err != nil {
+				fmt.Println("Fail to get accounts:", err)
+			} else {
+				for i, a := range as {
+					fmt.Printf("%d: %#v\n", i+1, a)
+				}
+			}
+		case 7:
+			as, err := getAccountsDescBalance()
+			if err != nil {
+				fmt.Println("Fail to get accounts:", err)
+			} else {
+				for i, a := range as {
+					fmt.Printf("%d: %#v\n", i+1, a)
+				}
+			}
+		case 8:
+			fmt.Println("Please enter <id>:")
+			var id int64
+			fmt.Scanf("%d\n", &id)
+			if err := deleteAccount(id); err != nil {
+				fmt.Println("Fail to delete account:", err)
+			} else {
+				fmt.Println("Account has been deleted")
+			}
+		case 9:
+			fmt.Println("Thank you! Hope see you again soon!")
+			break Exit
+		default:
+			fmt.Println("Unknown operation number:", num)
+		}
+		fmt.Println()
+	}
+}
+
+models.go:
++++++++++++++++++++
+package main
+
+import (
+	"errors"
+	"log"
+
+	"github.com/go-xorm/xorm"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+// 银行账户
+type Account struct {
+	Id      int64
+	Name    string `xorm:"unique"`
+	Balance float64
+	Version int `xorm:"version"` // 乐观锁，每次修改自增1
+}
+
+// ORM 引擎
+var x *xorm.Engine
+
+func init() {
+	// 创建 ORM 引擎与数据库
+	var err error
+	x, err = xorm.NewEngine("sqlite3", "./bank.db")
+	if err != nil {
+		log.Fatalf("Fail to create engine: %v\n", err)
+	}
+
+	// 同步结构体与数据表
+	if err = x.Sync(new(Account)); err != nil {
+		log.Fatalf("Fail to sync database: %v\n", err)
+	}
+}
+
+// 创建新的账户
+func newAccount(name string, balance float64) error {
+	// 对未存在记录进行插入
+	_, err := x.Insert(&Account{Name: name, Balance: balance})
+	return err
+}
+
+// 获取账户信息
+func getAccount(id int64) (*Account, error) {
+	a := &Account{}
+	// 直接操作 ID 的简便方法
+	has, err := x.Id(id).Get(a) // 可以不同Id方法获取，直接在a上给Id属性赋值，就会自动根据有值的条件查找
+	// 判断操作是否发生错误或对象是否存在
+	if err != nil {
+		return nil, err
+	} else if !has {
+		return nil, errors.New("Account does not exist")
+	}
+	return a, nil
+}
+
+// 用户存款
+func makeDeposit(id int64, deposit float64) (*Account, error) {
+	a, err := getAccount(id)
+	if err != nil {
+		return nil, err
+	}
+	a.Balance += deposit
+	// 对已有记录进行更新
+	_, err = x.Update(a)
+	return a, err
+}
+
+// 用户取款
+func makeWithdraw(id int64, withdraw float64) (*Account, error) {
+	a, err := getAccount(id)
+	if err != nil {
+		return nil, err
+	}
+	if a.Balance < withdraw {
+		return nil, errors.New("Not enough balance")
+	}
+	a.Balance -= withdraw
+	_, err = x.Update(a)
+	return a, err
+}
+
+// 用户转账
+func makeTransfer(id1, id2 int64, balance float64) error {
+	a1, err := getAccount(id1)
+	if err != nil {
+		return err
+	}
+
+	a2, err := getAccount(id2)
+	if err != nil {
+		return err
+	}
+
+	if a1.Balance < balance {
+		return errors.New("Not enough balance")
+	}
+
+	a1.Balance -= balance
+	a2.Balance += balance
+	// 创建 Session 对象
+	sess := x.NewSession()
+	defer sess.Close()
+	// 启动事务
+	if err = sess.Begin(); err != nil {
+		return err
+	}
+
+	if _, err = sess.Update(a1); err != nil {
+		// 发生错误时进行回滚
+		sess.Rollback()
+		return err
+	} else if _, err = sess.Update(a2); err != nil {
+		sess.Rollback()
+		return err
+	}
+	// 完成事务
+	return sess.Commit()
+}
+
+// 按照 ID 正序排序返回所有账户
+func getAccountsAscId() (as []Account, err error) {
+	// 使用 Find 方法批量获取记录
+	err = x.Find(&as)
+	return as, err
+}
+
+// 按照存款倒序排序返回所有账户
+func getAccountsDescBalance() (as []Account, err error) {
+	// 使用 Desc 方法使结果呈倒序排序
+	err = x.Desc("balance").Find(&as)
+	return as, err
+}
+
+// 删除账户
+func deleteAccount(id int64) error {
+	// 通过 Delete 方法删除记录
+	_, err := x.Delete(&Account{Id: id})
+	return err
+}
+
+sample2
+===========================
+main.go:
++++++++++++++++++++
+package main
+
+import (
+	"fmt"
+	"log"
+)
+
+var printFn = func(idx int, bean interface{}) error { // idx是查出结果集里的索引号，不是表记录id
+	fmt.Printf("%d: %#v\n", idx, bean.(*Account))
+	return nil
+}
+
+func main() {
+	fmt.Println("Welcome bank of xorm!")
+
+	count, err := getAccountCount()
+	if err != nil {
+		log.Fatalf("Fail to get account count: %v", err)
+	}
+	fmt.Println("Account count:", count)
+
+	// 自动创建至 10 个账户
+	for i := count; i < 10; i++ {
+		if err = newAccount(fmt.Sprintf("joe%d", i), float64(i)*100); err != nil {
+			log.Fatalf("Fail to create account: %v", err)
+		}
+	}
+
+	// 迭代查询
+	fmt.Println("Query all columns:")
+	x.Iterate(new(Account), printFn) // 第一个参数里的非空字段是条件
+
+	// 更灵活的迭代
+	a := new(Account)
+	rows, err := x.Rows(a)
+	if err != nil {
+		log.Fatalf("Fail to rows: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err = rows.Scan(a); err != nil {
+			log.Fatalf("Fail get row: %v", err)
+		}
+		fmt.Printf("%#v\n", a)
+	}
+
+	// 查询特定字段
+	fmt.Println("\nOnly query name:")
+	x.Cols("name").Iterate(new(Account), printFn)
+
+	// 排除特定字段
+	fmt.Println("\nQuery all but name:")
+	x.Omit("name").Iterate(new(Account), printFn)
+
+	// 查询结果偏移
+	fmt.Println("\nOffest 2 and limit 3:")
+	x.Limit(3, 2).Iterate(new(Account), printFn)
+
+	// 测试 LRU 缓存
+	getAccount(1)
+	getAccount(1)
+}
+
+models.go:
++++++++++++++++++++
+
+package main
+
+import (
+	"errors"
+	"log"
+	"os"
+
+	"github.com/go-xorm/xorm"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+// 银行账户
+type Account struct {
+	Id      int64
+	Name    string `xorm:"unique"`
+	Balance float64
+	Version int `xorm:"version"` // 乐观锁
+}
+
+// 事件钩子， 还有delete和update共6个
+func (a *Account) BeforeInsert() {
+	log.Printf("before insert: %s", a.Name)
+}
+
+func (a *Account) AfterInsert() {
+	log.Printf("after insert: %s", a.Name)
+}
+
+// ORM 引擎
+var x *xorm.Engine
+
+func init() {
+	// 创建 ORM 引擎与数据库
+	var err error
+	x, err = xorm.NewEngine("sqlite3", "./bank.db")
+	if err != nil {
+		log.Fatalf("Fail to create engine: %v\n", err)
+	}
+
+	// 同步结构体与数据表
+	if err = x.Sync(new(Account)); err != nil {
+		log.Fatalf("Fail to sync database: %v\n", err)
+	}
+
+	// 记录日志
+	f, err := os.Create("sql.log")
+	if err != nil {
+		log.Fatalf("Fail to create log file: %v\n", err)
+		return
+	}
+	x.Logger = xorm.NewSimpleLogger(f)
+	x.ShowSQL = true
+
+	// 设置默认 LRU 缓存
+	cacher := xorm.NewLRUCacher(xorm.NewMemoryStore(), 1000)
+	x.SetDefaultCacher(cacher)
+}
+
+// 创建新的账户
+func newAccount(name string, balance float64) error {
+	// 对未存在记录进行插入
+	_, err := x.Insert(&Account{Name: name, Balance: balance})
+	return err
+}
+
+// 获取账户数量
+func getAccountCount() (int64, error) {
+	return x.Count(new(Account))
+}
+
+// 获取账户信息
+func getAccount(id int64) (*Account, error) {
+	a := &Account{}
+	// 直接操作 ID 的简便方法
+	has, err := x.Id(id).Get(a)
+	// 判断操作是否发生错误或对象是否存在
+	if err != nil {
+		return nil, err
+	} else if !has {
+		return nil, errors.New("Account does not exist")
+	}
+	return a, nil
+}
+
+goconvey
+------------------------------
+main.go
+==================
+package goconvey
+
+import (
+	"errors"
+)
+
+func Add(a, b int) int {
+	return a + b
+}
+
+func Subtract(a, b int) int {
+	return a - b
+}
+
+func Multiply(a, b int) int {
+	return a * b
+}
+
+func Division(a, b int) (int, error) {
+	if b == 0 {
+		return 0, errors.New("被除数不能为 0")
+	}
+	return a / b, nil
+}
+
+main_test.go
+==================
+package goconvey
+
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey" // 默认导入，调用不用加convey.
+)
+
+func TestAdd(t *testing.T) {     // 方法要以Test开头， t会自动注入
+	Convey("将两数相加", t, func() {
+		So(Add(1, 2), ShouldEqual, 3)
+	})
+}
+
+func TestSubtract(t *testing.T) {
+	Convey("将两数相减", t, func() {
+		So(Subtract(1, 2), ShouldEqual, -1)
+	})
+}
+
+func TestMultiply(t *testing.T) {
+	Convey("将两数相乘", t, func() {
+		So(Multiply(3, 2), ShouldEqual, 6)
+	})
+}
+
+func TestDivision(t *testing.T) {
+	Convey("将两数相除", t, func() {
+
+		Convey("除以非 0 数", func() {
+			num, err := Division(10, 2)
+			So(err, ShouldBeNil)
+			So(num, ShouldEqual, 5)
+		})
+
+		Convey("除以 0", func() {
+			_, err := Division(10, 0)
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
